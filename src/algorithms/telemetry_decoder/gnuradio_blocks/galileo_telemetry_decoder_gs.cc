@@ -32,6 +32,7 @@
 #include "gnss_sdr_make_unique.h"    // for std::make_unique in C++11
 #include "gnss_synchro.h"            // for Gnss_Synchro
 #include "tlm_crc_stats.h"           // for Tlm_CRC_Stats
+#include "tlm_navdata_assist.h"      // for Tlm navigation data assistance
 #include "tlm_utils.h"               // for save_tlm_matfile, tlm_remove_file
 #include "viterbi_decoder.h"         // for Viterbi_Decoder
 #include <glog/logging.h>            // for LOG, DLOG
@@ -85,7 +86,8 @@ galileo_telemetry_decoder_gs::galileo_telemetry_decoder_gs(
                       d_enable_navdata_monitor(conf.enable_navdata_monitor),
                       d_dump_crc_stats(conf.dump_crc_stats),
                       d_enable_reed_solomon_inav(false),
-                      d_valid_timetag(false)
+                      d_valid_timetag(false),
+                      d_enable_nav_data_assist(conf.enable_navdata_assist)
 {
     // prevent telemetry symbols accumulation in output buffers
     this->set_max_noutput_items(1);
@@ -240,6 +242,11 @@ galileo_telemetry_decoder_gs::galileo_telemetry_decoder_gs(
 
     // Instantiate the Viterbi decoder
     d_viterbi = std::make_unique<Viterbi_Decoder>(KK, nn, d_datalength, g_encoder);
+
+    if (d_enable_nav_data_assist)
+        {
+            d_Tlm_navdata_assist = std::make_unique<Tlm_navdata_assist>(conf);
+        }
 }
 
 
