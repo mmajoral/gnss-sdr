@@ -18,11 +18,15 @@
 
 Tlm_navdata_assist::Tlm_navdata_assist(const Tlm_Conf &conf)
 {
-    navdata_assist_Tow = conf.navdata_assist_Tow;
+    navdata_assist_Tow_ms = conf.navdata_assist_Tow_ms;
     navdata_assist_samplestamp = conf.navdata_assist_samplestamp;
+}
+
+uint32_t Tlm_navdata_assist::get_TOW_at_current_symbol_ms(uint64_t Tracking_sample_counter, uint64_t fs)
+{
+    return navdata_assist_Tow_ms + (Tracking_sample_counter - navdata_assist_samplestamp) * 1000 / fs;
 }
 
 Tlm_navdata_assist::~Tlm_navdata_assist()
 {
-
 }

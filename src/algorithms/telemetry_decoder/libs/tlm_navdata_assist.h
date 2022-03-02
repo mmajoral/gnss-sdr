@@ -17,7 +17,7 @@
 #ifndef GNSS_SDR_TLM_NAVDATA_ASSIST_H
 #define GNSS_SDR_TLM_NAVDATA_ASSIST_H
 
-#include "tlm_conf.h"                 // for Tlm_Conf
+#include "tlm_conf.h"  // for Tlm_Conf
 
 /** \addtogroup Telemetry_Decoder
  * \{ */
@@ -30,18 +30,17 @@
 class Tlm_navdata_assist
 {
 public:
-    Tlm_navdata_assist(const Tlm_Conf &conf); // = default;
+    Tlm_navdata_assist(const Tlm_Conf &conf);  // = default;
 
     ~Tlm_navdata_assist();
 
-//    /*!
-//     * \brief Initialize the telemetry data assistance
-//     */
-//    void initialize(const Tlm_Conf &conf);
+    /*!
+     * \brief get TOW at current symbol
+     */
+    uint32_t get_TOW_at_current_symbol_ms(uint64_t Tracking_sample_counter, uint64_t fs);
 
 private:
-
-    uint32_t navdata_assist_Tow;
+    uint32_t navdata_assist_Tow_ms;
     uint64_t navdata_assist_samplestamp;
 };
 
