@@ -32,6 +32,7 @@ void Tlm_Conf::SetFromConfiguration(const ConfigurationInterface *configuration,
     enable_navdata_monitor = configuration->property("NavDataMonitor.enable_monitor", false);
     // navigation data assistance
     enable_navdata_assist = configuration->property(role + ".enable_nav_data_assist", false);
+    navdata_assist_real_time = configuration->property(role + ".nav_data_assist_real_time", false);
     const uint32_t default_nav_data_assist_TOW(0);
     navdata_assist_Tow_ms = configuration->property(role + ".nav_data_assist_TOW", default_nav_data_assist_TOW);
     const uint32_t default_nav_data_assist_samplestamp(0);
