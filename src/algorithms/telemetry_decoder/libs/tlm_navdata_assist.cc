@@ -26,69 +26,55 @@ Tlm_navdata_assist::Tlm_navdata_assist(const Tlm_Conf &conf)
     navdata_assist_real_time = conf.navdata_assist_real_time;
     navdata_assist_Tow_ms = conf.navdata_assist_Tow_ms;
     navdata_assist_samplestamp = conf.navdata_assist_samplestamp;
-
-    current_TOW_ms = 0;
+    navdata_assist_GNSS_UTC_leap_s = conf.navdata_assist_GNSS_UTC_leap_s;
 }
 
-uint32_t Tlm_navdata_assist::get_TOW_at_current_symbol_ms(uint32_t d_PRN_code_period_ms)
-{
-    current_TOW_ms = current_TOW_ms + d_PRN_code_period_ms;
-    return current_TOW_ms;
-}
-
-uint32_t Tlm_navdata_assist::compute_elapsed_days(std::string dayofweek)
-{
-    if (dayofweek == "Mon")
-        return 1;
-    else if (dayofweek == "Tue")
-        return 2;
-    else if (dayofweek == "Wed")
-        return 3;
-    else if (dayofweek == "Thu")
-        return 4;
-    else if (dayofweek == "Fri")
-        return 5;
-    else if (dayofweek == "Sat")
-        return 6;
-    else
-        return 0;
-}
-
-uint32_t Tlm_navdata_assist::compute_current_TOW(uint64_t Tracking_sample_counter, uint64_t fs)
+uint32_t Tlm_navdata_assist::get_TOW_at_current_symbol_ms(uint64_t Tracking_sample_counter, uint64_t fs)
 {
     if (navdata_assist_real_time)
         {
-            // 1 get current time date in timepoint
+            // 1 get current time date
             std::chrono::high_resolution_clock::time_point pt = std::chrono::high_resolution_clock::now();
-
-            // 2 convert current time date in timepoint to date and time
-            std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(pt.time_since_epoch());
-            std::chrono::seconds sec = std::chrono::duration_cast<std::chrono::seconds>(ms);
+            std::chrono::seconds sec = std::chrono::duration_cast<std::chrono::seconds>(pt.time_since_epoch());
             std::time_t tim = sec.count();
-            std::size_t fractional_seconds = ms.count() % 1000;
 
-            // std::localtime is not thread safe so we do these computations by hand
-            char buffer[32];
-            std::strncpy(buffer, std::ctime(&tim), 26);
-            std::string dayofweek(buffer, 3);
-            std::string current_hour(buffer + 11, 2);
-            int current_hour_dec = std::stoi(current_hour, nullptr);
-            std::string current_min(buffer + 14, 2);
-            int current_min_dec = std::stoi(current_min, nullptr);
-            std::string current_s(buffer + 17, 2);
-            int current_s_dec = std::stoi(current_s, nullptr);
+            // 2 get UTC time
+            std::tm tm_utc;
+            memcpy(&tm_utc, std::gmtime(&tim), sizeof(std::tm));
 
-            // 3 compute seconds since start of week
-            int days_since_start_of_week = compute_elapsed_days(dayofweek);
-            int seconds_since_start_of_week = (days_since_start_of_week)*24 * 60 * 60 + current_hour_dec * 60 * 60 + current_min_dec * 60 + current_s_dec;
+            // 3 compute GNSS system time with an accuracy of 1 s
+            uint32_t GNSS_system_wday = tm_utc.tm_wday;                                    // week day (Sunday => 0)
+            uint32_t GNSS_system_time_h = tm_utc.tm_hour;                                  // hour
+            uint32_t GNSS_system_time_m = tm_utc.tm_min;                                   // min
+            uint32_t GNSS_system_time_s = tm_utc.tm_sec + navdata_assist_GNSS_UTC_leap_s;  // second
+            if (GNSS_system_time_s > 59)
+                {
+                    GNSS_system_time_m = GNSS_system_time_m + GNSS_system_time_s / 60;
+                    GNSS_system_time_s = GNSS_system_time_s % 60;
 
-            current_TOW_ms = seconds_since_start_of_week * 1000;
-            return current_TOW_ms;
+                    if (GNSS_system_time_m > 60)
+                        {
+                            GNSS_system_time_h = GNSS_system_time_h + GNSS_system_time_m / 60;
+                            GNSS_system_time_m = GNSS_system_time_m % 60;
+                            if (GNSS_system_time_h > 24)
+                                {
+                                    GNSS_system_wday = GNSS_system_wday + GNSS_system_time_h / 24;
+                                    GNSS_system_time_h = GNSS_system_time_h % 24;
+                                    if (GNSS_system_wday > 6)
+                                        {
+                                            GNSS_system_wday = GNSS_system_wday % 6;
+                                        }
+                                }
+                        }
+                }
+
+            // compute TOW
+            return (GNSS_system_wday * 24 * 60 * 60 + GNSS_system_time_h * 60 * 60 + GNSS_system_time_m * 60 + GNSS_system_time_s) * 1000;
         }
     else
         {
-            current_TOW_ms = navdata_assist_Tow_ms + (Tracking_sample_counter - navdata_assist_samplestamp) * 1000 / fs;
-            return current_TOW_ms;
+            // compute TOW
+            return navdata_assist_Tow_ms + (Tracking_sample_counter - navdata_assist_samplestamp) * 1000 / fs;
         }
 }
 

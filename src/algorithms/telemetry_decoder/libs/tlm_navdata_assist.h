@@ -37,19 +37,13 @@ public:
     /*!
      * \brief get TOW at current symbol
      */
-    uint32_t get_TOW_at_current_symbol_ms(uint32_t d_PRN_code_period_ms);
+    uint32_t get_TOW_at_current_symbol_ms(uint64_t Tracking_sample_counter, uint64_t fs);
 
 private:
-    // compute the number of elapsed days since the start of the week
-    uint32_t compute_elapsed_days(std::string dayofweek);
-    // compute the current TOW based on the OS system clock
-    uint32_t compute_current_TOW(uint64_t Tracking_sample_counter, uint64_t fs);
-
-    uint32_t current_TOW_ms;  // current TOW
-
     bool navdata_assist_real_time;
     uint32_t navdata_assist_Tow_ms;
     uint64_t navdata_assist_samplestamp;
+    uint32_t navdata_assist_GNSS_UTC_leap_s;
 };
 
 

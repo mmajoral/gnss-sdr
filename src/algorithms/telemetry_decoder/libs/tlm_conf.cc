@@ -37,4 +37,6 @@ void Tlm_Conf::SetFromConfiguration(const ConfigurationInterface *configuration,
     navdata_assist_Tow_ms = configuration->property(role + ".nav_data_assist_TOW", default_nav_data_assist_TOW);
     const uint32_t default_nav_data_assist_samplestamp(0);
     navdata_assist_samplestamp = configuration->property(role + ".nav_data_assist_samplestamp", default_nav_data_assist_samplestamp);
+    const uint32_t default_navdata_assist_GNSS_UTC_leap_s = 18;
+    navdata_assist_GNSS_UTC_leap_s = configuration->property(role + ".navdata_assist_GNSS_UTC_leap_s", default_navdata_assist_GNSS_UTC_leap_s);
 }

@@ -1036,7 +1036,7 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                 }
             else
                 {
-                    d_TOW_at_current_symbol_ms = d_Tlm_navdata_assist->get_TOW_at_current_symbol_ms(d_PRN_code_period_ms);
+                    d_TOW_at_current_symbol_ms = d_Tlm_navdata_assist->get_TOW_at_current_symbol_ms(current_symbol.Tracking_sample_counter, current_symbol.fs);
                     d_TOW_at_Preamble_ms = 0;  // not used when using assistance
                 }
         }
