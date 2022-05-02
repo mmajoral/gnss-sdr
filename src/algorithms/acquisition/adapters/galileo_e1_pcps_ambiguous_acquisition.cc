@@ -194,32 +194,16 @@ void GalileoE1PcpsAmbiguousAcquisition::set_local_code()
 
     if (enable_hs)
         {
-            volk_gnsssdr::vector<std::complex<float>> code_neg(code_length_);
-
-            for (unsigned int k = 0; k < code_length_; k++)
-                {
-                    code_neg[k] = -code[k];
-                }
-
-            uint32_t pointer_sec_code = 0;
-
             for (unsigned int i = 0; i < sampled_ms_ / 4; i++)
                 {
-                    if (GALILEO_E1_C_SECONDARY_CODE[pointer_sec_code] == '0')
+                    std::copy_n(code.data(), code_length_, code_span.subspan(i * code_length_, code_length_).data());
+
+                    if (GALILEO_E1_C_SECONDARY_CODE[i] == '0')
                         {
-                            std::copy_n(code_neg.data(), code_length_, code_span.subspan(i * code_length_, code_length_).data());
-                        }
-                    else
-                        {
-                            std::copy_n(code.data(), code_length_, code_span.subspan(i * code_length_, code_length_).data());
-                        }
-                    if (pointer_sec_code < 25)
-                        {
-                            pointer_sec_code++;
-                        }
-                    else
-                        {
-                            pointer_sec_code = 0;
+                            for (unsigned int j = 0; j < code_length_; j++)
+                                {
+                                    code_[i * code_length_ + j] = -code_[i * code_length_ + j];
+                                }
                         }
                 }
         }
