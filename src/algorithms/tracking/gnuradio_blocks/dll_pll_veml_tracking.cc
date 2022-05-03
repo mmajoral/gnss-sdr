@@ -2061,13 +2061,11 @@ int dll_pll_veml_tracking::general_work(int noutput_items __attribute__((unused)
                                 current_synchro_data.Carrier_Doppler_hz = d_carrier_doppler_hz;
                                 current_synchro_data.CN0_dB_hz = d_CN0_SNV_dB_Hz;
                                 current_synchro_data.correlation_length_ms = d_correlation_length_ms;
-                                if (d_enable_hs)
+                                if ((!d_enable_hs) or (!d_pull_in_transitory))
                                     {
-                                        if (!d_pull_in_transitory)
-                                            {
-                                                current_synchro_data.Flag_valid_symbol_output = true;
-                                            }
+                                        current_synchro_data.Flag_valid_symbol_output = true;
                                     }
+
                                 d_P_data_accu = gr_complex(0.0, 0.0);
                             }
 
@@ -2080,13 +2078,10 @@ int dll_pll_veml_tracking::general_work(int noutput_items __attribute__((unused)
 
                         if (d_enable_hs)
                             {
-                                if (!d_pull_in_transitory)
+                                if ((!d_pull_in_transitory) and (!d_narrow_pll_dll_set))
                                     {
-                                        if (!d_narrow_pll_dll_set)
-                                            {
-                                                d_narrow_pll_dll_set = true;
-                                                set_narrow_pll_dll_hs();
-                                            }
+                                        d_narrow_pll_dll_set = true;
+                                        set_narrow_pll_dll_hs();
                                     }
                             }
 
