@@ -288,10 +288,7 @@ private:
     bool d_step_two;
     bool d_use_CFAR_algorithm_flag;
     bool d_dump;
-
     bool d_enable_hs;
-
-    uint32_t d_sampled_ms;
 };
 
 

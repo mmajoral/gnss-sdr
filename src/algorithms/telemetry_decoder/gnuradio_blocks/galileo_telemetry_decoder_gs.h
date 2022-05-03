@@ -152,10 +152,10 @@ private:
     bool d_valid_timetag;
 
     // navigation data assistance
-    static const uint32_t PREAMBLE_SAMPLESTAMPS_BUFF_SIZE = 10;  // default preamble samplestamps buffer size
-    static const uint32_t CHECK_s = 20;                          // number of seconds before checking the percentage of correctly detected preambles
-    const float MIN_PREAMBLE_DETECTION_SUCCESS_RATE = 0.05;      // minimum preamble detection success rate in state 2 when using
-                                                                 // navigation data assistance
+    static const uint32_t PREAMBLE_SAMPLESTAMP_BUFF_SIZE = 10;  // default preamble samplestamps buffer size
+    static const uint32_t CHECK_s = 20;                         // number of seconds before checking the percentage of correctly detected preambles
+    const float MIN_PREAMBLE_DETECTION_SUCCESS_RATE = 0.05;     // minimum preamble detection success rate in state 2 when using
+                                                                // navigation data assistance
     bool d_enable_navdata_assist;
     bool d_navdata_assist_TOW_set;
     uint32_t num_preambles_detected;

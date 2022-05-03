@@ -598,9 +598,12 @@ dll_pll_veml_tracking::dll_pll_veml_tracking(const Dll_Pll_Conf &conf_)
     d_timetag_waiting = false;
     set_tag_propagation_policy(TPP_DONT);  // no tag propagation, the time tag will be adjusted and regenerated in work()
 
-    d_skip_samples = false;
-    d_samples_to_consume = false;
-    d_narrow_pll_dll_set = false;
+    if (d_enable_hs)
+        {
+            d_skip_samples = false;
+            d_samples_to_consume = false;
+            d_narrow_pll_dll_set = false;
+        }
 }
 
 
@@ -872,9 +875,11 @@ void dll_pll_veml_tracking::start_tracking()
     d_corrected_doppler = false;
     d_acc_carrier_phase_initialized = false;
 
-    d_skip_samples = false;
-
-    d_narrow_pll_dll_set = false;
+    if (d_enable_hs)
+        {
+            d_skip_samples = false;
+            d_narrow_pll_dll_set = false;
+        }
 }
 
 
@@ -1751,7 +1756,7 @@ int dll_pll_veml_tracking::general_work(int noutput_items __attribute__((unused)
             }
         case 1:  // Pull-in
             {
-                if (!d_skip_samples)
+                if ((!d_skip_samples) || (!d_enable_hs))
                     {
                         // Signal alignment (skip samples until the incoming signal is aligned with local replica)
                         // const int64_t acq_trk_diff_samples = static_cast<int64_t>(d_sample_counter) - static_cast<int64_t>(d_acq_sample_stamp);
@@ -1766,9 +1771,9 @@ int dll_pll_veml_tracking::general_work(int noutput_items __attribute__((unused)
                         const double T_prn_mod_seconds = T_chip_mod_seconds * static_cast<double>(d_code_length_chips);
                         const double T_prn_mod_samples = T_prn_mod_seconds * d_trk_parameters.fs_in;
 
-                        if (d_enable_hs == true)
+                        if (d_enable_hs)
                             {
-                                uint32_t align_length = 25;  //GALILEO_E1_C_SECONDARY_CODE_LENGTH;
+                                uint32_t align_length = GALILEO_E1_C_SECONDARY_CODE_LENGTH;
                                 d_acq_code_phase_samples = T_prn_mod_samples * align_length - std::fmod(delta_trk_to_acq_prn_start_samples, T_prn_mod_samples * align_length);
                             }
                         else
@@ -1786,25 +1791,25 @@ int dll_pll_veml_tracking::general_work(int noutput_items __attribute__((unused)
                         DLOG(INFO) << "PULL-IN Doppler [Hz] = " << d_carrier_doppler_hz
                                    << ". PULL-IN Code Phase [samples] = " << d_acq_code_phase_samples;
 
-                        if (ninput_items[0] >= samples_offset)
+                        if (d_enable_hs)
                             {
-                                consume_each(samples_offset);  // shift input to perform alignment with local replica
-
-                                if (d_enable_hs)
+                                if (ninput_items[0] >= samples_offset)
                                     {
-                                        set_long_integration();
+                                        consume_each(samples_offset);  // shift input to perform alignment with local replica
+                                        set_long_integration_hs();
                                         d_state = 3;
                                     }
                                 else
                                     {
-                                        d_state = 2;
+                                        d_skip_samples = true;
+                                        d_samples_to_consume = samples_offset - ninput_items[0];
+                                        consume_each(ninput_items[0]);  // shift input to perform alignment with local replica
                                     }
                             }
                         else
                             {
-                                d_skip_samples = true;
-                                d_samples_to_consume = samples_offset - ninput_items[0];
-                                consume_each(ninput_items[0]);  // shift input to perform alignment with local replica
+                                d_state = 2;
+                                consume_each(samples_offset);  // shift input to perform alignment with local replica
                             }
 
                         return 0;
@@ -1815,15 +1820,8 @@ int dll_pll_veml_tracking::general_work(int noutput_items __attribute__((unused)
                             {
                                 consume_each(d_samples_to_consume);  // shift input to perform alignment with local replica
                                 d_skip_samples = false;
-                                if (d_enable_hs)
-                                    {
-                                        set_long_integration();
-                                        d_state = 3;
-                                    }
-                                else
-                                    {
-                                        d_state = 2;
-                                    }
+                                set_long_integration_hs();
+                                d_state = 3;
                             }
                         else
                             {
@@ -2004,9 +2002,12 @@ int dll_pll_veml_tracking::general_work(int noutput_items __attribute__((unused)
                         current_synchro_data.Carrier_Doppler_hz = d_carrier_doppler_hz;
                         current_synchro_data.CN0_dB_hz = d_CN0_SNV_dB_Hz;
                         current_synchro_data.correlation_length_ms = d_correlation_length_ms;
-                        if (!d_pull_in_transitory)
+                        if (d_enable_hs)
                             {
-                                current_synchro_data.Flag_valid_symbol_output = true;
+                                if (!d_pull_in_transitory)
+                                    {
+                                        current_synchro_data.Flag_valid_symbol_output = true;
+                                    }
                             }
                         current_synchro_data.Flag_valid_symbol_output = true;
                         d_P_data_accu = gr_complex(0.0, 0.0);
@@ -2060,9 +2061,12 @@ int dll_pll_veml_tracking::general_work(int noutput_items __attribute__((unused)
                                 current_synchro_data.Carrier_Doppler_hz = d_carrier_doppler_hz;
                                 current_synchro_data.CN0_dB_hz = d_CN0_SNV_dB_Hz;
                                 current_synchro_data.correlation_length_ms = d_correlation_length_ms;
-                                if (!d_pull_in_transitory)
+                                if (d_enable_hs)
                                     {
-                                        current_synchro_data.Flag_valid_symbol_output = true;
+                                        if (!d_pull_in_transitory)
+                                            {
+                                                current_synchro_data.Flag_valid_symbol_output = true;
+                                            }
                                     }
                                 d_P_data_accu = gr_complex(0.0, 0.0);
                             }
@@ -2081,7 +2085,7 @@ int dll_pll_veml_tracking::general_work(int noutput_items __attribute__((unused)
                                         if (!d_narrow_pll_dll_set)
                                             {
                                                 d_narrow_pll_dll_set = true;
-                                                set_narrow_pll_dll();
+                                                set_narrow_pll_dll_hs();
                                             }
                                     }
                             }
@@ -2160,7 +2164,7 @@ int dll_pll_veml_tracking::general_work(int noutput_items __attribute__((unused)
     return 0;
 }
 
-void dll_pll_veml_tracking::set_long_integration(void)
+void dll_pll_veml_tracking::set_long_integration_hs(void)
 {
     // reset extended correlator
     d_VE_accu = gr_complex(0.0, 0.0);
@@ -2208,7 +2212,7 @@ void dll_pll_veml_tracking::set_long_integration(void)
         }
 }
 
-void dll_pll_veml_tracking::set_narrow_pll_dll(void)
+void dll_pll_veml_tracking::set_narrow_pll_dll_hs(void)
 {
     // Set narrow PLL and DLL bandwidth
     d_code_loop_filter.set_noise_bandwidth(d_trk_parameters.dll_bw_narrow_hz);

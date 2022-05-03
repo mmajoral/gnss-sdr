@@ -79,8 +79,7 @@ pcps_acquisition::pcps_acquisition(const Acq_Conf& conf_)
       d_step_two(false),
       d_use_CFAR_algorithm_flag(conf_.use_CFAR_algorithm_flag),
       d_dump(conf_.dump),
-      d_enable_hs(conf_.enable_hs),
-      d_sampled_ms(conf_.sampled_ms)
+      d_enable_hs(conf_.enable_hs)
 {
     this->message_port_register_out(pmt::mp("events"));
 
@@ -263,7 +262,7 @@ void pcps_acquisition::update_local_carrier(own::span<gr_complex> carrier_vector
     if (d_enable_hs)
         {
             // scale the carrier vector down to avoid overflow when performing long integrations
-            volk_32fc_s32fc_multiply_32fc(carrier_vector.data(), carrier_vector.data(), d_sampled_ms * 1e-8, carrier_vector.size());
+            volk_32fc_s32fc_multiply_32fc(carrier_vector.data(), carrier_vector.data(), d_acq_parameters.sampled_ms * 1e-8, carrier_vector.size());
         }
 }
 
@@ -364,11 +363,20 @@ void pcps_acquisition::set_state(int32_t state)
 
 void pcps_acquisition::send_positive_acquisition()
 {
+    uint64_t sample_stamp;
+    if (d_enable_hs)
+        {
+            sample_stamp = d_sample_counter - d_consumed_samples;
+        }
+    else
+        {
+            sample_stamp = d_sample_counter;
+        }
     // Declare positive acquisition using a message port
     // 0=STOP_CHANNEL 1=ACQ_SUCCEES 2=ACQ_FAIL
     DLOG(INFO) << "positive acquisition"
                << ", satellite " << d_gnss_synchro->System << " " << d_gnss_synchro->PRN
-               << ", sample_stamp " << d_sample_counter - d_consumed_samples
+               << ", sample_stamp " << sample_stamp
                << ", test statistics value " << d_test_statistics
                << ", test statistics threshold " << d_threshold
                << ", code phase " << d_gnss_synchro->Acq_delay_samples
@@ -629,6 +637,8 @@ void pcps_acquisition::acquisition_core(uint64_t samp_count)
 
     if (d_enable_hs)
         {
+            // the acquisition buffers are created inside the acquisition_core funcion
+            // to reduce memory occupation when using multiple channels
             if (d_magnitude_grid.empty())
                 {
                     d_magnitude_grid = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
@@ -799,7 +809,14 @@ void pcps_acquisition::acquisition_core(uint64_t samp_count)
                 }
             else
                 {
-                    d_gnss_synchro->Acq_delay_samples = static_cast<double>(indext);
+                    if (d_enable_hs)
+                        {
+                            d_gnss_synchro->Acq_delay_samples = static_cast<double>(indext);
+                        }
+                    else
+                        {
+                            d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(indext), d_acq_parameters.samples_per_code));
+                        }
                     d_gnss_synchro->Acq_doppler_hz = static_cast<double>(doppler);
                     d_gnss_synchro->Acq_samplestamp_samples = samp_count;
                 }
@@ -985,6 +1002,7 @@ void pcps_acquisition::acquisition_core(uint64_t samp_count)
         }
 }
 
+
 // Called by gnuradio to enable drivers, etc for i/o devices.
 bool pcps_acquisition::start()
 {
@@ -1110,11 +1128,25 @@ int pcps_acquisition::general_work(int noutput_items __attribute__((unused)),
                 if (d_acq_parameters.blocking)
                     {
                         lk.unlock();
-                        acquisition_core(d_sample_counter - d_consumed_samples);
+                        if (d_enable_hs)
+                            {
+                                acquisition_core(d_sample_counter - d_consumed_samples);
+                            }
+                        else
+                            {
+                                acquisition_core(d_sample_counter);
+                            }
                     }
                 else
                     {
-                        gr::thread::thread d_worker(&pcps_acquisition::acquisition_core, this, d_sample_counter - d_consumed_samples);
+                        if (d_enable_hs)
+                            {
+                                gr::thread::thread d_worker(&pcps_acquisition::acquisition_core, this, d_sample_counter - d_consumed_samples);
+                            }
+                        else
+                            {
+                                gr::thread::thread d_worker(&pcps_acquisition::acquisition_core, this, d_sample_counter);
+                            }
                         d_worker_active = true;
                     }
                 consume_each(0);

@@ -189,7 +189,6 @@ void GalileoE1PcpsAmbiguousAcquisition::set_local_code()
                 }
         }
 
-
     own::span<gr_complex> code_span(code_.data(), vector_length_);
 
     if (enable_hs)
