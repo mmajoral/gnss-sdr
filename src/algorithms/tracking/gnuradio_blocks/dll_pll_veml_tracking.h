@@ -74,7 +74,7 @@ private:
     friend dll_pll_veml_tracking_sptr dll_pll_veml_make_tracking(const Dll_Pll_Conf &conf_);
     explicit dll_pll_veml_tracking(const Dll_Pll_Conf &conf_);
 
-    // high sensivity mode: set long integration and set narrow pll--dl
+    // high sensivity mode: set long integration and set narrow pll--dll
     void set_long_integration_hs(void);
     void set_narrow_pll_dll_hs(void);
 
