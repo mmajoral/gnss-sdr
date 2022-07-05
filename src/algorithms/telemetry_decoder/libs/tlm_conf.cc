@@ -39,4 +39,8 @@ void Tlm_Conf::SetFromConfiguration(const ConfigurationInterface *configuration,
     navdata_assist_samplestamp = configuration->property(role + ".navdata_assist_samplestamp", default_navdata_assist_samplestamp);
     const uint32_t default_navdata_assist_GNSS_UTC_leap_s = 18;
     navdata_assist_GNSS_UTC_leap_s = configuration->property(role + ".navdata_assist_GNSS_UTC_leap_s", default_navdata_assist_GNSS_UTC_leap_s);
+    if (configuration->property("Channels_E6.count", 0) > 0)
+        {
+            there_are_e6_channels = true;
+        }
 }

@@ -23,16 +23,20 @@ position fixes) the following Global Navigation Satellite System's signals:
 
 In the L1 band:
 
-- &#128752; GLONASS L1 C/A (centered at 1602.00 MHz) :white_check_mark:
-- &#128752; GPS L1 C/A (centered at 1575.42 MHz) :white_check_mark:
-- &#128752; Galileo E1b/c (centered at 1575.42 MHz) :white_check_mark:
+- &#128752; GLONASS L1 C/A (centered at 1602.000 MHz) :white_check_mark:
+- &#128752; GPS L1 C/A (centered at 1575.420 MHz) :white_check_mark:
+- &#128752; Galileo E1b/c (centered at 1575.420 MHz) :white_check_mark:
 - &#128752; BeiDou B1I (centered at 1561.098 MHz) :white_check_mark:
+
+In the E6 band:
+
+- &#128752; Galileo E6B (centered at 1278.750 MHz) :white_check_mark:
 
 In the L2 band:
 
 - &#128752; BeiDou B3I (centered at 1268.520 MHz) :white_check_mark:
-- &#128752; GLONASS L2 C/A (centered at 1246.00 MHz) :white_check_mark:
-- &#128752; GPS L2C (centered at 1227.60 MHz) :white_check_mark:
+- &#128752; GLONASS L2 C/A (centered at 1246.000 MHz) :white_check_mark:
+- &#128752; GPS L2C (centered at 1227.600 MHz) :white_check_mark:
 
 In the L5 band:
 
@@ -381,9 +385,9 @@ $ sudo apt-get install libblas-dev liblapack-dev       # For Debian/Ubuntu/Linux
 $ sudo yum install lapack-devel blas-devel             # For Fedora/CentOS/RHEL
 $ sudo zypper install lapack-devel blas-devel          # For OpenSUSE
 $ sudo pacman -S blas lapack                           # For Arch Linux
-$ wget https://sourceforge.net/projects/arma/files/armadillo-11.0.1.tar.xz
-$ tar xvfz armadillo-11.0.1.tar.xz
-$ cd armadillo-11.0.1
+$ wget https://sourceforge.net/projects/arma/files/armadillo-11.1.1.tar.xz
+$ tar xvfz armadillo-11.1.1.tar.xz
+$ cd armadillo-11.1.1
 $ cmake .
 $ make
 $ sudo make install
@@ -411,9 +415,9 @@ $ sudo ldconfig
 #### Install [Glog](https://github.com/google/glog "Glog's Homepage"), a library that implements application-level logging:
 
 ```
-$ wget https://github.com/google/glog/archive/v0.5.0.tar.gz
-$ tar xvfz v0.5.0.tar.gz
-$ cd glog-0.5.0
+$ wget https://github.com/google/glog/archive/v0.6.0.tar.gz
+$ tar xvfz v0.6.0.tar.gz
+$ cd glog-0.6.0
 $ mkdir build && cd build
 $ cmake ..
 $ make
@@ -424,8 +428,8 @@ $ sudo ldconfig
 #### Download the [Google C++ Testing Framework](https://github.com/google/googletest "Googletest Homepage"), also known as Google Test:
 
 ```
-$ wget https://github.com/google/googletest/archive/release-1.11.0.zip
-$ unzip release-1.11.0.zip
+$ wget https://github.com/google/googletest/archive/release-1.12.0.zip
+$ unzip release-1.12.0.zip
 ```
 
 Please **DO NOT build or install** Google Test. Every user needs to compile
@@ -449,10 +453,10 @@ downloaded resides. Just type in your terminal (or add it to your
 `$HOME/.bashrc` file for a permanent solution) the following line:
 
 ```
-export GTEST_DIR=/home/username/googletest-release-1.11.0
+export GTEST_DIR=/home/username/googletest-release-1.12.0
 ```
 
-changing `/home/username/googletest-release-1.11.0` by the actual path where you
+changing `/home/username/googletest-release-1.12.0` by the actual path where you
 unpacked Google Test. If the CMake script does not find that folder, or the
 environment variable is not defined, or the source code is not installed by a
 package, then it will download a fresh copy of the Google Test source code and
@@ -496,15 +500,18 @@ $ sudo apt-get install autoconf automake libtool curl make g++ unzip
 and then:
 
 ```
-$ wget https://github.com/protocolbuffers/protobuf/releases/download/v3.20.1/protobuf-cpp-3.20.1.tar.gz
-$ tar xvfz protobuf-cpp-3.20.1.tar.gz
-$ cd protobuf-3.20.1
+$ git clone https://github.com/protocolbuffers/protobuf.git
+$ cd protobuf
+$ git submodule update --init --recursive
 $ ./autogen.sh
-$ ./configure
-$ make
+$ /configure
+$ make -j$(nproc)
 $ sudo make install
 $ sudo ldconfig
 ```
+
+For more options, please check the
+[Protocol Buffers' installation instructions](https://github.com/protocolbuffers/protobuf/blob/main/src/README.md/).
 
 #### Install [Pugixml](https://pugixml.org/ "Pugixml's Homepage"), a light-weight C++ XML processing library:
 
@@ -1661,6 +1668,7 @@ identifiers:
 | Galileo E1b/c  |       1B       |
 | Glonass L1 C/A |       1G       |
 | Beidou B1I     |       B1       |
+| Galileo E6B    |       E6       |
 | Beidou B3I     |       B3       |
 | GPS L2 L2C(M)  |       2S       |
 | Glonass L2 C/A |       2G       |

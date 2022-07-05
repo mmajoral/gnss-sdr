@@ -14,6 +14,22 @@ All notable changes to GNSS-SDR will be documented in this file.
 
 ## [Unreleased](https://github.com/gnss-sdr/gnss-sdr/tree/next)
 
+### Improvements in Interoperability:
+
+- Enabled PVT computation in the Galileo E5a + E5b receiver. Observables
+  reported in the RINEX file.
+- Fixed PVT computation in the Galileo E5b-only receiver.
+- Get E6B observables and PVT solutions in the Galileo E1B + E6B receiver.
+  Decoding of HAS messages as described in the
+  [HAS SIS ICD v1.0](https://www.gsc-europa.eu/sites/default/files/sites/all/files/Galileo_HAS_SIS_ICD_v1.0.pdf).
+  Generation of RTCM 3.2 messages from the received HAS messages in the
+  [IGS State Space Representation (SSR) Format](https://files.igs.org/pub/data/format/igs_ssr_v1.pdf).
+  Specifically, it generates messages of type IGM01 (SSR Orbit Correction),
+  IGM02 (SSR Clock Correction), IGM03 (SSR Combined Orbit and Clock Correction),
+  and IGM05 (SSR Code Bias). Please note that the content of the HAS messages is
+  **not** applied to the computed PVT solution. In the Galileo E6B-only
+  receiver, HAS messages are decoded and reported.
+
 ### Improvements in Portability:
 
 - Improved detection of the BLAS library under macOS / Macports (the `lapack`
@@ -21,6 +37,29 @@ All notable changes to GNSS-SDR will be documented in this file.
   but `openblas`, which is used as a replacement if `blas` is not found).
 - Removed duplicated files in the Secure User Plane Location implementation,
   which caused issues when linking with some compilers.
+- Added support for Xilinx's Zynq UltraScale+ devices (requires the
+  `-DENABLE_FPGA=ON` building option).
+- Fixed running time error if the binary is built with the
+  `-Wp,-D_GLIBCXX_ASSERTIONS` compiler option. This is added by default in some
+  GNU/Linux distributions.
+
+### Improvements in Usability:
+
+- Fixed large GLONASS velocity errors and the extended correlator when using the
+  `GLONASS_L1_CA_DLL_PLL_C_Aid_Tracking` and
+  `GLONASS_L2_CA_DLL_PLL_C_Aid_Tracking` implementations.
+- Added a over-the-wire sample format (that is, the format used between the
+  device and the UHD) configuration parameter for the `UHD_Signal_Source`, thus
+  allowing to select the `sc8` format instead of the default `sc16`. This would
+  reduce the dynamic range and increase quantization noise, but also reduce the
+  load on the data link and thus allow more bandwidth.
+- Added gain setting and reading for the XTRX board when using the
+  `Osmosdr_Signal_Source` implementation of a `SignalSource`.
+
+See the definitions of concepts and metrics at
+https://gnss-sdr.org/design-forces/
+
+&nbsp;
 
 ## [GNSS-SDR v0.0.17](https://github.com/gnss-sdr/gnss-sdr/releases/tag/v0.0.17) - 2022-04-20
 
