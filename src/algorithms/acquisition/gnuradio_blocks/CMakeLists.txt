@@ -30,6 +30,8 @@ set(ACQ_GR_BLOCKS_HEADERS
 if(ENABLE_FPGA)
     set(ACQ_GR_BLOCKS_SOURCES ${ACQ_GR_BLOCKS_SOURCES} pcps_acquisition_fpga.cc)
     set(ACQ_GR_BLOCKS_HEADERS ${ACQ_GR_BLOCKS_HEADERS} pcps_acquisition_fpga.h)
+    set(ACQ_GR_BLOCKS_SOURCES ${ACQ_GR_BLOCKS_SOURCES} pcps_hs_acquisition_fpga.cc)
+    set(ACQ_GR_BLOCKS_HEADERS ${ACQ_GR_BLOCKS_HEADERS} pcps_hs_acquisition_fpga.h)
 endif()
 
 if(ENABLE_OPENCL)

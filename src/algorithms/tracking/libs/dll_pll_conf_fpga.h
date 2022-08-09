@@ -97,6 +97,7 @@ public:
     bool high_dyn{false};
     bool dump{false};
     bool dump_mat{true};
+    bool enable_hs{false};
 };
 
 

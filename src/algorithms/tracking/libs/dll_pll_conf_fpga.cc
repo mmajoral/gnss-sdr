@@ -120,4 +120,6 @@ void Dll_Pll_Conf_Fpga::SetFromConfiguration(const ConfigurationInterface *confi
     // max_lock_fail = 50;
 
     device_name = configuration->property(role + ".devicename", device_name);
+
+    enable_hs = configuration->property(role + ".enable_hs", enable_hs);
 }

@@ -105,9 +105,11 @@ galileo_telemetry_decoder_gs::galileo_telemetry_decoder_gs(
                       d_dump_crc_stats(conf.dump_crc_stats),
                       d_enable_reed_solomon_inav(false),
                       d_valid_timetag(false),
-                      d_enable_navdata_assist(conf.enable_navdata_assist),
                       d_E6_TOW_set(false),
-                      d_there_are_e6_channels(conf.there_are_e6_channels)
+                      d_there_are_e6_channels(conf.there_are_e6_channels),
+                      d_enable_navdata_assist(conf.enable_navdata_assist)
+
+
 {
     // prevent telemetry symbols accumulation in output buffers
     this->set_max_noutput_items(1);

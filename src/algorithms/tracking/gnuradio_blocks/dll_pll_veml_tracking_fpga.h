@@ -100,8 +100,14 @@ public:
     void reset();
 
 private:
+    const double GALILEO_E1_CARR_TO_CODE = (1.0 / 1540.0);
+
     friend dll_pll_veml_tracking_fpga_sptr dll_pll_veml_make_tracking_fpga(const Dll_Pll_Conf_Fpga &conf_);
     explicit dll_pll_veml_tracking_fpga(const Dll_Pll_Conf_Fpga &conf_);
+
+    // high sensivity mode: set long integration and set narrow pll--dll
+    void set_long_integration_hs(void);
+    void set_narrow_pll_dll_hs(void);
 
     void msg_handler_telemetry_to_trk(const pmt::pmt_t &msg);
     bool cn0_and_tracking_lock_status(double coh_integration_time_s);
@@ -241,6 +247,12 @@ private:
     bool d_stop_tracking;
     bool d_sc_demodulate_enabled;
     bool d_Flag_PLL_180_deg_phase_locked;
+
+    // high sensitivity mode
+    bool d_enable_hs;
+    bool d_skip_samples;
+    int64_t d_samples_to_consume;
+    bool d_narrow_pll_dll_set;
 };
 
 
