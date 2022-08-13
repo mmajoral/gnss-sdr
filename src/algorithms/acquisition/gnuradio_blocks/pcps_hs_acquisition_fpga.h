@@ -168,8 +168,6 @@ public:
      */
     inline void set_doppler_center(int32_t doppler_center)
     {
-        doppler_center = -200;
-        std::cout << "SETTING doppler_center TO " << doppler_center << std::endl;
         if (doppler_center != d_doppler_center)
             {
                 DLOG(INFO) << " Doppler assistance for Channel: " << d_channel << " => Doppler: " << doppler_center << "[Hz]";
@@ -214,7 +212,6 @@ private:
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_grid_doppler_wipeoffs;
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_grid_doppler_wipeoffs_step_two;
     volk_gnsssdr::vector<std::complex<float>> d_fft_codes;
-    volk_gnsssdr::vector<std::complex<float>> d_data_buffer;
     volk_gnsssdr::vector<lv_16sc_t> d_data_buffer_sc;
 
     std::unique_ptr<gnss_fft_complex_fwd> d_fft_if;

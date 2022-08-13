@@ -104,11 +104,8 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga& conf_)
     //  d_acq_parameters.max_dwells = 1;  // Activation of d_acq_parameters.bit_transition_flag invalidates the value of d_acq_parameters.max_dwells
     // }
 
-    d_tmp_buffer = volk_gnsssdr::vector<float>(d_fft_size);
     d_fft_codes = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
-    d_input_signal = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
     d_fft_if = gnss_fft_fwd_make_unique(d_fft_size);
-    d_ifft = gnss_fft_rev_make_unique(d_fft_size);
 
     d_grid = arma::fmat();
     d_narrow_grid = arma::fmat();
@@ -122,8 +119,6 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga& conf_)
         {
             d_buffer_size = d_consumed_samples * d_acq_parameters.max_dwells;
         }
-
-    d_data_buffer = volk_gnsssdr::vector<std::complex<float>>(d_buffer_size);
 
     if (d_dump)
         {
@@ -234,19 +229,6 @@ void pcps_hs_acquisition_fpga::init()
     if (d_acq_parameters.make_2_steps && (d_grid_doppler_wipeoffs_step_two.empty()))
         {
             d_grid_doppler_wipeoffs_step_two = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins_step2, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
-        }
-
-    if (!d_enable_hs)
-        {
-            if (d_magnitude_grid.empty())
-                {
-                    d_magnitude_grid = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
-                }
-
-            for (uint32_t doppler_index = 0; doppler_index < d_num_doppler_bins; doppler_index++)
-                {
-                    std::fill(d_magnitude_grid[doppler_index].begin(), d_magnitude_grid[doppler_index].end(), 0.0);
-                }
         }
 
     update_grid_doppler_wipeoffs();
@@ -571,36 +553,6 @@ float pcps_hs_acquisition_fpga::first_vs_second_peak_statistic(uint32_t& indext,
 
 void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count)
 {
-    if (d_enable_hs)
-        {
-            // the acquisition buffers are created inside the acquisition_core funcion
-            // to reduce memory occupation when using multiple channels
-            if (d_magnitude_grid.empty())
-                {
-                    d_magnitude_grid = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
-                    for (uint32_t doppler_index = 0; doppler_index < d_num_doppler_bins; doppler_index++)
-                        {
-                            std::fill(d_magnitude_grid[doppler_index].begin(), d_magnitude_grid[doppler_index].end(), 0.0);
-                        }
-                }
-            if (d_prev_ifft.empty())
-                {
-                    d_prev_ifft = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
-                }
-            if (d_DPDI_term.empty())
-                {
-                    d_DPDI_term = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
-                }
-            if (d_DPDI_term_buffer.empty())
-                {
-                    d_DPDI_term_buffer = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
-                }
-            if (d_NPDI_term.empty())
-                {
-                    d_NPDI_term = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
-                }
-        }
-
     d_num_noncoherent_integrations_counter++;
 
     // Initialize acquisition algorithm
@@ -889,18 +841,6 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count)
             d_num_noncoherent_integrations_counter = 0U;
             d_positive_acq = 0;
         }
-
-    if (d_enable_hs)
-        {
-            if (d_state == 0)
-                {
-                    // deallocate memory
-                    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>().swap(d_prev_ifft);
-                    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>().swap(d_DPDI_term);
-                    volk_gnsssdr::vector<std::complex<float>>().swap(d_DPDI_term_buffer);
-                    volk_gnsssdr::vector<volk_gnsssdr::vector<float>>().swap(d_NPDI_term);
-                }
-        }
 }
 
 void pcps_hs_acquisition_fpga::calculate_threshold()
@@ -947,6 +887,25 @@ void pcps_hs_acquisition_fpga::run_acquisition()
 
 void pcps_hs_acquisition_fpga::set_active(bool active)
 {
+    // allocate the acquisition buffers and vectors when running the acquisition
+    // to reduce memory occupation when using multiple channels
+    d_tmp_buffer = volk_gnsssdr::vector<float>(d_fft_size);
+    d_input_signal = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
+    d_ifft = gnss_fft_rev_make_unique(d_fft_size);
+    d_magnitude_grid = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
+    for (uint32_t doppler_index = 0; doppler_index < d_num_doppler_bins; doppler_index++)
+        {
+            std::fill(d_magnitude_grid[doppler_index].begin(), d_magnitude_grid[doppler_index].end(), 0.0);
+        }
+    if (d_enable_hs)
+        {
+            d_prev_ifft = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
+            d_DPDI_term = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
+            d_DPDI_term_buffer = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
+            d_NPDI_term = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
+        }
+
+
     calculate_threshold();
     d_active = active;
 
@@ -970,6 +929,20 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
     d_acquisition_fpga->open_device();
     d_acquisition_fpga->unblock_acq();
     d_acquisition_fpga->close_device();
+
+    // deallocate the acquisition buffers and vectors after running the acquisition
+    // to reduce memory occupation when using multiple channels
+    volk_gnsssdr::vector<float>().swap(d_tmp_buffer);
+    volk_gnsssdr::vector<std::complex<float>>().swap(d_input_signal);
+    d_ifft.reset();
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>>().swap(d_magnitude_grid);
+    if (d_enable_hs)
+        {
+            volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>().swap(d_prev_ifft);
+            volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>().swap(d_DPDI_term);
+            volk_gnsssdr::vector<std::complex<float>>().swap(d_DPDI_term_buffer);
+            volk_gnsssdr::vector<volk_gnsssdr::vector<float>>().swap(d_NPDI_term);
+        }
 }
 
 
