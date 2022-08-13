@@ -862,26 +862,44 @@ void pcps_hs_acquisition_fpga::calculate_threshold()
 
 void pcps_hs_acquisition_fpga::run_acquisition()
 {
+    // open FPGA acquisition device
     d_acquisition_fpga->open_device();
+    // open PL DDR4 memory device
     volatile int16_t* vect_samples = d_acquisition_fpga->open_PL_DDR4_RAM_device();
+    // configure the acquisition
     d_acquisition_fpga->configure_acquisition();
+    // block the acquisition if blocking mode is enabled
+    if (d_acq_parameters.blocking)
+        {
+            d_acquisition_fpga->block_acq();
+        }
+    // capture samples for the acquisition
     d_acquisition_fpga->capture_samples();
 
-    // read the sample counter corresponding to the last sample capture
+    // read the sample counter corresponding to the sample capture
     d_sample_counter = d_acquisition_fpga->read_sample_counter();
 
-    while ((d_num_noncoherent_integrations_counter < d_acq_parameters.max_dwells) && (d_active))
+    // perform the acquisition
+    while (d_active)
         {
             // temporary, this will be optimized
             for (uint32_t kk = 0; kk < d_consumed_samples; kk++)
                 {
                     d_input_signal[kk] = std::complex<float>(vect_samples[2 * kk + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)], vect_samples[(2 * kk) + 1 + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)]);
                 }
+            // run the acquisition core
             acquisition_core(d_sample_counter);
-            d_sample_counter += d_consumed_samples;  // update sample counter to the starting point of the latest coherent integration
+            // update sample counter to the starting point of the latest coherent integration
+            d_sample_counter += d_consumed_samples;
         }
-
+    // unblock the acquisition if blocking mode is enabled
+    if (d_acq_parameters.blocking)
+        {
+            d_acquisition_fpga->unblock_acq();
+        }
+    // close FPGA acquisition device
     d_acquisition_fpga->close_device();
+    // close PL DDR4 memory device
     d_acquisition_fpga->close_PL_DDR4_RAM_device();
 }
 
@@ -909,15 +927,13 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
     calculate_threshold();
     d_active = active;
 
-    d_acquisition_fpga->open_device();
-    d_acquisition_fpga->block_acq();
-    d_acquisition_fpga->close_device();
-
     DLOG(INFO) << "Channel: " << d_channel
                << " , doing acquisition of satellite: " << d_gnss_synchro->System << " " << d_gnss_synchro->PRN
                << ", threshold: " << d_threshold << ", doppler_max: " << d_doppler_max
                << ", doppler_step: " << d_doppler_step;
+
     run_acquisition();
+
     if (d_step_two)
         {
             d_active = active;
@@ -925,10 +941,6 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
             update_grid_doppler_wipeoffs_step2();
             run_acquisition();
         }
-
-    d_acquisition_fpga->open_device();
-    d_acquisition_fpga->unblock_acq();
-    d_acquisition_fpga->close_device();
 
     // deallocate the acquisition buffers and vectors after running the acquisition
     // to reduce memory occupation when using multiple channels
