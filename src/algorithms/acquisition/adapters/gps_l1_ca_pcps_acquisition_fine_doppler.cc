@@ -189,3 +189,8 @@ gnss_shared_ptr<gr::basic_block> GpsL1CaPcpsAcquisitionFineDoppler::get_right_bl
 {
     return acquisition_cc_;
 }
+
+uint64_t GpsL1CaPcpsAcquisitionFineDoppler::get_sample_counter()
+{
+    return 0;
+}

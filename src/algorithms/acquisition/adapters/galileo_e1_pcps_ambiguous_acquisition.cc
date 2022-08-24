@@ -296,3 +296,8 @@ void GalileoE1PcpsAmbiguousAcquisition::set_resampler_latency(uint32_t latency_s
 {
     acquisition_->set_resampler_latency(latency_samples);
 }
+
+uint64_t GalileoE1PcpsAmbiguousAcquisition::get_sample_counter()
+{
+    return acquisition_->get_sample_counter();
+}

@@ -304,3 +304,18 @@ void pcps_acquisition_fpga::stop_acquisition()
     d_acquisition_fpga->stop_acquisition();
     d_acquisition_fpga->close_device();
 }
+
+uint64_t pcps_acquisition_fpga::get_sample_counter()
+{
+    d_acquisition_fpga->open_device();
+    uint64_t sample_counter = d_acquisition_fpga->read_sample_counter();
+    d_acquisition_fpga->close_device();
+    if (d_downsampling_factor == 1)
+        {
+            return sample_counter;
+        }
+    else
+        {
+            return sample_counter * d_downsampling_factor - static_cast<uint64_t>(44);
+        }
+}

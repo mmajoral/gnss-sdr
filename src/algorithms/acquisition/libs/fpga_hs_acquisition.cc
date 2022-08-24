@@ -173,7 +173,7 @@ void Fpga_HS_Acquisition::capture_samples()
 uint64_t Fpga_HS_Acquisition::read_sample_counter()
 {
     uint32_t readval = d_map_base[sample_counter_LSW_reg_addr];  // read sample counter (LSW)
-    auto initial_sample_tmp = static_cast<uint64_t>(readval);
+    uint64_t initial_sample_tmp = static_cast<uint64_t>(readval);
 
     uint64_t readval_long = d_map_base[sample_counter_MSW_reg_addr];  // read sample counter (MSW)
     uint64_t readval_long_shifted = readval_long << 32;               // 2^32

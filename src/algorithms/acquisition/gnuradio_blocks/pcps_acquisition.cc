@@ -1037,6 +1037,17 @@ void pcps_acquisition::calculate_threshold()
     d_threshold = static_cast<float>(2.0 * boost::math::gamma_p_inv(2.0 * (d_acq_parameters.bit_transition_flag ? 1 : d_acq_parameters.max_dwells), std::pow(1.0 - pfa, 1.0 / static_cast<float>(num_bins))));
 }
 
+uint64_t pcps_acquisition::get_sample_counter()
+{
+    if (d_acq_parameters.use_automatic_resampler)
+        {
+            return d_sample_counter * d_acq_parameters.resampler_ratio - static_cast<double>(d_acq_parameters.resampler_latency_samples);
+        }
+    else
+        {
+            return d_sample_counter;
+        }
+}
 
 int pcps_acquisition::general_work(int noutput_items __attribute__((unused)),
     gr_vector_int& ninput_items,

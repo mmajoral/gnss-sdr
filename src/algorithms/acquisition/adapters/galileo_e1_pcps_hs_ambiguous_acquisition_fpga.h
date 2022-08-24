@@ -180,10 +180,17 @@ public:
      */
     void set_resampler_latency(uint32_t latency_samples __attribute__((unused))) override{};
 
+    /*!
+     * \brief Get the value of the sample counter
+     */
+    uint64_t get_sample_counter();
+
 private:
     static const uint32_t fpga_downsampling_factor = 4;  // downampling factor in the FPGA
-    static const uint32_t fpga_buff_num = 0;             // L1/E1 band
-    static const uint32_t fpga_blk_exp = 13;             // default block exponent
+    //static const uint32_t fpga_downsampling_factor = 1;  // downampling factor in the FPGA
+    static const uint32_t fpga_buff_num = 0;  // L1/E1 band
+    //static const uint32_t fpga_buff_num = 1;             // L1/E1 band
+    static const uint32_t fpga_blk_exp = 13;  // default block exponent
 
     // the following flags are FPGA-specific and they are using arrange the values of the fft of the local code in the way the FPGA
     // expects. This arrangement is done in the initialisation to avoid consuming unnecessary clock cycles during tracking.

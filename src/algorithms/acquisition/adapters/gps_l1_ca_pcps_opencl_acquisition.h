@@ -145,6 +145,11 @@ public:
         return ready;
     }
 
+    /*!
+     * \brief Get the value of the sample counter
+     */
+    uint64_t get_sample_counter();
+
 private:
     float calculate_threshold(float pfa) const;
     const ConfigurationInterface* configuration_;

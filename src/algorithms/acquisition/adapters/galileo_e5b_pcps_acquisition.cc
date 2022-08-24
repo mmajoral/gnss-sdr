@@ -233,3 +233,8 @@ void GalileoE5bPcpsAcquisition::set_resampler_latency(uint32_t latency_samples)
 {
     acquisition_->set_resampler_latency(latency_samples);
 }
+
+uint64_t GalileoE5bPcpsAcquisition::get_sample_counter()
+{
+    return acquisition_->get_sample_counter();
+}

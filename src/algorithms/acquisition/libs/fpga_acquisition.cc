@@ -264,3 +264,16 @@ void Fpga_Acquisition::read_result_valid(uint32_t *result_valid)
     uint32_t readval = d_map_base[0];
     *result_valid = readval;
 }
+
+
+uint64_t Fpga_Acquisition::read_sample_counter()
+{
+    uint32_t readval = d_map_base[1];  // read sample counter (LSW)
+    uint64_t initial_sample_tmp = static_cast<uint64_t>(readval);
+
+    uint64_t readval_long = d_map_base[2];               // read sample counter (MSW)
+    uint64_t readval_long_shifted = readval_long << 32;  // 2^32
+
+    initial_sample_tmp += readval_long_shifted;  // 2^32
+    return initial_sample_tmp;
+}

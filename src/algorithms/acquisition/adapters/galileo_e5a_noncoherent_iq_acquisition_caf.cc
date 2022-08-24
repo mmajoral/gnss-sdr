@@ -325,3 +325,8 @@ gr::basic_block_sptr GalileoE5aNoncoherentIQAcquisitionCaf::get_right_block()
 {
     return acquisition_cc_;
 }
+
+uint64_t GalileoE5aNoncoherentIQAcquisitionCaf::get_sample_counter()
+{
+    return 0;
+}

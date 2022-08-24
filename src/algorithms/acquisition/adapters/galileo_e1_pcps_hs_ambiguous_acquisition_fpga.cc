@@ -229,3 +229,8 @@ gr::basic_block_sptr GalileoE1PcpsHSAmbiguousAcquisitionFpga::get_right_block()
 {
     return nullptr;
 }
+
+uint64_t GalileoE1PcpsHSAmbiguousAcquisitionFpga::get_sample_counter()
+{
+    return acquisition_fpga_->get_sample_counter();
+}

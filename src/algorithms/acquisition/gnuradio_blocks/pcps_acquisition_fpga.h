@@ -174,6 +174,11 @@ public:
      */
     void stop_acquisition();
 
+    /*!
+     * \brief Get the value of the sample counter
+     */
+    uint64_t get_sample_counter();
+
 private:
     friend pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga& conf_);
     explicit pcps_acquisition_fpga(Acq_Conf_Fpga& conf_);

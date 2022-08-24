@@ -140,6 +140,11 @@ public:
      */
     void close_device();
 
+    /*!
+     * \brief read the sample counter corresponding to the last sample capture
+     */
+    uint64_t read_sample_counter();
+
 private:
     // FPGA register parameters
     static const uint32_t FPGA_PAGE_SIZE = 0x1000;                // default page size for the multicorrelator memory map

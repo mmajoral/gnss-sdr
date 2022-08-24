@@ -208,6 +208,11 @@ public:
     }
 
     /*!
+     * \brief Get the value of the sample counter
+     */
+    uint64_t get_sample_counter();
+
+    /*!
      * \brief Parallel Code Phase Search Acquisition signal processing.
      */
     int general_work(int noutput_items, gr_vector_int& ninput_items,

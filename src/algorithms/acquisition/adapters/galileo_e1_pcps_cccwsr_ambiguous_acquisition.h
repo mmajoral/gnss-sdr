@@ -141,6 +141,11 @@ public:
 
     void set_resampler_latency(uint32_t latency_samples __attribute__((unused))) override{};
 
+    /*!
+     * \brief Get the value of the sample counter
+     */
+    uint64_t get_sample_counter();
+
 private:
     float calculate_threshold(float pfa);
 

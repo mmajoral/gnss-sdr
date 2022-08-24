@@ -974,3 +974,20 @@ void pcps_hs_acquisition_fpga::stop_acquisition()
     d_acquisition_fpga->stop_acquisition();
     d_acquisition_fpga->close_device();
 }
+
+uint64_t pcps_hs_acquisition_fpga::get_sample_counter()
+{
+    d_acquisition_fpga->open_device();
+    uint64_t sample_counter = d_acquisition_fpga->read_sample_counter();
+    d_acquisition_fpga->close_device();
+    // avoid negative numbers when sample counter is still near 0
+    uint64_t tmp_sample_counter = sample_counter * d_downsampling_factor;
+    if (tmp_sample_counter > d_downsampling_filter_delay_samples)
+        {
+            return tmp_sample_counter - d_downsampling_filter_delay_samples;
+        }
+    else
+        {
+            return 0;
+        }
+}

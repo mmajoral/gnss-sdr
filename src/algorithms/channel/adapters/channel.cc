@@ -249,6 +249,10 @@ void Channel::assist_acquisition_doppler(double Carrier_Doppler_hz)
     acq_->set_doppler_center(static_cast<int>(Carrier_Doppler_hz));
 }
 
+uint64_t Channel::get_elapsed_samples()
+{
+    return acq_->get_sample_counter();
+}
 
 void Channel::start_acquisition()
 {

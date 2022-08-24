@@ -232,3 +232,8 @@ gr::basic_block_sptr GpsL5iPcpsAcquisitionFpga::get_right_block()
 {
     return nullptr;
 }
+
+uint64_t GpsL5iPcpsAcquisitionFpga::get_sample_counter()
+{
+    return acquisition_fpga_->get_sample_counter();
+}

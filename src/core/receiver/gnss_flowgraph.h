@@ -29,6 +29,7 @@
 #include "galileo_e6_has_msg_receiver.h"
 #include "galileo_tow_map.h"
 #include "gnss_sdr_sample_counter.h"
+#include "gnss_sdr_supl_client.h"  // for Gnss_Sdr_Supl_Client
 #include "gnss_signal.h"
 #include "pvt_interface.h"
 #include <gnuradio/blocks/null_sink.h>  // for null_sink
@@ -162,6 +163,22 @@ public:
     void perform_hw_reset();
 #endif
 
+    /*!
+     * \brief Set ephemeris data for Doppler frequency assistance
+     */
+    void set_eph_data_for_Doppler_freq_assist(Gnss_Sdr_Supl_Client& supl_client_ephemeris_);
+
+    /*!
+     * \brief Set ref location for Doppler frequency assistance
+     */
+    void set_ref_location_for_Doppler_freq_assist(Agnss_Ref_Location agnss_ref_location);
+
+    /*!
+     * \brief Set ref time for Doppler frequency assistance
+     */
+    void set_ref_time_for_Doppler_freq_assist(Agnss_Ref_Time agnss_ref_time);
+
+
 private:
     void init();  // Populates the SV PRN list available for acquisition and tracking
     int connect_desktop_flowgraph();
@@ -211,6 +228,9 @@ private:
     bool is_multiband() const;
 
     std::vector<std::string> split_string(const std::string& s, char delim);
+    void set_signal(int num_channel, const Gnss_Signal& gnss_signal);
+    void Doppler_freq_assist(int num_channel, const Gnss_Signal& gnss_signal);
+
     std::vector<bool> signal_conditioner_connected_;
 
     gr::top_block_sptr top_block_;
@@ -225,6 +245,16 @@ private:
     std::shared_ptr<GNSSBlockInterface> pvt_;
 
     std::map<std::string, gr::basic_block_sptr> acq_resamplers_;
+
+    std::map<int, Gps_Ephemeris> gps_ephemeris_map_;                    // for AGNSS XML Doppler frequency assistance
+    std::map<int, Galileo_Ephemeris> gal_ephemeris_map_;                // for AGNSS XML Doppler frequency assistance
+    std::map<int, Gps_CNAV_Ephemeris> gps_cnav_ephemeris_map_;          // for AGNSS XML Doppler frequency assistance
+    std::map<int, Glonass_Gnav_Ephemeris> glonass_gnav_ephemeris_map_;  // for AGNSS XML Doppler frequency assistance
+
+    Agnss_Ref_Location agnss_ref_location_;               // for AGNSS XML Doppler frequency assistance
+    Agnss_Ref_Time agnss_ref_time_;                       // for AGNSS XML Doppler frequency assistance
+    std::map<int, int> agnss_xml_estimated_doppler_map_;  // for AGNSS XML Doppler frequency assistance
+
     std::vector<gr::blocks::null_sink::sptr> null_sinks_;
 
     gr::basic_block_sptr GnssSynchroMonitor_;

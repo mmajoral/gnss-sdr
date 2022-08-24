@@ -285,3 +285,8 @@ gr::basic_block_sptr GalileoE1Pcps8msAmbiguousAcquisition::get_right_block()
 {
     return acquisition_cc_;
 }
+
+uint64_t GalileoE1Pcps8msAmbiguousAcquisition::get_sample_counter()
+{
+    return 0;
+}
