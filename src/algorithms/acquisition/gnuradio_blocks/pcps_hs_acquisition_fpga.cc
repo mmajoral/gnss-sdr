@@ -297,18 +297,6 @@ void pcps_hs_acquisition_fpga::send_positive_acquisition()
                << ", input signal power " << d_input_power
                << ", Assist doppler_center " << d_doppler_center;
 
-    std::cout << "positive acquisition"
-              << ", satellite " << d_gnss_synchro->System << " " << d_gnss_synchro->PRN
-              << ", sample_stamp " << d_gnss_synchro->Acq_samplestamp_samples
-              << ", test statistics value " << d_test_statistics
-              << ", test statistics threshold " << d_threshold
-              << ", code phase " << d_gnss_synchro->Acq_delay_samples
-              << ", doppler " << d_gnss_synchro->Acq_doppler_hz
-              << ", magnitude " << d_mag
-              << ", input signal power " << d_input_power
-              << ", Assist doppler_center " << d_doppler_center << std::endl;
-
-
     d_positive_acq = 1;
 
     d_channel_fsm.lock()->Event_valid_acquisition();

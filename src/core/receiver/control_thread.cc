@@ -686,6 +686,7 @@ bool ControlThread::read_assistance_from_XML()
         }
 
     flowgraph_->set_eph_data_for_Doppler_freq_assist(supl_client_ephemeris_);
+    flowgraph_->set_eph_available_sats();
     return ret;
 }
 

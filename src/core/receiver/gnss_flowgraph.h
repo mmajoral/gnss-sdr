@@ -178,6 +178,10 @@ public:
      */
     void set_ref_time_for_Doppler_freq_assist(Agnss_Ref_Time agnss_ref_time);
 
+    /*!
+     * \set the satellites for which we have assistance ephemeris data only
+     */
+    void set_eph_available_sats();
 
 private:
     void init();  // Populates the SV PRN list available for acquisition and tracking

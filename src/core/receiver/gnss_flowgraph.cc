@@ -2899,6 +2899,35 @@ void GNSSFlowgraph::set_signal(int num_channel, const Gnss_Signal& gnss_signal)
     channels_.at(num_channel)->set_signal(gnss_signal);
 }
 
+void GNSSFlowgraph::set_eph_available_sats()
+{
+    // Do not try to acquire the satellites that are not lin the pre-loaded ephemeris data
+    std::list<Gnss_Signal>::iterator gnss_signals_it;
+    std::map<int, Galileo_Ephemeris>::iterator eph_it;
+    std::vector<uint32_t> unavailable_satellites;
+    for (gnss_signals_it = available_GAL_1B_signals_.begin(); gnss_signals_it != available_GAL_1B_signals_.end(); gnss_signals_it++)
+        {
+            //    	std::cout << "available GAL 1B sig = PRN " << gnss_signals_it->get_satellite().get_PRN() << std::endl;
+            bool ephimeris_data_available = false;
+            for (eph_it = gal_ephemeris_map_.begin(); eph_it != gal_ephemeris_map_.end(); eph_it++)
+                {
+                    if (gnss_signals_it->get_satellite().get_PRN() == eph_it->second.PRN)
+                        {
+                            ephimeris_data_available = true;
+                        }
+                }
+            if (!ephimeris_data_available)
+                {
+                    unavailable_satellites.push_back(gnss_signals_it->get_satellite().get_PRN());
+                }
+        }
+    for (std::vector<uint32_t>::iterator it = unavailable_satellites.begin(); it != unavailable_satellites.end(); it++)
+        {
+            uint32_t PRN = *it;
+            available_GAL_1B_signals_.remove_if([&PRN](Gnss_Signal sig) { return sig.get_satellite().get_PRN() == PRN; });
+        }
+}
+
 void GNSSFlowgraph::Doppler_freq_assist(int num_channel, const Gnss_Signal& gnss_signal)
 {
     uint32_t PRN = gnss_signal.get_satellite().get_PRN();
