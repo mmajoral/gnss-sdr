@@ -30,13 +30,13 @@
 #include <iostream>  // for operator<<
 #include <utility>   // for move
 
-pcps_hs_acquisition_fpga_sptr pcps_make_hs_acquisition_fpga(Acq_Conf_Fpga& conf_)
+pcps_hs_acquisition_fpga_sptr pcps_make_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
 {
     return pcps_hs_acquisition_fpga_sptr(new pcps_hs_acquisition_fpga(conf_));
 }
 
 
-pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga& conf_)
+pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
     : d_acq_parameters(conf_),
       d_gnss_synchro(nullptr),
       d_dump_filename(conf_.dump_filename),
@@ -64,7 +64,7 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga& conf_)
       d_dump_channel(conf_.dump_channel),
       d_buffer_count(0U),
       d_downsampling_filter_delay_samples(conf_.downsampling_factor > 1 ? 44 : 0),
-
+      d_max_num_acqs(conf_.max_num_acqs),
       d_active(false),
       //d_worker_active(false),
       d_step_two(false),
@@ -156,7 +156,7 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga& conf_)
 }
 
 
-void pcps_hs_acquisition_fpga::set_local_code(std::complex<float>* code)
+void pcps_hs_acquisition_fpga::set_local_code(std::complex<float> *code)
 {
     // COD
     // Here we want to create a buffer that looks like this:
@@ -352,7 +352,7 @@ void pcps_hs_acquisition_fpga::dump_results(int32_t effective_fft_size)
     filename.append(std::to_string(d_gnss_synchro->PRN));
     filename.append(".mat");
 
-    mat_t* matfp = Mat_CreateVer(filename.c_str(), nullptr, MAT_FT_MAT73);
+    mat_t *matfp = Mat_CreateVer(filename.c_str(), nullptr, MAT_FT_MAT73);
     if (matfp == nullptr)
         {
             std::cout << "Unable to create or open Acquisition dump file\n";
@@ -360,7 +360,7 @@ void pcps_hs_acquisition_fpga::dump_results(int32_t effective_fft_size)
     else
         {
             std::array<size_t, 2> dims{static_cast<size_t>(effective_fft_size), static_cast<size_t>(d_num_doppler_bins)};
-            matvar_t* matvar = Mat_VarCreate("acq_grid", MAT_C_SINGLE, MAT_T_SINGLE, 2, dims.data(), d_grid.memptr(), 0);
+            matvar_t *matvar = Mat_VarCreate("acq_grid", MAT_C_SINGLE, MAT_T_SINGLE, 2, dims.data(), d_grid.memptr(), 0);
             Mat_VarWrite(matfp, matvar, MAT_COMPRESSION_ZLIB);  // or MAT_COMPRESSION_NONE
             Mat_VarFree(matvar);
 
@@ -436,7 +436,7 @@ void pcps_hs_acquisition_fpga::dump_results(int32_t effective_fft_size)
         }
 }
 
-float pcps_hs_acquisition_fpga::max_to_input_power_statistic(uint32_t& indext, int32_t& doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step)
+float pcps_hs_acquisition_fpga::max_to_input_power_statistic(uint32_t &indext, int32_t &doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step, volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid, volk_gnsssdr::vector<float> &d_tmp_buffer)
 {
     float grid_maximum = 0.0;
     uint32_t index_doppler = 0U;
@@ -471,7 +471,7 @@ float pcps_hs_acquisition_fpga::max_to_input_power_statistic(uint32_t& indext, i
     return grid_maximum / d_input_power;
 }
 
-float pcps_hs_acquisition_fpga::first_vs_second_peak_statistic(uint32_t& indext, int32_t& doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step)
+float pcps_hs_acquisition_fpga::first_vs_second_peak_statistic(uint32_t &indext, int32_t &doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step, volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid, volk_gnsssdr::vector<float> &d_tmp_buffer)
 {
     // Look for correlation peaks in the results
     // Find the highest peak and compare it to the second highest peak
@@ -539,7 +539,15 @@ float pcps_hs_acquisition_fpga::first_vs_second_peak_statistic(uint32_t& indext,
     return firstPeak / secondPeak;
 }
 
-void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count)
+void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
+    volk_gnsssdr::vector<float> &d_tmp_buffer,
+    volk_gnsssdr::vector<std::complex<float>> &d_input_signal,
+    std::unique_ptr<gnss_fft_complex_rev> &d_ifft,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_prev_ifft,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_DPDI_term,
+    volk_gnsssdr::vector<std::complex<float>> &d_DPDI_term_buffer,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_NPDI_term, bool &positive_acquisition)
 {
     d_num_noncoherent_integrations_counter++;
 
@@ -556,7 +564,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count)
                 }
         }
 
-    const gr_complex* in = d_input_signal.data();  // Get the input samples pointer
+    const gr_complex *in = d_input_signal.data();  // Get the input samples pointer
 
     d_mag = 0.0;
 
@@ -657,11 +665,11 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count)
             // Compute the test statistic
             if (d_use_CFAR_algorithm_flag)
                 {
-                    d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins, d_acq_parameters.doppler_max, d_doppler_step);
+                    d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins, d_acq_parameters.doppler_max, d_doppler_step, d_magnitude_grid, d_tmp_buffer);
                 }
             else
                 {
-                    d_test_statistics = first_vs_second_peak_statistic(indext, doppler, d_num_doppler_bins, d_acq_parameters.doppler_max, d_doppler_step);
+                    d_test_statistics = first_vs_second_peak_statistic(indext, doppler, d_num_doppler_bins, d_acq_parameters.doppler_max, d_doppler_step, d_magnitude_grid, d_tmp_buffer);
                 }
 
             if (d_enable_hs)
@@ -700,13 +708,61 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count)
                     if (d_num_noncoherent_integrations_counter == 1)
                         {
                             volk_32fc_magnitude_squared_32f(d_magnitude_grid[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+
+                            if (d_enable_hs)
+                                {
+                                    // save current ifft output
+                                    volk_32fc_conjugate_32fc(d_prev_ifft[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                                }
                         }
                     else
                         {
                             volk_32fc_magnitude_squared_32f(d_tmp_buffer.data(), d_ifft->get_outbuf() + offset, effective_fft_size);
-                            volk_32f_x2_add_32f(d_magnitude_grid[doppler_index].data(), d_magnitude_grid[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
-                        }
 
+                            if (d_enable_hs)
+                                {
+                                    if (d_num_noncoherent_integrations_counter == 2)
+                                        {
+                                            // accumulate NPDI term
+                                            volk_32f_x2_add_32f(d_NPDI_term[doppler_index].data(), d_magnitude_grid[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                        }
+                                    else
+                                        {
+                                            // accumulate NPDI term
+                                            volk_32f_x2_add_32f(d_NPDI_term[doppler_index].data(), d_NPDI_term[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                        }
+
+                                    if (d_num_noncoherent_integrations_counter == 2)
+                                        {
+                                            // compute DPDI term
+                                            volk_32fc_x2_multiply_32fc(d_DPDI_term[doppler_index].data(), d_ifft->get_outbuf() + offset, d_prev_ifft[doppler_index].data(), effective_fft_size);
+                                        }
+                                    else
+                                        {
+                                            // compute DPDI term
+                                            volk_32fc_x2_multiply_32fc(d_DPDI_term_buffer.data(), d_ifft->get_outbuf() + offset, d_prev_ifft[doppler_index].data(), effective_fft_size);
+
+                                            // accumulate DPDI term
+                                            volk_32fc_x2_add_32fc(d_DPDI_term[doppler_index].data(), d_DPDI_term[doppler_index].data(), d_DPDI_term_buffer.data(), effective_fft_size);
+                                        }
+
+                                    // compute the magnitude of the DPDI term
+                                    volk_32fc_magnitude_32f(d_tmp_buffer.data(), d_DPDI_term[doppler_index].data(), effective_fft_size);
+
+                                    // multiply the magnitude of the DPDI term by two
+                                    volk_32f_s32f_multiply_32f(d_tmp_buffer.data(), d_tmp_buffer.data(), 2.0, effective_fft_size);
+
+                                    // add DPDI and NPDI terms
+                                    volk_32f_x2_add_32f(d_magnitude_grid[doppler_index].data(), d_NPDI_term[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+
+                                    // save current ifft output
+                                    volk_32fc_conjugate_32fc(d_prev_ifft[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                                }
+                            else
+                                {
+                                    volk_32f_x2_add_32f(d_magnitude_grid[doppler_index].data(), d_magnitude_grid[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                }
+                        }
                     // Record results to file if required
                     if (d_dump and d_channel == d_dump_channel)
                         {
@@ -716,16 +772,24 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count)
             // Compute the test statistic
             if (d_use_CFAR_algorithm_flag)
                 {
-                    d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins_step2, static_cast<int32_t>(d_doppler_center_step_two - (static_cast<float>(d_num_doppler_bins_step2) / 2.0) * d_acq_parameters.doppler_step2), d_acq_parameters.doppler_step2);
+                    d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins_step2, static_cast<int32_t>(d_doppler_center_step_two - (static_cast<float>(d_num_doppler_bins_step2) / 2.0) * d_acq_parameters.doppler_step2), d_acq_parameters.doppler_step2, d_magnitude_grid, d_tmp_buffer);
                 }
             else
                 {
-                    d_test_statistics = first_vs_second_peak_statistic(indext, doppler, d_num_doppler_bins_step2, static_cast<int32_t>(d_doppler_center_step_two - (static_cast<float>(d_num_doppler_bins_step2) / 2.0) * d_acq_parameters.doppler_step2), d_acq_parameters.doppler_step2);
+                    d_test_statistics = first_vs_second_peak_statistic(indext, doppler, d_num_doppler_bins_step2, static_cast<int32_t>(d_doppler_center_step_two - (static_cast<float>(d_num_doppler_bins_step2) / 2.0) * d_acq_parameters.doppler_step2), d_acq_parameters.doppler_step2, d_magnitude_grid, d_tmp_buffer);
                 }
 
-            d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext), d_downsampling_factor * d_acq_parameters.samples_per_code));
+            if (d_enable_hs)
+                {
+                    d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples), d_downsampling_factor * d_consumed_samples));
+                }
+            else
+                {
+                    d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples), d_downsampling_factor * d_acq_parameters.samples_per_code));
+                }
+
             d_gnss_synchro->Acq_doppler_hz = static_cast<double>(doppler);
-            d_gnss_synchro->Acq_samplestamp_samples = d_downsampling_factor * samp_count - static_cast<uint64_t>(d_downsampling_filter_delay_samples);
+            d_gnss_synchro->Acq_samplestamp_samples = d_downsampling_factor * samp_count;  // - static_cast<uint64_t>(d_downsampling_filter_delay_samples);
             d_gnss_synchro->Acq_doppler_step = d_acq_parameters.doppler_step2;
         }
 
@@ -738,7 +802,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count)
                         {
                             if (d_step_two)
                                 {
-                                    send_positive_acquisition();
+                                    positive_acquisition = true;
                                     d_step_two = false;
                                     d_state = 0;  // Positive acquisition
                                 }
@@ -753,7 +817,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count)
                         }
                     else
                         {
-                            send_positive_acquisition();
+                            positive_acquisition = true;
                             d_state = 0;  // Positive acquisition
                         }
                 }
@@ -765,10 +829,6 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count)
 
             if (d_num_noncoherent_integrations_counter == d_acq_parameters.max_dwells)
                 {
-                    if (d_state != 0)
-                        {
-                            send_negative_acquisition();
-                        }
                     d_state = 0;
                     d_active = false;
                     const bool was_step_two = d_step_two;
@@ -788,7 +848,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count)
                         {
                             if (d_step_two)
                                 {
-                                    send_positive_acquisition();
+                                    positive_acquisition = true;
                                     d_step_two = false;
                                     d_state = 0;  // Positive acquisition
                                 }
@@ -802,7 +862,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count)
                         }
                     else
                         {
-                            send_positive_acquisition();
+                            positive_acquisition = true;
                             d_state = 0;  // Positive acquisition
                         }
                 }
@@ -815,7 +875,6 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count)
                         {
                             calculate_threshold();
                         }
-                    send_negative_acquisition();
                 }
         }
 
@@ -848,12 +907,20 @@ void pcps_hs_acquisition_fpga::calculate_threshold()
     d_threshold = static_cast<float>(2.0 * boost::math::gamma_p_inv(2.0 * (d_acq_parameters.bit_transition_flag ? 1 : d_acq_parameters.max_dwells), std::pow(1.0 - pfa, 1.0 / static_cast<float>(num_bins))));
 }
 
-void pcps_hs_acquisition_fpga::run_acquisition()
+void pcps_hs_acquisition_fpga::run_acquisition(
+    volk_gnsssdr::vector<float> &d_tmp_buffer,
+    volk_gnsssdr::vector<std::complex<float>> &d_input_signal,
+    std::unique_ptr<gnss_fft_complex_rev> &d_ifft,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_prev_ifft,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_DPDI_term,
+    volk_gnsssdr::vector<std::complex<float>> &d_DPDI_term_buffer,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_NPDI_term, bool &positive_acquisition)
 {
     // open FPGA acquisition device
     d_acquisition_fpga->open_device();
     // open PL DDR4 memory device
-    volatile int16_t* vect_samples = d_acquisition_fpga->open_PL_DDR4_RAM_device();
+    volatile int16_t *vect_samples = d_acquisition_fpga->open_PL_DDR4_RAM_device();
     // configure the acquisition
     d_acquisition_fpga->configure_acquisition();
     // block the acquisition if blocking mode is enabled
@@ -876,7 +943,15 @@ void pcps_hs_acquisition_fpga::run_acquisition()
                     d_input_signal[kk] = std::complex<float>(vect_samples[2 * kk + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)], vect_samples[(2 * kk) + 1 + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)]);
                 }
             // run the acquisition core
-            acquisition_core(d_sample_counter);
+            acquisition_core(d_sample_counter,
+                d_tmp_buffer,
+                d_input_signal,
+                d_ifft,
+                d_magnitude_grid,
+                d_prev_ifft,
+                d_DPDI_term,
+                d_DPDI_term_buffer,
+                d_NPDI_term, positive_acquisition);
             // update sample counter to the starting point of the latest coherent integration
             d_sample_counter += d_consumed_samples;
         }
@@ -894,15 +969,21 @@ void pcps_hs_acquisition_fpga::run_acquisition()
 void pcps_hs_acquisition_fpga::set_active(bool active)
 {
     // allocate the acquisition buffers and vectors when running the acquisition
-    // to reduce memory occupation when using multiple channels
-    d_tmp_buffer = volk_gnsssdr::vector<float>(d_fft_size);
-    d_input_signal = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
-    d_ifft = gnss_fft_rev_make_unique(d_fft_size);
-    d_magnitude_grid = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
+    // to reduce memory occupation when using multiple channels,
+    // and before fetching the samples in order to minimize the acquisition latency
+    volk_gnsssdr::vector<float> d_tmp_buffer = volk_gnsssdr::vector<float>(d_fft_size);
+    volk_gnsssdr::vector<std::complex<float>> d_input_signal = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
+    std::unique_ptr<gnss_fft_complex_rev> d_ifft = gnss_fft_rev_make_unique(d_fft_size);
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> d_magnitude_grid = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
     for (uint32_t doppler_index = 0; doppler_index < d_num_doppler_bins; doppler_index++)
         {
             std::fill(d_magnitude_grid[doppler_index].begin(), d_magnitude_grid[doppler_index].end(), 0.0);
         }
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_prev_ifft;
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_DPDI_term;
+    volk_gnsssdr::vector<std::complex<float>> d_DPDI_term_buffer;
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> d_NPDI_term;
+
     if (d_enable_hs)
         {
             d_prev_ifft = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
@@ -920,28 +1001,54 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
                << ", threshold: " << d_threshold << ", doppler_max: " << d_doppler_max
                << ", doppler_step: " << d_doppler_step;
 
-    run_acquisition();
+    // when running in the FPGA the acquisition runs as a detached process.
+    // wait until the acquisition process is completely finished before
+    // notifying positive or negative acquisition.
+    // Otherwise the channel fsm may launch the next acquisition process before
+    // the FPGA interface devices are closed
+    bool positive_acquisition = false;
+    run_acquisition(d_tmp_buffer,
+        d_input_signal,
+        d_ifft,
+        d_magnitude_grid,
+        d_prev_ifft,
+        d_DPDI_term,
+        d_DPDI_term_buffer,
+        d_NPDI_term,
+        positive_acquisition);
 
     if (d_step_two)
         {
-            d_active = active;
             d_doppler_center_step_two = static_cast<float>(d_gnss_synchro->Acq_doppler_hz);
             update_grid_doppler_wipeoffs_step2();
-            run_acquisition();
+            uint32_t num_second_acq = 1;
+            while (num_second_acq < d_max_num_acqs)
+                {
+                    d_active = active;
+                    run_acquisition(d_tmp_buffer,
+                        d_input_signal,
+                        d_ifft,
+                        d_magnitude_grid,
+                        d_prev_ifft,
+                        d_DPDI_term,
+                        d_DPDI_term_buffer,
+                        d_NPDI_term,
+                        positive_acquisition);
+                    if (positive_acquisition)
+                        {
+                            break;
+                        }
+                    num_second_acq++;
+                }
         }
 
-    // deallocate the acquisition buffers and vectors after running the acquisition
-    // to reduce memory occupation when using multiple channels
-    volk_gnsssdr::vector<float>().swap(d_tmp_buffer);
-    volk_gnsssdr::vector<std::complex<float>>().swap(d_input_signal);
-    d_ifft.reset();
-    volk_gnsssdr::vector<volk_gnsssdr::vector<float>>().swap(d_magnitude_grid);
-    if (d_enable_hs)
+    if (positive_acquisition)
         {
-            volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>().swap(d_prev_ifft);
-            volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>().swap(d_DPDI_term);
-            volk_gnsssdr::vector<std::complex<float>>().swap(d_DPDI_term_buffer);
-            volk_gnsssdr::vector<volk_gnsssdr::vector<float>>().swap(d_NPDI_term);
+            send_positive_acquisition();
+        }
+    else
+        {
+            send_negative_acquisition();
         }
 }
 

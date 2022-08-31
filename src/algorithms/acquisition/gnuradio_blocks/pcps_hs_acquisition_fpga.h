@@ -58,7 +58,7 @@ class pcps_hs_acquisition_fpga;
 
 using pcps_hs_acquisition_fpga_sptr = std::shared_ptr<pcps_hs_acquisition_fpga>;
 
-pcps_hs_acquisition_fpga_sptr pcps_make_hs_acquisition_fpga(Acq_Conf_Fpga& conf_);
+pcps_hs_acquisition_fpga_sptr pcps_make_hs_acquisition_fpga(Acq_Conf_Fpga &conf_);
 
 /*!
  * \brief This class implements a Parallel Code Phase Search Acquisition that uses the FPGA.
@@ -79,7 +79,7 @@ public:
      * to exchange synchronization data between acquisition and tracking blocks.
      * \param p_gnss_synchro Satellite information shared by the processing blocks.
      */
-    inline void set_gnss_synchro(Gnss_Synchro* p_gnss_synchro)
+    inline void set_gnss_synchro(Gnss_Synchro *p_gnss_synchro)
     {
         d_gnss_synchro = p_gnss_synchro;
     }
@@ -100,7 +100,7 @@ public:
     /*!
      * \brief Sets local code for PCPS acquisition algorithm.
      */
-    void set_local_code(std::complex<float>* code);
+    void set_local_code(std::complex<float> *code);
 
     /*!
      * \brief If set to 1, ensures that acquisition starts at the
@@ -192,8 +192,8 @@ public:
     uint64_t get_sample_counter();
 
 private:
-    friend pcps_hs_acquisition_fpga_sptr pcps_make_hs_acquisition_fpga(Acq_Conf_Fpga& conf_);
-    explicit pcps_hs_acquisition_fpga(Acq_Conf_Fpga& conf_);
+    friend pcps_hs_acquisition_fpga_sptr pcps_make_hs_acquisition_fpga(Acq_Conf_Fpga &conf_);
+    explicit pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_);
 
     void update_local_carrier(own::span<gr_complex> carrier_vector, float freq) const;
     void update_grid_doppler_wipeoffs();
@@ -201,30 +201,38 @@ private:
     void send_negative_acquisition();
     void send_positive_acquisition();
     void dump_results(int32_t effective_fft_size);
-    void run_acquisition();
-    void acquisition_core(uint64_t samp_count);
+    void run_acquisition(
+        volk_gnsssdr::vector<float> &d_tmp_buffer,
+        volk_gnsssdr::vector<std::complex<float>> &d_input_signal,
+        std::unique_ptr<gnss_fft_complex_rev> &d_ifft,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_prev_ifft,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_DPDI_term,
+        volk_gnsssdr::vector<std::complex<float>> &d_DPDI_term_buffer,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_NPDI_term, bool &positive_acquisition);
+    void acquisition_core(uint64_t samp_count,
+        volk_gnsssdr::vector<float> &d_tmp_buffer,
+        volk_gnsssdr::vector<std::complex<float>> &d_input_signal,
+        std::unique_ptr<gnss_fft_complex_rev> &d_ifft,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_prev_ifft,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_DPDI_term,
+        volk_gnsssdr::vector<std::complex<float>> &d_DPDI_term_buffer,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_NPDI_term, bool &positive_acquisition);
     void calculate_threshold(void);
-    float first_vs_second_peak_statistic(uint32_t& indext, int32_t& doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step);
-    float max_to_input_power_statistic(uint32_t& indext, int32_t& doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step);
+    float first_vs_second_peak_statistic(uint32_t &indext, int32_t &doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step, volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid, volk_gnsssdr::vector<float> &d_tmp_buffer);
+    float max_to_input_power_statistic(uint32_t &indext, int32_t &doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step, volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid, volk_gnsssdr::vector<float> &d_tmp_buffer);
 
-    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> d_magnitude_grid;
-    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> d_NPDI_term;                // for GPDIT PDI Implementation
-    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_prev_ifft;  // for GPDIT PDI Implementation
-    volk_gnsssdr::vector<std::complex<float>> d_DPDI_term_buffer;                 // for GPDIT PDI Implementation
-    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_DPDI_term;  // for GPDIT PDI Implementation
-    volk_gnsssdr::vector<float> d_tmp_buffer;
-    volk_gnsssdr::vector<std::complex<float>> d_input_signal;
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_grid_doppler_wipeoffs;
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_grid_doppler_wipeoffs_step_two;
     volk_gnsssdr::vector<std::complex<float>> d_fft_codes;
     volk_gnsssdr::vector<lv_16sc_t> d_data_buffer_sc;
 
     std::unique_ptr<gnss_fft_complex_fwd> d_fft_if;
-    std::unique_ptr<gnss_fft_complex_rev> d_ifft;
     std::weak_ptr<ChannelFsm> d_channel_fsm;
 
     Acq_Conf_Fpga d_acq_parameters;
-    Gnss_Synchro* d_gnss_synchro;
+    Gnss_Synchro *d_gnss_synchro;
     arma::fmat d_grid;
     arma::fmat d_narrow_grid;
 
@@ -233,7 +241,7 @@ private:
 
     std::shared_ptr<Fpga_HS_Acquisition> d_acquisition_fpga;
 
-    int16_t* captured_samples;
+    int16_t *captured_samples;
 
     int64_t d_dump_number;
     uint64_t d_sample_counter;
@@ -265,6 +273,7 @@ private:
     uint32_t d_buffer_count;
     uint32_t d_buffer_sample_counter;
     uint32_t d_downsampling_filter_delay_samples;
+    uint32_t d_max_num_acqs;
 
     bool d_active;
     bool d_worker_active;
