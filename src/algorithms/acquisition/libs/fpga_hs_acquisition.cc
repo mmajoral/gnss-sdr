@@ -44,11 +44,9 @@
 
 
 Fpga_HS_Acquisition::Fpga_HS_Acquisition(std::string device_name,
-    std::string PL_DDR4_device_name,
     uint32_t nsamples,
     uint32_t nsamples_first_block,
     uint32_t select_queue) : d_device_name(std::move(device_name)),
-                             d_PL_DDR4_RAM_device_name(std::move(PL_DDR4_device_name)),
                              d_nsamples(nsamples),
                              d_nsamples_first_block(nsamples_first_block),
                              d_select_queue(select_queue)
@@ -85,21 +83,22 @@ void Fpga_HS_Acquisition::open_device()
         }
 }
 
-volatile int16_t *Fpga_HS_Acquisition::open_PL_DDR4_RAM_device()
+int16_t *Fpga_HS_Acquisition::open_PL_DDR4_RAM_device()
 {
     // open communication with HW accelerator
-    if ((d_fd_PL_DDR4_RAM = open(d_PL_DDR4_RAM_device_name.c_str(), O_RDWR | O_SYNC)) == -1)
+    if ((d_fd_PL_DDR4_RAM = open("/dev/mem", O_RDWR)) == -1)
         {
-            LOG(WARNING) << "Cannot open deviceio" << d_PL_DDR4_RAM_device_name;
-            std::cout << "Acq: cannot open deviceio" << d_PL_DDR4_RAM_device_name << '\n';
+            LOG(WARNING) << "Cannot open PL DDR4 RAM device";
+            std::cout << "Acq: cannot open PL DDR4 RAM device" << '\n';
         }
-    d_PL_DDR4_RAM_map_base = reinterpret_cast<volatile int16_t *>(mmap(nullptr, PL_DDR4_RAM_PAGE_SIZE,
-        PROT_READ | PROT_WRITE, MAP_SHARED, d_fd_PL_DDR4_RAM, 0));
+
+    d_PL_DDR4_RAM_map_base = reinterpret_cast<int16_t *>(mmap(nullptr, PL_DDR4_RAM_PAGE_SIZE,
+        PROT_READ | PROT_WRITE, MAP_PRIVATE, d_fd_PL_DDR4_RAM, 0x400000000));
 
     if (d_PL_DDR4_RAM_map_base == reinterpret_cast<void *>(-1))
         {
             LOG(WARNING) << "Cannot map the FPGA acquisition module into user memory";
-            std::cout << "Acq: cannot map deviceio" << d_PL_DDR4_RAM_device_name << '\n';
+            std::cout << "Acq: cannot map the FPGA acquisition module into user memory" << '\n';
         }
     return d_PL_DDR4_RAM_map_base;
 }

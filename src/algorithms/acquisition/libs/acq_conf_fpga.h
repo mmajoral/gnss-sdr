@@ -43,7 +43,6 @@ public:
 
     /* PCPS Acquisition configuration */
     std::string device_name = "uio0";
-    std::string PL_DDR4_device_name = "uio1";
     int64_t fs_in{4000000LL};
     float doppler_step{250.0};
     float doppler_step2{125.0};
@@ -87,7 +86,6 @@ public:
 
 private:
     void SetDeviceFile();
-    void Set_PL_DDR4_RAM_DeviceFile();
     void SetDerivedParams();
 
     const std::string acquisition_device_name = "acquisition_S00_AXI";  // UIO device name

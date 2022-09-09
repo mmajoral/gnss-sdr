@@ -129,8 +129,6 @@ void Acq_Conf_Fpga::SetFromHSConfiguration(const ConfigurationInterface *configu
     SetDerivedParams();
 
     SetDeviceFile();
-
-    Set_PL_DDR4_RAM_DeviceFile();
 }
 
 
@@ -152,17 +150,4 @@ void Acq_Conf_Fpga::SetDeviceFile()
             throw std::exception();
         }
     device_name = device_io_name;
-}
-
-void Acq_Conf_Fpga::Set_PL_DDR4_RAM_DeviceFile()
-{
-    // UIO device file
-    std::string device_io_name;
-    // find the uio device file corresponding to the acquisition
-    if (find_uio_dev_file_name(device_io_name, PL_DDR4_RAM_device_name, 0) < 0)
-        {
-            std::cout << "Cannot find the FPGA uio device file corresponding to device name " << PL_DDR4_RAM_device_name << std::endl;
-            throw std::exception();
-        }
-    PL_DDR4_device_name = device_io_name;
 }

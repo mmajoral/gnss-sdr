@@ -152,7 +152,7 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
                 }
         }
 
-    d_acquisition_fpga = std::make_unique<Fpga_HS_Acquisition>(d_acq_parameters.device_name, d_acq_parameters.PL_DDR4_device_name, d_buffer_size, d_consumed_samples, d_acq_parameters.select_queue_Fpga);
+    d_acquisition_fpga = std::make_unique<Fpga_HS_Acquisition>(d_acq_parameters.device_name, d_buffer_size, d_consumed_samples, d_acq_parameters.select_queue_Fpga);
 }
 
 
@@ -920,7 +920,7 @@ void pcps_hs_acquisition_fpga::run_acquisition(
     // open FPGA acquisition device
     d_acquisition_fpga->open_device();
     // open PL DDR4 memory device
-    volatile int16_t *vect_samples = d_acquisition_fpga->open_PL_DDR4_RAM_device();
+    int16_t *vect_samples = d_acquisition_fpga->open_PL_DDR4_RAM_device();
     // configure the acquisition
     d_acquisition_fpga->configure_acquisition();
     // block the acquisition if blocking mode is enabled
@@ -938,9 +938,9 @@ void pcps_hs_acquisition_fpga::run_acquisition(
     while (d_active)
         {
             // temporary, this will be optimized
-            for (uint32_t kk = 0; kk < d_consumed_samples; kk++)
+            for (uint32_t k = 0; k < d_consumed_samples; k++)
                 {
-                    d_input_signal[kk] = std::complex<float>(vect_samples[2 * kk + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)], vect_samples[(2 * kk) + 1 + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)]);
+                    d_input_signal[k] = std::complex<float>(vect_samples[2 * k + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)], vect_samples[(2 * k) + 1 + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)]);
                 }
             // run the acquisition core
             acquisition_core(d_sample_counter,

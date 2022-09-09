@@ -43,7 +43,6 @@ public:
      */
     Fpga_HS_Acquisition(
         std::string device_name,
-        std::string PL_DDR4_device_name,
         uint32_t nsamples,
         uint32_t nsamples_first_block,
         uint32_t select_queue);
@@ -87,7 +86,7 @@ public:
     /*!
      * \brief Open the PL DDR4 RAM memory device driver
      */
-    volatile int16_t *open_PL_DDR4_RAM_device();
+    int16_t *open_PL_DDR4_RAM_device();
 
     /*!
      * \brief Close the PL DDR4 RAM memory device driver
@@ -152,15 +151,14 @@ private:
     void fpga_acquisition_test_PL_DDR4_RAM(void);
 
     std::string d_device_name;  // HW device name
-    std::string d_PL_DDR4_RAM_device_name;
     int64_t d_fs_in;
 
-    volatile uint32_t *d_map_base;             // driver memory map
-    volatile int16_t *d_PL_DDR4_RAM_map_base;  // PL DDR4 RAM driver memory map
-    int32_t d_fd;                              // ACQ IP driver descriptor
-    int32_t d_fd_PL_DDR4_RAM;                  // PL DDR4 RAM driver descriptor
-    uint32_t *d_all_fft_codes;                 // memory that contains all the code ffts
-    uint32_t d_vector_length;                  // number of samples including padding and number of ms
+    volatile uint32_t *d_map_base;    // driver memory map
+    int16_t *d_PL_DDR4_RAM_map_base;  // PL DDR4 RAM driver memory map
+    int32_t d_fd;                     // ACQ IP driver descriptor
+    int32_t d_fd_PL_DDR4_RAM;         // PL DDR4 RAM driver descriptor
+    uint32_t *d_all_fft_codes;        // memory that contains all the code ffts
+    uint32_t d_vector_length;         // number of samples including padding and number of ms
     uint32_t d_excludelimit;
     uint32_t d_nsamples_total;        // number of samples including padding
     uint32_t d_nsamples;              // number of samples not including padding
