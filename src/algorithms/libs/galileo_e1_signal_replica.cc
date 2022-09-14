@@ -141,14 +141,14 @@ void galileo_e1_gen_float(own::span<float> dest, own::span<int> prn, const std::
 
 
 void galileo_e1_code_gen_float_sampled(own::span<float> dest, const std::array<char, 3>& signal_id,
-    bool cboc, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift,
+    bool cboc, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift, int32_t num_codes,
     bool secondary_flag)
 {
     constexpr int32_t codeFreqBasis = GALILEO_E1_CODE_CHIP_RATE_CPS;  // chips per second
     const int32_t samplesPerChip = (cboc == true) ? 12 : 2;
     const uint32_t codeLength = samplesPerChip * GALILEO_E1_B_CODE_LENGTH_CHIPS;
     const std::string galileo_signal = signal_id.data();
-    auto samplesPerCode = static_cast<uint32_t>(static_cast<double>(sampling_freq) / (static_cast<double>(codeFreqBasis) / GALILEO_E1_B_CODE_LENGTH_CHIPS));
+    auto samplesPerCode = static_cast<uint32_t>(static_cast<double>(sampling_freq*num_codes) / (static_cast<double>(codeFreqBasis) / GALILEO_E1_B_CODE_LENGTH_CHIPS));
     const uint32_t delay = ((static_cast<int32_t>(GALILEO_E1_B_CODE_LENGTH_CHIPS) - chip_shift) % static_cast<int32_t>(GALILEO_E1_B_CODE_LENGTH_CHIPS)) * samplesPerCode / GALILEO_E1_B_CODE_LENGTH_CHIPS;
 
     std::vector<int32_t> primary_code_E1_chips(static_cast<int32_t>(GALILEO_E1_B_CODE_LENGTH_CHIPS));
@@ -205,12 +205,12 @@ void galileo_e1_code_gen_float_sampled(own::span<float> dest, const std::array<c
 
 
 void galileo_e1_code_gen_complex_sampled(own::span<std::complex<float>> dest, const std::array<char, 3>& signal_id,
-    bool cboc, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift,
+    bool cboc, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift, uint32_t num_codes,
     bool secondary_flag)
 {
     constexpr int32_t codeFreqBasis = GALILEO_E1_CODE_CHIP_RATE_CPS;  // Hz
     const std::string galileo_signal = signal_id.data();
-    auto samplesPerCode = static_cast<uint32_t>(static_cast<double>(sampling_freq) /
+    auto samplesPerCode = static_cast<uint32_t>(static_cast<double>(sampling_freq*num_codes) /
                                                 (static_cast<double>(codeFreqBasis) / GALILEO_E1_B_CODE_LENGTH_CHIPS));
 
     if (galileo_signal.rfind("1C") != std::string::npos && galileo_signal.length() >= 2 && secondary_flag)
@@ -219,7 +219,7 @@ void galileo_e1_code_gen_complex_sampled(own::span<std::complex<float>> dest, co
         }
 
     std::vector<float> real_code(samplesPerCode);
-    galileo_e1_code_gen_float_sampled(real_code, signal_id, cboc, prn, sampling_freq, chip_shift, secondary_flag);
+    galileo_e1_code_gen_float_sampled(real_code, signal_id, cboc, prn, sampling_freq, chip_shift, num_codes, secondary_flag);
 
     for (uint32_t ii = 0; ii < samplesPerCode; ++ii)
         {
@@ -227,16 +227,23 @@ void galileo_e1_code_gen_complex_sampled(own::span<std::complex<float>> dest, co
         }
 }
 
+void galileo_e1_code_gen_complex_sampled(own::span<std::complex<float>> dest, const std::array<char, 3>& signal_id,
+    bool cboc, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift,
+    bool secondary_flag)
+{
+	galileo_e1_code_gen_complex_sampled(dest, signal_id, cboc, prn, sampling_freq, chip_shift, 1, secondary_flag);
+}
 
 void galileo_e1_code_gen_float_sampled(own::span<float> dest, const std::array<char, 3>& signal_id,
-    bool cboc, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift)
+    bool cboc, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift,
+	bool secondary_flag)
 {
-    galileo_e1_code_gen_float_sampled(dest, signal_id, cboc, prn, sampling_freq, chip_shift, false);
+    galileo_e1_code_gen_float_sampled(dest, signal_id, cboc, prn, sampling_freq, chip_shift, 1, secondary_flag);
 }
 
 
 void galileo_e1_code_gen_complex_sampled(own::span<std::complex<float>> dest, const std::array<char, 3>& signal_id,
     bool cboc, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift)
 {
-    galileo_e1_code_gen_complex_sampled(dest, signal_id, cboc, prn, sampling_freq, chip_shift, false);
+    galileo_e1_code_gen_complex_sampled(dest, signal_id, cboc, prn, sampling_freq, chip_shift, 1, false);
 }

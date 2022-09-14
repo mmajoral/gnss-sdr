@@ -49,15 +49,16 @@ void galileo_e1_code_gen_sinboc11_float(own::span<float> dest, const std::array<
  */
 void galileo_e1_code_gen_float_sampled(own::span<float> dest, const std::array<char, 3>& signal_id,
     bool cboc, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift,
-    bool secondary_flag);
+	bool secondary_flag);
 
 /*!
- * \brief This function generates Galileo E1 code (can select E1B or E1C, cboc or sinboc
+ * \brief This function generates num_codes-concatenated Galileo E1 codes (can select E1B or E1C, cboc or sinboc
  * and the sample frequency sampling_freq).
  *
  */
 void galileo_e1_code_gen_float_sampled(own::span<float> dest, const std::array<char, 3>& signal_id,
-    bool cboc, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift);
+    bool cboc, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift, int32_t num_codes,
+    bool secondary_flag);
 
 /*!
  * \brief This function generates Galileo E1 code (can select E1B or E1C, cboc or sinboc
@@ -66,6 +67,15 @@ void galileo_e1_code_gen_float_sampled(own::span<float> dest, const std::array<c
  */
 void galileo_e1_code_gen_complex_sampled(own::span<std::complex<float>> dest, const std::array<char, 3>& signal_id,
     bool cboc, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift,
+    bool secondary_flag);
+
+/*!
+ * \brief This function generates num_codes-concatenated Galileo E1 codes (can select E1B or E1C, cboc or sinboc
+ * and the sample frequency sampling_freq).
+ *
+ */
+void galileo_e1_code_gen_complex_sampled(own::span<std::complex<float>> dest, const std::array<char, 3>& signal_id,
+    bool cboc, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift, uint32_t num_codes,
     bool secondary_flag);
 
 /*!

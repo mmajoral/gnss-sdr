@@ -265,6 +265,10 @@ void resampler(const own::span<float> from, own::span<float> dest, float fs_in,
         {
             aux = (t_out * (static_cast<float>(i) + 1.0F)) * fs_in;
             codeValueIndex = AUX_CEIL2(aux) - 1;
+            if (codeValueIndex >= from.size())
+            {
+            	codeValueIndex-= (from.size())*floor(codeValueIndex/from.size());
+            }
             dest[i] = from[codeValueIndex];
         }
     // Correct the last index (due to number rounding issues)
@@ -283,6 +287,10 @@ void resampler(own::span<const std::complex<float>> from, own::span<std::complex
         {
             aux = (t_out * (static_cast<float>(i) + 1.0F)) * fs_in;
             codeValueIndex = AUX_CEIL2(aux) - 1;
+            if (codeValueIndex >= from.size())
+            {
+            	codeValueIndex-= (from.size())*floor(codeValueIndex/from.size());
+            }
             dest[i] = from[codeValueIndex];
         }
     // Correct the last index (due to number rounding issues)
