@@ -154,22 +154,22 @@ void GalileoE1PcpsAmbiguousAcquisition::set_local_code()
     bool cboc = configuration_->property(
         "Acquisition" + std::to_string(channel_) + ".cboc", false);
 
-    uint32_t num_codes, codelength;;
+    uint32_t num_codes, codelength;
     if (enable_hs)
-    {
-    	// when using high sensitivity mode, the concatenated
-    	// PRN codes have to be interpolated for the whole 
-    	// sample_ms_ duration, to prevent performance loss
-    	// when using sampling periods that are not a multiple 
-    	// of the PRN code duration.
-    	num_codes = sampled_ms_/GALILEO_E1_CODE_PERIOD_MS;
-    	codelength = vector_length_;
-    }
+        {
+            // when using high sensitivity mode, the concatenated
+            // PRN codes have to be interpolated for the whole
+            // sample_ms_ duration, to prevent performance loss
+            // when using sampling periods that are not a divider
+            // of the PRN code duration.
+            num_codes = sampled_ms_ / GALILEO_E1_CODE_PERIOD_MS;
+            codelength = vector_length_;
+        }
     else
-    {
-    	num_codes = 1;
-    	codelength = code_length_;
-    }
+        {
+            num_codes = 1;
+            codelength = code_length_;
+        }
     volk_gnsssdr::vector<std::complex<float>> code(codelength);
 
     if (acquire_pilot_ == true)
@@ -209,23 +209,22 @@ void GalileoE1PcpsAmbiguousAcquisition::set_local_code()
 
     if (enable_hs)
         {
-			for (unsigned int i = 0; i < sampled_ms_ / GALILEO_E1_CODE_PERIOD_MS; i++)
-				{
-					uint32_t initial_sample = floorf(static_cast<float>((acq_parameters_.resampled_fs)*i*GALILEO_E1_CODE_PERIOD_MS)/1000.0);
-					uint32_t end_sample = floorf(static_cast<float>((acq_parameters_.resampled_fs)*(i + 1)*GALILEO_E1_CODE_PERIOD_MS)/1000.0);
-					//std::cout << "initial_sample = " << initial_sample << " end sample = " << end_sample << std::endl;
-					for (unsigned int j = initial_sample; j < end_sample;j++)
-					{
-						if (GALILEO_E1_C_SECONDARY_CODE[i] == '0')
-						{
-							code_[j] = code[j];
-						}
-						else
-						{
-							code_[j] = -code[j];
-						}
-					}
-				}
+            for (unsigned int i = 0; i < sampled_ms_ / GALILEO_E1_CODE_PERIOD_MS; i++)
+                {
+                    uint32_t initial_sample = floorf(static_cast<float>((acq_parameters_.resampled_fs) * i * GALILEO_E1_CODE_PERIOD_MS) / 1000.0);
+                    uint32_t end_sample = floorf(static_cast<float>((acq_parameters_.resampled_fs) * (i + 1) * GALILEO_E1_CODE_PERIOD_MS) / 1000.0);
+                    for (unsigned int j = initial_sample; j < end_sample; j++)
+                        {
+                            if (GALILEO_E1_C_SECONDARY_CODE[i] == '0')
+                                {
+                                    code_[j] = code[j];
+                                }
+                            else
+                                {
+                                    code_[j] = -code[j];
+                                }
+                        }
+                }
         }
     else
         {

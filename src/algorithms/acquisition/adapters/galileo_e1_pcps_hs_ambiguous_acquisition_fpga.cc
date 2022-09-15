@@ -140,14 +140,30 @@ void GalileoE1PcpsHSAmbiguousAcquisitionFpga::set_local_code()
     bool cboc = configuration_->property(
         "Acquisition" + std::to_string(channel_) + ".cboc", false);
 
-    volk_gnsssdr::vector<std::complex<float>> code(code_length_);
+    uint32_t num_codes, codelength;
+    if (enable_hs)
+        {
+            // when using high sensitivity mode, the concatenated
+            // PRN codes have to be interpolated for the whole
+            // sample_ms_ duration, to prevent performance loss
+            // when using sampling periods that are not a divider
+            // of the PRN code duration.
+            num_codes = sampled_ms_ / GALILEO_E1_CODE_PERIOD_MS;
+            codelength = vector_length_;
+        }
+    else
+        {
+            num_codes = 1;
+            codelength = code_length_;
+        }
+    volk_gnsssdr::vector<std::complex<float>> code(codelength);
 
     if (acquire_pilot_ == true)
         {
             // set local signal generator to Galileo E1 pilot component (1C)
             std::array<char, 3> pilot_signal = {{'1', 'C', '\0'}};
             galileo_e1_code_gen_complex_sampled(code, pilot_signal,
-                cboc, gnss_synchro_->PRN, fs_in_, 0, false);
+                cboc, gnss_synchro_->PRN, fs_in_, 0, num_codes, false);
         }
     else
         {
@@ -156,22 +172,26 @@ void GalileoE1PcpsHSAmbiguousAcquisitionFpga::set_local_code()
             Signal_[1] = gnss_synchro_->Signal[1];
             Signal_[2] = '\0';
             galileo_e1_code_gen_complex_sampled(code, Signal_,
-                cboc, gnss_synchro_->PRN, fs_in_, 0, false);
+                cboc, gnss_synchro_->PRN, fs_in_, 0, num_codes, false);
         }
 
     own::span<gr_complex> code_span(code_.data(), vector_length_);
 
     if (enable_hs)
         {
-            for (unsigned int i = 0; i < sampled_ms_ / 4; i++)
+            for (unsigned int i = 0; i < sampled_ms_ / GALILEO_E1_CODE_PERIOD_MS; i++)
                 {
-                    std::copy_n(code.data(), code_length_, code_span.subspan(i * code_length_, code_length_).data());
-
-                    if (GALILEO_E1_C_SECONDARY_CODE[i] == '0')
+                    uint32_t initial_sample = floorf(static_cast<float>((acq_parameters_.resampled_fs) * i * GALILEO_E1_CODE_PERIOD_MS) / 1000.0);
+                    uint32_t end_sample = floorf(static_cast<float>((acq_parameters_.resampled_fs) * (i + 1) * GALILEO_E1_CODE_PERIOD_MS) / 1000.0);
+                    for (unsigned int j = initial_sample; j < end_sample; j++)
                         {
-                            for (unsigned int j = 0; j < code_length_; j++)
+                            if (GALILEO_E1_C_SECONDARY_CODE[i] == '0')
                                 {
-                                    code_[i * code_length_ + j] = -code_[i * code_length_ + j];
+                                    code_[j] = code[j];
+                                }
+                            else
+                                {
+                                    code_[j] = -code[j];
                                 }
                         }
                 }

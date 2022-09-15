@@ -1562,7 +1562,7 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                 uint32_t align_length;
                                 if (d_enable_hs)
                                     {
-                                        align_length = d_current_integration_length_samples * d_trk_parameters.extend_correlation_symbols;
+                                        align_length = round(static_cast<float>(d_trk_parameters.extend_correlation_symbols) * static_cast<float>(d_code_period) * d_trk_parameters.fs_in);
                                     }
                                 else
                                     {
