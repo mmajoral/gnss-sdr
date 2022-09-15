@@ -1569,8 +1569,7 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                         align_length = d_current_integration_length_samples;
                                     }
                                 const uint32_t num_frames = ceil((delta_trk_to_acq_prn_start_samples) / align_length);
-                                double nsamples_code_doppler_correction = round(((num_frames * align_length) / d_trk_parameters.fs_in) * d_acq_carrier_doppler_hz * GALILEO_E1_CARR_TO_CODE);
-                                absolute_samples_offset = static_cast<uint64_t>(d_acq_code_phase_samples + d_acq_sample_stamp + num_frames * align_length - nsamples_code_doppler_correction);
+                                absolute_samples_offset = static_cast<uint64_t>(d_acq_code_phase_samples + d_acq_sample_stamp + num_frames * align_length);
                             }
                         else
                             {
