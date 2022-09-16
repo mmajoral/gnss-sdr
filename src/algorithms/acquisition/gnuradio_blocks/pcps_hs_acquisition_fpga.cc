@@ -674,12 +674,12 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
 
             if (d_enable_hs)
                 {
-                    //d_gnss_synchro->Acq_delay_samples = static_cast<double>(d_downsampling_factor*indext);
+                    //d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples) - coh_shift_samples_dec * d_downsampling_factor, d_downsampling_factor * d_consumed_samples));
                     d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples), d_downsampling_factor * d_consumed_samples));
                 }
             else
                 {
-                    //d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor*indext), d_downsampling_factor*d_acq_parameters.samples_per_code));
+                    //d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples) - coh_shift_samples_dec * d_downsampling_factor, d_downsampling_factor * d_acq_parameters.samples_per_code));
                     d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples), d_downsampling_factor * d_acq_parameters.samples_per_code));
                 }
 
@@ -781,10 +781,12 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
 
             if (d_enable_hs)
                 {
+                    //d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples) - d_downsampling_factor * coh_shift_samples_dec, d_downsampling_factor * d_consumed_samples));
                     d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples), d_downsampling_factor * d_consumed_samples));
                 }
             else
                 {
+                    //d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples) - d_downsampling_factor * coh_shift_samples_dec, d_downsampling_factor * d_acq_parameters.samples_per_code));
                     d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples), d_downsampling_factor * d_acq_parameters.samples_per_code));
                 }
 
@@ -934,12 +936,27 @@ void pcps_hs_acquisition_fpga::run_acquisition(
     // read the sample counter corresponding to the sample capture
     d_sample_counter = d_acquisition_fpga->read_sample_counter();
 
+    //    double doppler_corr;
+    //    if (!d_step_two)
+    //        {
+    //            doppler_corr = d_doppler_center;
+    //        }
+    //    else
+    //        {
+    //            doppler_corr = d_doppler_center_step_two;
+    //        }
+    //    double coh_shift_chips = ((static_cast<double>(doppler_corr)) / 1575420000.0) * static_cast<double>(1.023e6) * (static_cast<double>(d_acq_parameters.sampled_ms) / 1000.0);
+    //    double samples_per_chip = static_cast<double>(d_acq_parameters.fs_in) / static_cast<double>(1.023e6);
+    //    double coh_shift_samples = coh_shift_chips * samples_per_chip;
+
     // perform the acquisition
     while (d_active)
         {
+            //coh_shift_samples_dec = static_cast<int32_t>(round(coh_shift_samples * static_cast<double>(d_num_noncoherent_integrations_counter)));
             // temporary, this will be optimized
             for (uint32_t k = 0; k < d_consumed_samples; k++)
                 {
+                    //d_input_signal[k] = std::complex<float>(vect_samples[2 * k + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2) - 2 * coh_shift_samples_dec], vect_samples[(2 * k) + 1 + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)] - 2 * coh_shift_samples_dec);
                     d_input_signal[k] = std::complex<float>(vect_samples[2 * k + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)], vect_samples[(2 * k) + 1 + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)]);
                 }
             // run the acquisition core

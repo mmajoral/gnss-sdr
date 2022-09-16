@@ -163,7 +163,8 @@ void GalileoE1PcpsHSAmbiguousAcquisitionFpga::set_local_code()
             // set local signal generator to Galileo E1 pilot component (1C)
             std::array<char, 3> pilot_signal = {{'1', 'C', '\0'}};
             galileo_e1_code_gen_complex_sampled(code, pilot_signal,
-                cboc, gnss_synchro_->PRN, fs_in_, 0, num_codes, false);
+                //cboc, gnss_synchro_->PRN, fs_in_, 0, num_codes, doppler_center_, false);
+                cboc, gnss_synchro_->PRN, fs_in_, 0, num_codes, 0, false);
         }
     else
         {

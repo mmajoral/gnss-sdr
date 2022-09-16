@@ -253,6 +253,7 @@ private:
     float d_test_statistics;
     float d_doppler_center_step_two;
 
+    //int32_t coh_shift_samples_dec;
 
     uint32_t d_downsampling_factor;
     int32_t d_state;

@@ -2958,6 +2958,7 @@ void GNSSFlowgraph::Doppler_freq_assist(int num_channel, const Gnss_Signal& gnss
 
                             // Galileo E1 uses frequency band 1. Height and velocity are not part of the assistance parameters so height 0 and velocity 0 is assumed
                             double predicted_doppler = it->second.predicted_doppler(TOW, agnss_ref_location_.lat, agnss_ref_location_.lon, 0.0, 0.0, 0.0, 0.0, 1);
+                            //channels_.at(num_channel)->assist_acquisition_doppler(predicted_doppler);
                             if (agnss_xml_estimated_doppler_map_.find(PRN) == agnss_xml_estimated_doppler_map_.end())
                                 {
                                     agnss_xml_estimated_doppler_map_.insert(std::make_pair(PRN, static_cast<int>(predicted_doppler)));
