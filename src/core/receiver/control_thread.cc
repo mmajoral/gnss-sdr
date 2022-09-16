@@ -201,7 +201,10 @@ void ControlThread::init()
                             agnss_ref_location_.lat = vect[0];
                             agnss_ref_location_.lon = vect[1];
                             agnss_ref_location_.valid = true;
-                            flowgraph_->set_ref_location_for_Doppler_freq_assist(agnss_ref_location_);
+                            if (configuration_->property("GNSS-SDR.enable_hs", false))
+                                {
+                                    flowgraph_->set_ref_location_for_Doppler_freq_assist(agnss_ref_location_);
+                                }
                         }
                     else
                         {
@@ -230,7 +233,10 @@ void ControlThread::init()
                     if (agnss_ref_time_.seconds > 0)
                         {
                             agnss_ref_time_.valid = true;
-                            flowgraph_->set_ref_time_for_Doppler_freq_assist(agnss_ref_time_);
+                            if (configuration_->property("GNSS-SDR.enable_hs", false))
+                                {
+                                    flowgraph_->set_ref_time_for_Doppler_freq_assist(agnss_ref_time_);
+                                }
                         }
                     else
                         {
@@ -684,9 +690,11 @@ bool ControlThread::read_assistance_from_XML()
                     LOG(INFO) << "SUPL: could not read Ref Location XML";
                 }
         }
-
-    flowgraph_->set_eph_data_for_Doppler_freq_assist(supl_client_ephemeris_);
-    flowgraph_->set_eph_available_sats();
+    if (configuration_->property("GNSS-SDR.enable_hs", false))
+        {
+            flowgraph_->set_eph_data_for_Doppler_freq_assist(supl_client_ephemeris_);
+            flowgraph_->set_eph_available_sats();
+        }
     return ret;
 }
 

@@ -37,8 +37,8 @@
 #include "gnss_sdr_make_unique.h"
 #include "gnss_synchro_monitor.h"
 #include "nav_message_monitor.h"
-#include "rtklib.h"         // for gtime_t
-#include "rtklib_rtkcmn.h"  // for time2gst
+#include "rtklib.h"         // for gtime_t when using high sensitivity
+#include "rtklib_rtkcmn.h"  // for time2gst when using high sensitivity
 #include "signal_source_interface.h"
 #include <boost/lexical_cast.hpp>    // for boost::lexical_cast
 #include <boost/tokenizer.hpp>       // for boost::tokenizer
@@ -1848,17 +1848,23 @@ void GNSSFlowgraph::acquisition_manager(unsigned int who)
                                 }
                             else
                                 {
-                                    // check if assistance is available from the XML files
-                                    uint32_t PRN = gnss_signal.get_satellite().get_PRN();
-                                    int doppler_center = 0;
-                                    std::map<int, int>::iterator it = agnss_xml_estimated_doppler_map_.find(PRN);
-                                    if (it != agnss_xml_estimated_doppler_map_.end())
+                                    if (configuration_->property("GNSS-SDR.enable_hs", false))
                                         {
-                                            doppler_center = it->second;
+                                            // check if assistance is available from the XML files
+                                            uint32_t PRN = gnss_signal.get_satellite().get_PRN();
+                                            int doppler_center = 0;
+                                            std::map<int, int>::iterator it = agnss_xml_estimated_doppler_map_.find(PRN);
+                                            if (it != agnss_xml_estimated_doppler_map_.end())
+                                                {
+                                                    doppler_center = it->second;
+                                                }
+                                            channels_[current_channel]->assist_acquisition_doppler(doppler_center);
                                         }
-
-                                    // set Doppler center to 0 Hz
-                                    channels_[current_channel]->assist_acquisition_doppler(doppler_center);
+                                    else
+                                        {
+                                            // set Doppler center to 0 Hz
+                                            channels_[current_channel]->assist_acquisition_doppler(0);
+                                        }
                                 }
 #if ENABLE_FPGA
                             if (enable_fpga_offloading_)
@@ -2896,9 +2902,12 @@ void GNSSFlowgraph::set_ref_time_for_Doppler_freq_assist(Agnss_Ref_Time agnss_re
 
 void GNSSFlowgraph::set_signal(int num_channel, const Gnss_Signal& gnss_signal)
 {
-    if ((agnss_ref_location_.valid) && (agnss_ref_time_.valid))
+    if (configuration_->property("GNSS-SDR.enable_hs", false))
         {
-            Doppler_freq_assist(num_channel, gnss_signal);
+            if ((agnss_ref_location_.valid) && (agnss_ref_time_.valid))
+                {
+                    Doppler_freq_assist(num_channel, gnss_signal);
+                }
         }
     channels_.at(num_channel)->set_signal(gnss_signal);
 }
