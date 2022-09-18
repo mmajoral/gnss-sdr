@@ -150,30 +150,7 @@ void ControlThread::init()
     // Instantiates a control queue, a GNSS flowgraph, and a control message factory
     control_queue_ = std::make_shared<Concurrent_Queue<pmt::pmt_t>>();
     cmd_interface_.set_msg_queue(control_queue_);  // set also the queue pointer for the telecommand thread
-    if (well_formatted_configuration_)
-        {
-            try
-                {
-                    flowgraph_ = std::make_shared<GNSSFlowgraph>(configuration_, control_queue_);
-                }
-            catch (const boost::bad_lexical_cast &e)
-                {
-                    std::cout << "Caught bad lexical cast with error " << e.what() << '\n';
-                }
-        }
-    else
-        {
-            flowgraph_ = nullptr;
-        }
 
-    stop_ = false;
-    processed_control_messages_ = 0;
-    applied_actions_ = 0;
-    supl_mcc_ = 0;
-    supl_mns_ = 0;
-    supl_lac_ = 0;
-    supl_ci_ = 0;
-    msqid_ = -1;
     agnss_ref_location_ = Agnss_Ref_Location();
     agnss_ref_time_ = Agnss_Ref_Time();
 
@@ -201,10 +178,6 @@ void ControlThread::init()
                             agnss_ref_location_.lat = vect[0];
                             agnss_ref_location_.lon = vect[1];
                             agnss_ref_location_.valid = true;
-                            if (configuration_->property("GNSS-SDR.enable_hs", false))
-                                {
-                                    flowgraph_->set_ref_location_for_Doppler_freq_assist(agnss_ref_location_);
-                                }
                         }
                     else
                         {
@@ -233,10 +206,6 @@ void ControlThread::init()
                     if (agnss_ref_time_.seconds > 0)
                         {
                             agnss_ref_time_.valid = true;
-                            if (configuration_->property("GNSS-SDR.enable_hs", false))
-                                {
-                                    flowgraph_->set_ref_time_for_Doppler_freq_assist(agnss_ref_time_);
-                                }
                         }
                     else
                         {
@@ -250,6 +219,65 @@ void ControlThread::init()
                 }
         }
 
+    if (configuration_->property("GNSS-SDR.enable_hs", false))
+        {
+            if ((agnss_ref_location_.valid) && (agnss_ref_time_.valid))
+                {
+                    uint32_t Channels_1B_count_tmp = configuration_->property("Channels_1B.count", 0);
+                    uint32_t Channels_1B_assist_count = get_num_chan_1B_in_eph();
+                    if (Channels_1B_count_tmp > Channels_1B_assist_count)
+                        {
+                            if (Channels_1B_assist_count > 0)
+                                {
+                                    std::cout << "Setting the number of Galileo E1 channels to " << Channels_1B_assist_count
+                                              << " as this is the number of satellites available in the Galileo assistance ephemeris data file " << std::endl;
+                                    configuration_->set_property("Channels_1B.count", std::to_string(Channels_1B_assist_count));
+                                }
+                            else
+                                {
+                                    std::cout << "There are no available Galileo satellites in the assistance ephemeris data " << std::endl;
+                                    throw(std::invalid_argument("Please, update the file containing the Galileo assistance ephemeris data or use the Set GNSS-SDR.AGNSS_gal_ephemeris_xml to use another file"));
+                                }
+                        }
+                }
+        }
+
+    if (well_formatted_configuration_)
+        {
+            try
+                {
+                    flowgraph_ = std::make_shared<GNSSFlowgraph>(configuration_, control_queue_);
+                }
+            catch (const boost::bad_lexical_cast &e)
+                {
+                    std::cout << "Caught bad lexical cast with error " << e.what() << '\n';
+                }
+        }
+    else
+        {
+            flowgraph_ = nullptr;
+        }
+
+    if (configuration_->property("GNSS-SDR.enable_hs", false))
+        {
+            if (agnss_ref_location_.valid)
+                {
+                    flowgraph_->set_ref_location_for_Doppler_freq_assist(agnss_ref_location_);
+                }
+            if (agnss_ref_time_.valid)
+                {
+                    flowgraph_->set_ref_time_for_Doppler_freq_assist(agnss_ref_time_);
+                }
+        }
+
+    stop_ = false;
+    processed_control_messages_ = 0;
+    applied_actions_ = 0;
+    supl_mcc_ = 0;
+    supl_mns_ = 0;
+    supl_lac_ = 0;
+    supl_ci_ = 0;
+    msqid_ = -1;
     receiver_on_standby_ = false;
 }
 
@@ -1262,4 +1290,27 @@ void ControlThread::print_help_at_exit() const
             std::cerr << " * The configuration file must define a PVT.implementation\n"
                       << "   Documentation of the PVT block at https://gnss-sdr.org/docs/sp-blocks/pvt/\n";
         }
+}
+
+uint32_t ControlThread::get_num_chan_1B_in_eph()
+{
+    uint32_t num_sats = 0;
+    std::vector<uint32_t> PRNs_available;
+    std::string eph_gal_xml_filename = configuration_->property("GNSS-SDR.AGNSS_gal_ephemeris_xml", eph_gal_default_xml_filename_);
+    if (supl_client_ephemeris_.load_gal_ephemeris_xml(eph_gal_xml_filename) == true)
+        {
+            std::map<int, Galileo_Ephemeris>::const_iterator gal_eph_iter;
+            for (gal_eph_iter = supl_client_ephemeris_.gal_ephemeris_map.cbegin();
+                 gal_eph_iter != supl_client_ephemeris_.gal_ephemeris_map.cend();
+                 gal_eph_iter++)
+                {
+                    // Do not read the same PRN twice
+                    if (std::find(PRNs_available.begin(), PRNs_available.end(), gal_eph_iter->second.PRN) == PRNs_available.end())
+                        {
+                            num_sats++;
+                            PRNs_available.push_back(gal_eph_iter->second.PRN);
+                        }
+                }
+        }
+    return num_sats;
 }

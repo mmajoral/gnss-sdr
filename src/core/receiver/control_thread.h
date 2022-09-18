@@ -155,6 +155,11 @@ private:
     void sysv_queue_listener();
     void print_help_at_exit() const;
 
+    /*!
+     * \get the number of available Galileo satellites in the assistance ephemeris data
+     */
+    uint32_t get_num_chan_1B_in_eph();
+
     // default filename for assistance data
     const std::string eph_default_xml_filename_ = "./gps_ephemeris.xml";
     const std::string utc_default_xml_filename_ = "./gps_utc_model.xml";
