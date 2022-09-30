@@ -115,15 +115,12 @@ private:
     // FPGA register adresses
     // write addresses
     static const uint32_t select_queue_reg_addr = 0;
-    static const uint32_t blocking_reg_addr = 1;
     static const uint32_t nsamples_reg_addr = 2;
-    static const uint32_t enable_sanity_check_test_reg_addr = 3;
-    static const uint32_t sanity_check_test_counter_init_value_reg_addr = 4;
     static const uint32_t nsamples_first_block_reg_addr = 5;
     static const uint32_t reset_stop_start_acq_reg_addr = 8;
     static const uint32_t write_address_LSW_reg_addr = 12;
     static const uint32_t write_address_MSW_reg_addr = 13;
-    static const uint32_t int_on_rst_reg_addr = 14;
+    static const uint32_t blocking_reg_addr = 14;
     // read-write addresses
     static const uint32_t test_reg_addr = 15;
     // read addresses

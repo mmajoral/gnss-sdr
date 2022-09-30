@@ -190,8 +190,6 @@ void Fpga_HS_Acquisition::configure_acquisition()
     uint32_t fpga_pl_ddr4_ram_addr_MSW = (FPGA_PL_DDR4_RAM_ADDR & SELECT_MSW) >> SHIFT_32_BITS;
     d_map_base[write_address_LSW_reg_addr] = fpga_pl_ddr4_ram_addr_LSW;
     d_map_base[write_address_MSW_reg_addr] = fpga_pl_ddr4_ram_addr_MSW;
-    d_map_base[enable_sanity_check_test_reg_addr] = 0;  // 1; // sanity check test
-    d_map_base[int_on_rst_reg_addr] = 0;                // do not interrupt on reset
 }
 
 
