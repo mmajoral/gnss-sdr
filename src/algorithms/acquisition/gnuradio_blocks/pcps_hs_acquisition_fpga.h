@@ -204,7 +204,6 @@ private:
     void run_acquisition(
         volk_gnsssdr::vector<float> &d_tmp_buffer,
         volk_gnsssdr::vector<std::complex<float>> &d_input_signal,
-        std::unique_ptr<gnss_fft_complex_rev> &d_ifft,
         volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid,
         volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_prev_ifft,
         volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_DPDI_term,
@@ -213,7 +212,6 @@ private:
     void acquisition_core(uint64_t samp_count,
         volk_gnsssdr::vector<float> &d_tmp_buffer,
         volk_gnsssdr::vector<std::complex<float>> &d_input_signal,
-        std::unique_ptr<gnss_fft_complex_rev> &d_ifft,
         volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid,
         volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_prev_ifft,
         volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_DPDI_term,
@@ -229,6 +227,7 @@ private:
     volk_gnsssdr::vector<lv_16sc_t> d_data_buffer_sc;
 
     std::unique_ptr<gnss_fft_complex_fwd> d_fft_if;
+    std::unique_ptr<gnss_fft_complex_rev> d_ifft;
     std::weak_ptr<ChannelFsm> d_channel_fsm;
 
     Acq_Conf_Fpga d_acq_parameters;

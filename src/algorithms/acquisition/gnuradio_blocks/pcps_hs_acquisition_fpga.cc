@@ -106,6 +106,7 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
 
     d_fft_codes = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
     d_fft_if = gnss_fft_fwd_make_unique(d_fft_size);
+    d_ifft = gnss_fft_rev_make_unique(d_fft_size);
 
     d_grid = arma::fmat();
     d_narrow_grid = arma::fmat();
@@ -542,7 +543,6 @@ float pcps_hs_acquisition_fpga::first_vs_second_peak_statistic(uint32_t &indext,
 void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
     volk_gnsssdr::vector<float> &d_tmp_buffer,
     volk_gnsssdr::vector<std::complex<float>> &d_input_signal,
-    std::unique_ptr<gnss_fft_complex_rev> &d_ifft,
     volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid,
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_prev_ifft,
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_DPDI_term,
@@ -912,7 +912,6 @@ void pcps_hs_acquisition_fpga::calculate_threshold()
 void pcps_hs_acquisition_fpga::run_acquisition(
     volk_gnsssdr::vector<float> &d_tmp_buffer,
     volk_gnsssdr::vector<std::complex<float>> &d_input_signal,
-    std::unique_ptr<gnss_fft_complex_rev> &d_ifft,
     volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid,
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_prev_ifft,
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_DPDI_term,
@@ -963,7 +962,6 @@ void pcps_hs_acquisition_fpga::run_acquisition(
             acquisition_core(d_sample_counter,
                 d_tmp_buffer,
                 d_input_signal,
-                d_ifft,
                 d_magnitude_grid,
                 d_prev_ifft,
                 d_DPDI_term,
@@ -990,7 +988,6 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
     // and before fetching the samples in order to minimize the acquisition latency
     volk_gnsssdr::vector<float> d_tmp_buffer = volk_gnsssdr::vector<float>(d_fft_size);
     volk_gnsssdr::vector<std::complex<float>> d_input_signal = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
-    std::unique_ptr<gnss_fft_complex_rev> d_ifft = gnss_fft_rev_make_unique(d_fft_size);
     volk_gnsssdr::vector<volk_gnsssdr::vector<float>> d_magnitude_grid = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
     for (uint32_t doppler_index = 0; doppler_index < d_num_doppler_bins; doppler_index++)
         {
@@ -1026,7 +1023,6 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
     bool positive_acquisition = false;
     run_acquisition(d_tmp_buffer,
         d_input_signal,
-        d_ifft,
         d_magnitude_grid,
         d_prev_ifft,
         d_DPDI_term,
@@ -1044,7 +1040,6 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
                     d_active = active;
                     run_acquisition(d_tmp_buffer,
                         d_input_signal,
-                        d_ifft,
                         d_magnitude_grid,
                         d_prev_ifft,
                         d_DPDI_term,
