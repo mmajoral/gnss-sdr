@@ -1025,13 +1025,19 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                                 }
                             else
                                 {
-                                    d_flag_preamble = true;  // valid preamble indicator (initialized to false every work())
+                                    if (num_preambles_not_detected > CHECK_s)
+                                        {
+                                            d_flag_preamble = true;  // valid preamble indicator (initialized to false every work())
+                                        }
                                     gr::thread::scoped_lock lock(d_setlock);
                                     d_last_valid_preamble = d_symbol_counter;
-                                    if (!d_flag_frame_sync)
+                                    if (num_preambles_not_detected > CHECK_s)
                                         {
-                                            d_flag_frame_sync = true;
-                                            DLOG(INFO) << " Frame sync SAT " << this->d_satellite;
+                                            if (!d_flag_frame_sync)
+                                                {
+                                                    d_flag_frame_sync = true;
+                                                    DLOG(INFO) << " Frame sync SAT " << this->d_satellite;
+                                                }
                                         }
                                 }
                         }
