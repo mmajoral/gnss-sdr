@@ -1012,7 +1012,7 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                     d_preamble_index = d_symbol_counter;  // record the preamble sample stamp (t_P)
                     if (d_enable_navdata_assist)
                         {
-                            if ((num_preambles_not_detected > CHECK_s) && (num_preambles_detected < MIN_PREAMBLE_DETECTION_SUCCESS_RATE * num_preambles_not_detected))
+                            if (((num_preambles_not_detected + num_preambles_detected) > CHECK_s) && (num_preambles_detected < MIN_PREAMBLE_DETECTION_SUCCESS_RATE * (num_preambles_not_detected + num_preambles_detected)))
                                 {
                                     DLOG(INFO) << "Lost of frame sync SAT " << this->d_satellite;
                                     gr::thread::scoped_lock lock(d_setlock);
@@ -1025,7 +1025,7 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                                 }
                             else
                                 {
-                                    if (num_preambles_not_detected > CHECK_s)
+                                    if ((num_preambles_not_detected + num_preambles_detected) > CHECK_s)
                                         {
                                             d_flag_preamble = true;  // valid preamble indicator (initialized to false every work())
                                         }
