@@ -549,13 +549,13 @@ float pcps_hs_acquisition_fpga::first_vs_second_peak_statistic(uint32_t &indext,
 }
 
 void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
-    volk_gnsssdr::vector<float> &d_tmp_buffer,
-    volk_gnsssdr::vector<std::complex<float>> &d_input_signal,
-    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid,
-    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_prev_ifft,
-    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_DPDI_term,
-    volk_gnsssdr::vector<std::complex<float>> &d_DPDI_term_buffer,
-    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_NPDI_term, bool &positive_acquisition)
+    volk_gnsssdr::vector<float> &tmp_buffer,
+    volk_gnsssdr::vector<std::complex<float>> &input_signal,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &magnitude_grid,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &prev_ifft,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &DPDI_term,
+    volk_gnsssdr::vector<std::complex<float>> &DPDI_term_buffer,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &NPDI_term, bool &positive_acquisition)
 {
     d_num_noncoherent_integrations_counter++;
 
@@ -568,11 +568,11 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
         {
             for (uint32_t i = d_consumed_samples; i < d_fft_size; i++)
                 {
-                    d_input_signal[i] = gr_complex(0.0, 0.0);
+                    input_signal[i] = gr_complex(0.0, 0.0);
                 }
         }
 
-    const gr_complex *in = d_input_signal.data();  // Get the input samples pointer
+    const gr_complex *in = input_signal.data();  // Get the input samples pointer
 
     d_mag = 0.0;
 
@@ -608,78 +608,78 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                     const size_t offset = (d_acq_parameters.bit_transition_flag ? effective_fft_size : 0);
                     if (d_num_noncoherent_integrations_counter == 1)
                         {
-                            volk_32fc_magnitude_squared_32f(d_magnitude_grid[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                            volk_32fc_magnitude_squared_32f(magnitude_grid[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
 
                             if (d_enable_hs)
                                 {
                                     // save current ifft output
-                                    volk_32fc_conjugate_32fc(d_prev_ifft[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                                    volk_32fc_conjugate_32fc(prev_ifft[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
                                 }
                         }
                     else
                         {
-                            volk_32fc_magnitude_squared_32f(d_tmp_buffer.data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                            volk_32fc_magnitude_squared_32f(tmp_buffer.data(), d_ifft->get_outbuf() + offset, effective_fft_size);
 
                             if (d_enable_hs)
                                 {
                                     if (d_num_noncoherent_integrations_counter == 2)
                                         {
                                             // accumulate NPDI term
-                                            volk_32f_x2_add_32f(d_NPDI_term[doppler_index].data(), d_magnitude_grid[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                            volk_32f_x2_add_32f(NPDI_term[doppler_index].data(), magnitude_grid[doppler_index].data(), tmp_buffer.data(), effective_fft_size);
                                         }
                                     else
                                         {
                                             // accumulate NPDI term
-                                            volk_32f_x2_add_32f(d_NPDI_term[doppler_index].data(), d_NPDI_term[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                            volk_32f_x2_add_32f(NPDI_term[doppler_index].data(), NPDI_term[doppler_index].data(), tmp_buffer.data(), effective_fft_size);
                                         }
 
                                     if (d_num_noncoherent_integrations_counter == 2)
                                         {
                                             // compute DPDI term
-                                            volk_32fc_x2_multiply_32fc(d_DPDI_term[doppler_index].data(), d_ifft->get_outbuf() + offset, d_prev_ifft[doppler_index].data(), effective_fft_size);
+                                            volk_32fc_x2_multiply_32fc(DPDI_term[doppler_index].data(), d_ifft->get_outbuf() + offset, prev_ifft[doppler_index].data(), effective_fft_size);
                                         }
                                     else
                                         {
                                             // compute DPDI term
-                                            volk_32fc_x2_multiply_32fc(d_DPDI_term_buffer.data(), d_ifft->get_outbuf() + offset, d_prev_ifft[doppler_index].data(), effective_fft_size);
+                                            volk_32fc_x2_multiply_32fc(DPDI_term_buffer.data(), d_ifft->get_outbuf() + offset, prev_ifft[doppler_index].data(), effective_fft_size);
 
                                             // accumulate DPDI term
-                                            volk_32fc_x2_add_32fc(d_DPDI_term[doppler_index].data(), d_DPDI_term[doppler_index].data(), d_DPDI_term_buffer.data(), effective_fft_size);
+                                            volk_32fc_x2_add_32fc(DPDI_term[doppler_index].data(), DPDI_term[doppler_index].data(), DPDI_term_buffer.data(), effective_fft_size);
                                         }
 
                                     // compute the magnitude of the DPDI term
-                                    volk_32fc_magnitude_32f(d_tmp_buffer.data(), d_DPDI_term[doppler_index].data(), effective_fft_size);
+                                    volk_32fc_magnitude_32f(tmp_buffer.data(), DPDI_term[doppler_index].data(), effective_fft_size);
 
                                     // multiply the magnitude of the DPDI term by two
-                                    volk_32f_s32f_multiply_32f(d_tmp_buffer.data(), d_tmp_buffer.data(), 2.0, effective_fft_size);
+                                    volk_32f_s32f_multiply_32f(tmp_buffer.data(), tmp_buffer.data(), 2.0, effective_fft_size);
 
                                     // add DPDI and NPDI terms
-                                    volk_32f_x2_add_32f(d_magnitude_grid[doppler_index].data(), d_NPDI_term[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                    volk_32f_x2_add_32f(magnitude_grid[doppler_index].data(), NPDI_term[doppler_index].data(), tmp_buffer.data(), effective_fft_size);
 
                                     // save current ifft output
-                                    volk_32fc_conjugate_32fc(d_prev_ifft[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                                    volk_32fc_conjugate_32fc(prev_ifft[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
                                 }
                             else
                                 {
-                                    volk_32f_x2_add_32f(d_magnitude_grid[doppler_index].data(), d_magnitude_grid[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                    volk_32f_x2_add_32f(magnitude_grid[doppler_index].data(), magnitude_grid[doppler_index].data(), tmp_buffer.data(), effective_fft_size);
                                 }
                         }
 
                     // Record results to file if required
                     if (d_dump and d_channel == d_dump_channel)
                         {
-                            std::copy(d_magnitude_grid[doppler_index].data(), d_magnitude_grid[doppler_index].data() + effective_fft_size, d_grid.colptr(doppler_index));
+                            std::copy(magnitude_grid[doppler_index].data(), magnitude_grid[doppler_index].data() + effective_fft_size, d_grid.colptr(doppler_index));
                         }
                 }
 
             // Compute the test statistic
             if (d_use_CFAR_algorithm_flag)
                 {
-                    d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins, d_acq_parameters.doppler_max, d_doppler_step, d_magnitude_grid);
+                    d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins, d_acq_parameters.doppler_max, d_doppler_step, magnitude_grid);
                 }
             else
                 {
-                    d_test_statistics = first_vs_second_peak_statistic(indext, doppler, d_num_doppler_bins, d_acq_parameters.doppler_max, d_doppler_step, d_magnitude_grid, d_tmp_buffer);
+                    d_test_statistics = first_vs_second_peak_statistic(indext, doppler, d_num_doppler_bins, d_acq_parameters.doppler_max, d_doppler_step, magnitude_grid, tmp_buffer);
                 }
 
             if (d_enable_hs)
@@ -745,75 +745,75 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                     const size_t offset = (d_acq_parameters.bit_transition_flag ? effective_fft_size : 0);
                     if (d_num_noncoherent_integrations_counter == 1)
                         {
-                            volk_32fc_magnitude_squared_32f(d_magnitude_grid[doppler_index].data(), buffer_pointer + offset, effective_fft_size);
+                            volk_32fc_magnitude_squared_32f(magnitude_grid[doppler_index].data(), buffer_pointer + offset, effective_fft_size);
                             if (d_enable_hs)
                                 {
                                     // save current ifft output
-                                    volk_32fc_conjugate_32fc(d_prev_ifft[doppler_index].data(), buffer_pointer + offset, effective_fft_size);
+                                    volk_32fc_conjugate_32fc(prev_ifft[doppler_index].data(), buffer_pointer + offset, effective_fft_size);
                                 }
                         }
                     else
                         {
-                            volk_32fc_magnitude_squared_32f(d_tmp_buffer.data(), buffer_pointer + offset, effective_fft_size);
+                            volk_32fc_magnitude_squared_32f(tmp_buffer.data(), buffer_pointer + offset, effective_fft_size);
 
                             if (d_enable_hs)
                                 {
                                     if (d_num_noncoherent_integrations_counter == 2)
                                         {
                                             // accumulate NPDI term
-                                            volk_32f_x2_add_32f(d_NPDI_term[doppler_index].data(), d_magnitude_grid[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                            volk_32f_x2_add_32f(NPDI_term[doppler_index].data(), magnitude_grid[doppler_index].data(), tmp_buffer.data(), effective_fft_size);
                                         }
                                     else
                                         {
                                             // accumulate NPDI term
-                                            volk_32f_x2_add_32f(d_NPDI_term[doppler_index].data(), d_NPDI_term[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                            volk_32f_x2_add_32f(NPDI_term[doppler_index].data(), NPDI_term[doppler_index].data(), tmp_buffer.data(), effective_fft_size);
                                         }
 
                                     if (d_num_noncoherent_integrations_counter == 2)
                                         {
                                             // compute DPDI term
-                                            volk_32fc_x2_multiply_32fc(d_DPDI_term[doppler_index].data(), buffer_pointer + offset, d_prev_ifft[doppler_index].data(), effective_fft_size);
+                                            volk_32fc_x2_multiply_32fc(DPDI_term[doppler_index].data(), buffer_pointer + offset, prev_ifft[doppler_index].data(), effective_fft_size);
                                         }
                                     else
                                         {
                                             // compute DPDI term
-                                            volk_32fc_x2_multiply_32fc(d_DPDI_term_buffer.data(), buffer_pointer + offset, d_prev_ifft[doppler_index].data(), effective_fft_size);
+                                            volk_32fc_x2_multiply_32fc(DPDI_term_buffer.data(), buffer_pointer + offset, prev_ifft[doppler_index].data(), effective_fft_size);
 
                                             // accumulate DPDI term
-                                            volk_32fc_x2_add_32fc(d_DPDI_term[doppler_index].data(), d_DPDI_term[doppler_index].data(), d_DPDI_term_buffer.data(), effective_fft_size);
+                                            volk_32fc_x2_add_32fc(DPDI_term[doppler_index].data(), DPDI_term[doppler_index].data(), DPDI_term_buffer.data(), effective_fft_size);
                                         }
 
                                     // compute the magnitude of the DPDI term
-                                    volk_32fc_magnitude_32f(d_tmp_buffer.data(), d_DPDI_term[doppler_index].data(), effective_fft_size);
+                                    volk_32fc_magnitude_32f(tmp_buffer.data(), DPDI_term[doppler_index].data(), effective_fft_size);
 
                                     // multiply the magnitude of the DPDI term by two
-                                    volk_32f_s32f_multiply_32f(d_tmp_buffer.data(), d_tmp_buffer.data(), 2.0, effective_fft_size);
+                                    volk_32f_s32f_multiply_32f(tmp_buffer.data(), tmp_buffer.data(), 2.0, effective_fft_size);
 
                                     // add DPDI and NPDI terms
-                                    volk_32f_x2_add_32f(d_magnitude_grid[doppler_index].data(), d_NPDI_term[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                    volk_32f_x2_add_32f(magnitude_grid[doppler_index].data(), NPDI_term[doppler_index].data(), tmp_buffer.data(), effective_fft_size);
 
                                     // save current ifft output
-                                    volk_32fc_conjugate_32fc(d_prev_ifft[doppler_index].data(), buffer_pointer + offset, effective_fft_size);
+                                    volk_32fc_conjugate_32fc(prev_ifft[doppler_index].data(), buffer_pointer + offset, effective_fft_size);
                                 }
                             else
                                 {
-                                    volk_32f_x2_add_32f(d_magnitude_grid[doppler_index].data(), d_magnitude_grid[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                    volk_32f_x2_add_32f(magnitude_grid[doppler_index].data(), magnitude_grid[doppler_index].data(), tmp_buffer.data(), effective_fft_size);
                                 }
                         }
                     // Record results to file if required
                     if (d_dump and d_channel == d_dump_channel)
                         {
-                            std::copy(d_magnitude_grid[doppler_index].data(), d_magnitude_grid[doppler_index].data() + effective_fft_size, d_narrow_grid.colptr(doppler_index));
+                            std::copy(magnitude_grid[doppler_index].data(), magnitude_grid[doppler_index].data() + effective_fft_size, d_narrow_grid.colptr(doppler_index));
                         }
                 }
             // Compute the test statistic
             if (d_use_CFAR_algorithm_flag)
                 {
-                    d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins_step2, static_cast<int32_t>(d_doppler_center_step_two - (static_cast<float>(d_num_doppler_bins_step2) / 2.0) * d_acq_parameters.doppler_step2), d_acq_parameters.doppler_step2, d_magnitude_grid);
+                    d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins_step2, static_cast<int32_t>(d_doppler_center_step_two - (static_cast<float>(d_num_doppler_bins_step2) / 2.0) * d_acq_parameters.doppler_step2), d_acq_parameters.doppler_step2, magnitude_grid);
                 }
             else
                 {
-                    d_test_statistics = first_vs_second_peak_statistic(indext, doppler, d_num_doppler_bins_step2, static_cast<int32_t>(d_doppler_center_step_two - (static_cast<float>(d_num_doppler_bins_step2) / 2.0) * d_acq_parameters.doppler_step2), d_acq_parameters.doppler_step2, d_magnitude_grid, d_tmp_buffer);
+                    d_test_statistics = first_vs_second_peak_statistic(indext, doppler, d_num_doppler_bins_step2, static_cast<int32_t>(d_doppler_center_step_two - (static_cast<float>(d_num_doppler_bins_step2) / 2.0) * d_acq_parameters.doppler_step2), d_acq_parameters.doppler_step2, magnitude_grid, tmp_buffer);
                 }
 
             if (d_enable_hs)
@@ -948,13 +948,13 @@ void pcps_hs_acquisition_fpga::calculate_threshold()
 }
 
 void pcps_hs_acquisition_fpga::run_acquisition(
-    volk_gnsssdr::vector<float> &d_tmp_buffer,
-    volk_gnsssdr::vector<std::complex<float>> &d_input_signal,
-    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid,
-    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_prev_ifft,
-    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_DPDI_term,
-    volk_gnsssdr::vector<std::complex<float>> &d_DPDI_term_buffer,
-    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_NPDI_term, bool &positive_acquisition)
+    volk_gnsssdr::vector<float> &tmp_buffer,
+    volk_gnsssdr::vector<std::complex<float>> &input_signal,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &magnitude_grid,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &prev_ifft,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &DPDI_term,
+    volk_gnsssdr::vector<std::complex<float>> &DPDI_term_buffer,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &NPDI_term, bool &positive_acquisition)
 {
     // open FPGA acquisition device
     d_acquisition_fpga->open_device();
@@ -995,18 +995,18 @@ void pcps_hs_acquisition_fpga::run_acquisition(
                 {
                     for (uint32_t k = 0; k < d_consumed_samples; k++)
                         {
-                            d_input_signal[k] = std::complex<float>(vect_samples[2 * k + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)], vect_samples[(2 * k) + 1 + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)]);
+                            input_signal[k] = std::complex<float>(vect_samples[2 * k + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)], vect_samples[(2 * k) + 1 + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)]);
                         }
                 }
             // run the acquisition core
             acquisition_core(d_sample_counter,
-                d_tmp_buffer,
-                d_input_signal,
-                d_magnitude_grid,
-                d_prev_ifft,
-                d_DPDI_term,
-                d_DPDI_term_buffer,
-                d_NPDI_term, positive_acquisition);
+                tmp_buffer,
+                input_signal,
+                magnitude_grid,
+                prev_ifft,
+                DPDI_term,
+                DPDI_term_buffer,
+                NPDI_term, positive_acquisition);
             // update sample counter to the starting point of the latest coherent integration
             d_sample_counter += d_consumed_samples;
         }

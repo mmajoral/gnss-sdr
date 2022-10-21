@@ -201,21 +201,23 @@ private:
     void send_positive_acquisition();
     void dump_results(int32_t effective_fft_size);
     void run_acquisition(
-        volk_gnsssdr::vector<float> &d_tmp_buffer,
-        volk_gnsssdr::vector<std::complex<float>> &d_input_signal,
-        volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid,
-        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_prev_ifft,
-        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_DPDI_term,
-        volk_gnsssdr::vector<std::complex<float>> &d_DPDI_term_buffer,
-        volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_NPDI_term, bool &positive_acquisition);
+        volk_gnsssdr::vector<float> &tmp_buffer,
+        volk_gnsssdr::vector<std::complex<float>> &input_signal,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &magnitude_grid,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &prev_ifft,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &DPDI_term,
+        volk_gnsssdr::vector<std::complex<float>> &DPDI_term_buffer,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &NPDI_term,
+        bool &positive_acquisition);
     void acquisition_core(uint64_t samp_count,
-        volk_gnsssdr::vector<float> &d_tmp_buffer,
-        volk_gnsssdr::vector<std::complex<float>> &d_input_signal,
-        volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid,
-        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_prev_ifft,
-        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &d_DPDI_term,
-        volk_gnsssdr::vector<std::complex<float>> &d_DPDI_term_buffer,
-        volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_NPDI_term, bool &positive_acquisition);
+        volk_gnsssdr::vector<float> &tmp_buffer,
+        volk_gnsssdr::vector<std::complex<float>> &input_signal,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &magnitude_grid,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &prev_ifft,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &DPDI_term,
+        volk_gnsssdr::vector<std::complex<float>> &DPDI_term_buffer,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &NPDI_term,
+        bool &positive_acquisition);
     void calculate_threshold(void);
     float first_vs_second_peak_statistic(uint32_t &indext, int32_t &doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step, volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid, volk_gnsssdr::vector<float> &d_tmp_buffer);
     float max_to_input_power_statistic(uint32_t &indext, int32_t &doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step, volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid);
