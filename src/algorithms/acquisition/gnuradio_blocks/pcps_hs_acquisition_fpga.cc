@@ -444,7 +444,7 @@ void pcps_hs_acquisition_fpga::dump_results(int32_t effective_fft_size)
         }
 }
 
-float pcps_hs_acquisition_fpga::max_to_input_power_statistic(uint32_t &indext, int32_t &doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step, volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid, volk_gnsssdr::vector<float> &d_tmp_buffer)
+float pcps_hs_acquisition_fpga::max_to_input_power_statistic(uint32_t &indext, int32_t &doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step, volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid)
 {
     float grid_maximum = 0.0;
     uint32_t index_doppler = 0U;
@@ -675,7 +675,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
             // Compute the test statistic
             if (d_use_CFAR_algorithm_flag)
                 {
-                    d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins, d_acq_parameters.doppler_max, d_doppler_step, d_magnitude_grid, d_tmp_buffer);
+                    d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins, d_acq_parameters.doppler_max, d_doppler_step, d_magnitude_grid);
                 }
             else
                 {
@@ -809,7 +809,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
             // Compute the test statistic
             if (d_use_CFAR_algorithm_flag)
                 {
-                    d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins_step2, static_cast<int32_t>(d_doppler_center_step_two - (static_cast<float>(d_num_doppler_bins_step2) / 2.0) * d_acq_parameters.doppler_step2), d_acq_parameters.doppler_step2, d_magnitude_grid, d_tmp_buffer);
+                    d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins_step2, static_cast<int32_t>(d_doppler_center_step_two - (static_cast<float>(d_num_doppler_bins_step2) / 2.0) * d_acq_parameters.doppler_step2), d_acq_parameters.doppler_step2, d_magnitude_grid);
                 }
             else
                 {
