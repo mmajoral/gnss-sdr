@@ -1,9 +1,8 @@
 /*!
  * \file pcps_hs_acquisition_fpga.cc
- * \brief This class implements a Parallel Code Phase Search Acquisition for the FPGA
+ * \brief This class implements a Parallel Code Phase Search high-sensitivity Acquisition for the FPGA
  * \authors <ul>
- *          <li> Marc Majoral, 2019. mmajoral(at)cttc.es
- *          <li> Javier Arribas, 2019. jarribas(at)cttc.es
+ *          <li> Marc Majoral, 2022. mmajoral(at)cttc.es
  *          </ul>
  *
  * -----------------------------------------------------------------------------
@@ -115,6 +114,16 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
         {
             d_buffer_size = d_consumed_samples * d_acq_parameters.max_dwells;
             d_buffer_sample_counter = 0;
+
+            if ((d_acq_parameters.sampled_ms >= 100) and (d_fft_size % 65536 == 0))
+                {
+                    d_enable_fpga_acceleration = true;
+                    d_acquisition_fpga = std::make_unique<Fpga_HS_Acquisition>(d_acq_parameters.device_name, d_acq_parameters.fs_in, d_buffer_size, d_consumed_samples, d_acq_parameters.select_queue_Fpga, d_fft_size, d_acq_parameters.max_dwells, d_acq_parameters.sampled_ms);
+                }
+            else
+                {
+                    d_enable_fpga_acceleration = false;
+                }
         }
     else
         {
@@ -152,8 +161,6 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
                     d_dump = false;
                 }
         }
-
-    d_acquisition_fpga = std::make_unique<Fpga_HS_Acquisition>(d_acq_parameters.device_name, d_buffer_size, d_consumed_samples, d_acq_parameters.select_queue_Fpga);
 }
 
 
@@ -469,6 +476,7 @@ float pcps_hs_acquisition_fpga::max_to_input_power_statistic(uint32_t &indext, i
             doppler = static_cast<int32_t>(d_doppler_center_step_two + (static_cast<float>(index_doppler) - static_cast<float>(floor(d_num_doppler_bins_step2 / 2.0))) * d_acq_parameters.doppler_step2);
         }
 
+    //std::cout << "grid_maximum = " << grid_maximum << " d_input_power = " << d_input_power << std::endl;
     return grid_maximum / d_input_power;
 }
 
@@ -574,6 +582,8 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                << d_threshold << ", doppler_max: " << d_acq_parameters.doppler_max
                << ", doppler_step: " << d_doppler_step
                << ", use_CFAR_algorithm_flag: " << (d_use_CFAR_algorithm_flag ? "true" : "false");
+
+    lv_32fc_t *buffer_pointer;  // address where the non-coherent integration reads the magnitude data in step two
 
     // Doppler frequency grid loop
     if (!d_step_two)
@@ -690,34 +700,61 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
         {
             for (uint32_t doppler_index = 0; doppler_index < d_num_doppler_bins_step2; doppler_index++)
                 {
-                    volk_32fc_x2_multiply_32fc(d_fft_if->get_inbuf(), in, d_grid_doppler_wipeoffs_step_two[doppler_index].data(), d_fft_size);
+                    if (d_enable_fpga_acceleration)
+                        {
+                            // Perform the FFT-based convolution  (parallel time search)
+                            // Compute the FFT of the carrier wiped--off incoming signal
 
-                    // Perform the FFT-based convolution  (parallel time search)
-                    // Compute the FFT of the carrier wiped--off incoming signal
+                            // compute the Doppler Wipeoff and the forward FFT
+                            float doppler_freq = (static_cast<float>(doppler_index) - static_cast<float>(floor(d_num_doppler_bins_step2 / 2.0))) * d_acq_parameters.doppler_step2 + d_doppler_center_step_two;
 
-                    d_fft_if->execute();
+                            d_acquisition_fpga->configure_Doppl_Wipeoff_FFT(doppler_freq, d_num_noncoherent_integrations_counter, doppler_index);
 
-                    // Multiply carrier wiped--off, Fourier transformed incoming signal
-                    // with the local FFT'd code reference using SIMD operations with VOLK library
-                    volk_32fc_x2_multiply_32fc(d_ifft->get_inbuf(), d_fft_if->get_outbuf(), d_fft_codes.data(), d_fft_size);
+                            // run Doppler Wipeoff and FFT
+                            d_acquisition_fpga->run_Doppl_Wipeoff_FFT();
 
-                    // compute the inverse FFT
-                    d_ifft->execute();
+                            // perform code mult
+                            d_acquisition_fpga->run_code_mult(d_fft_codes);
+
+                            d_acquisition_fpga->configure_iFFT(d_num_noncoherent_integrations_counter, doppler_index);
+
+                            // compute the inverse FFT
+                            d_acquisition_fpga->run_iFFT(d_fpga_ifft_pcps_buffer_data);
+
+                            buffer_pointer = d_fpga_ifft_pcps_buffer_data.data();
+                        }
+                    else
+                        {
+                            volk_32fc_x2_multiply_32fc(d_fft_if->get_inbuf(), in, d_grid_doppler_wipeoffs_step_two[doppler_index].data(), d_fft_size);
+
+                            // Perform the FFT-based convolution  (parallel time search)
+                            // Compute the FFT of the carrier wiped--off incoming signal
+
+                            d_fft_if->execute();
+
+                            // Multiply carrier wiped--off, Fourier transformed incoming signal
+                            // with the local FFT'd code reference using SIMD operations with VOLK library
+                            volk_32fc_x2_multiply_32fc(d_ifft->get_inbuf(), d_fft_if->get_outbuf(), d_fft_codes.data(), d_fft_size);
+
+                            // compute the inverse FFT
+                            d_ifft->execute();
+
+                            buffer_pointer = d_ifft->get_outbuf();
+                        }
 
                     const size_t offset = (d_acq_parameters.bit_transition_flag ? effective_fft_size : 0);
                     if (d_num_noncoherent_integrations_counter == 1)
                         {
-                            volk_32fc_magnitude_squared_32f(d_magnitude_grid[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
-
+                            volk_32fc_magnitude_squared_32f(d_magnitude_grid[doppler_index].data(), buffer_pointer + offset, effective_fft_size);
                             if (d_enable_hs)
                                 {
                                     // save current ifft output
-                                    volk_32fc_conjugate_32fc(d_prev_ifft[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                                    volk_32fc_conjugate_32fc(d_prev_ifft[doppler_index].data(), buffer_pointer + offset, effective_fft_size);
                                 }
                         }
                     else
                         {
-                            volk_32fc_magnitude_squared_32f(d_tmp_buffer.data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                            volk_32fc_magnitude_squared_32f(d_tmp_buffer.data(), buffer_pointer + offset, effective_fft_size);
 
                             if (d_enable_hs)
                                 {
@@ -735,12 +772,12 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                                     if (d_num_noncoherent_integrations_counter == 2)
                                         {
                                             // compute DPDI term
-                                            volk_32fc_x2_multiply_32fc(d_DPDI_term[doppler_index].data(), d_ifft->get_outbuf() + offset, d_prev_ifft[doppler_index].data(), effective_fft_size);
+                                            volk_32fc_x2_multiply_32fc(d_DPDI_term[doppler_index].data(), buffer_pointer + offset, d_prev_ifft[doppler_index].data(), effective_fft_size);
                                         }
                                     else
                                         {
                                             // compute DPDI term
-                                            volk_32fc_x2_multiply_32fc(d_DPDI_term_buffer.data(), d_ifft->get_outbuf() + offset, d_prev_ifft[doppler_index].data(), effective_fft_size);
+                                            volk_32fc_x2_multiply_32fc(d_DPDI_term_buffer.data(), buffer_pointer + offset, d_prev_ifft[doppler_index].data(), effective_fft_size);
 
                                             // accumulate DPDI term
                                             volk_32fc_x2_add_32fc(d_DPDI_term[doppler_index].data(), d_DPDI_term[doppler_index].data(), d_DPDI_term_buffer.data(), effective_fft_size);
@@ -756,7 +793,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                                     volk_32f_x2_add_32f(d_magnitude_grid[doppler_index].data(), d_NPDI_term[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
 
                                     // save current ifft output
-                                    volk_32fc_conjugate_32fc(d_prev_ifft[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                                    volk_32fc_conjugate_32fc(d_prev_ifft[doppler_index].data(), buffer_pointer + offset, effective_fft_size);
                                 }
                             else
                                 {
@@ -797,6 +834,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
 
     if (!d_acq_parameters.bit_transition_flag)
         {
+            //std::cout << "d_num_noncoherent_integrations_counter = " << d_num_noncoherent_integrations_counter << " d_step_two = " << d_step_two << " d_test_statistics = " << d_test_statistics << "d_threshold = " << d_threshold << std::endl;
             if (d_test_statistics > d_threshold)
                 {
                     d_active = false;
@@ -953,10 +991,12 @@ void pcps_hs_acquisition_fpga::run_acquisition(
         {
             //coh_shift_samples_dec = static_cast<int32_t>(round(coh_shift_samples * static_cast<double>(d_num_noncoherent_integrations_counter)));
             // temporary, this will be optimized
-            for (uint32_t k = 0; k < d_consumed_samples; k++)
+            if (!(d_step_two and d_enable_fpga_acceleration))
                 {
-                    //d_input_signal[k] = std::complex<float>(vect_samples[2 * k + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2) - 2 * coh_shift_samples_dec], vect_samples[(2 * k) + 1 + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)] - 2 * coh_shift_samples_dec);
-                    d_input_signal[k] = std::complex<float>(vect_samples[2 * k + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)], vect_samples[(2 * k) + 1 + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)]);
+                    for (uint32_t k = 0; k < d_consumed_samples; k++)
+                        {
+                            d_input_signal[k] = std::complex<float>(vect_samples[2 * k + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)], vect_samples[(2 * k) + 1 + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)]);
+                        }
                 }
             // run the acquisition core
             acquisition_core(d_sample_counter,
@@ -1006,6 +1046,13 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
             d_NPDI_term = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
         }
 
+    if (d_enable_hs)
+        {
+            if (d_enable_fpga_acceleration)
+                {
+                    d_fpga_ifft_pcps_buffer_data = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
+                }
+        }
 
     calculate_threshold();
     d_active = active;

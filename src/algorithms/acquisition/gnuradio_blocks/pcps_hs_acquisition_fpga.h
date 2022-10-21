@@ -1,6 +1,6 @@
 /*!
  * \file pcps_hs_acquisition_fpga.h
- * \brief This class implements a Parallel Code Phase Search Acquisition for the FPGA
+ * \brief This class implements a Parallel Code Phase Search high-sensitivity acquisition for the FPGA
  *
  *
  * Kay Borre book: K.Borre, D.M.Akos, N.Bertelsen, P.Rinder, and S.H.Jensen,
@@ -8,8 +8,7 @@
  * Approach", Birkhauser, 2007. pp 81-84
  *
  * \authors <ul>
- *          <li> Marc Majoral, 2019. mmajoral(at)cttc.es
- *          <li> Javier Arribas, 2019. jarribas(at)cttc.es
+ *          <li> Marc Majoral, 2022. mmajoral(at)cttc.es
  *          </ul>
  *
  * -----------------------------------------------------------------------------
@@ -226,6 +225,7 @@ private:
     volk_gnsssdr::vector<std::complex<float>> d_fft_codes;
     volk_gnsssdr::vector<lv_16sc_t> d_data_buffer_sc;
 
+    volk_gnsssdr::vector<std::complex<float>> d_fpga_ifft_pcps_buffer_data;
     std::unique_ptr<gnss_fft_complex_fwd> d_fft_if;
     std::unique_ptr<gnss_fft_complex_rev> d_ifft;
     std::weak_ptr<ChannelFsm> d_channel_fsm;
@@ -275,6 +275,7 @@ private:
     uint32_t d_downsampling_filter_delay_samples;
     uint32_t d_max_num_acqs;
 
+    bool d_enable_fpga_acceleration;
     bool d_active;
     bool d_worker_active;
     bool d_step_two;

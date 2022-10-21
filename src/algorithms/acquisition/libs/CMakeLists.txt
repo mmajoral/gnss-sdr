@@ -63,6 +63,9 @@ set_property(TARGET acquisition_libs
 
 if(ENABLE_FPGA)
     target_link_libraries(acquisition_libs
+        PUBLIC
+            Volk::volk
+            Volkgnsssdr::volkgnsssdr    	
         PRIVATE
             core_libs
     )
