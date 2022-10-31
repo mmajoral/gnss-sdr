@@ -190,7 +190,7 @@ private:
     static const uint32_t FPGA_xFFT_SIZE = 65536;    // FPGA FFT size
     static const uint32_t FPGA_xFFT_NUM_BITS = 16;   // FPGA xFFT number of bits
     // PL DDR4 RAM address
-    static const uint64_t FPGA_PL_DDR4_RAM_ADDR = 0x400000000;  // FPGA PL externalDDR4 RAM memory address
+    static const uint64_t FPGA_PL_DDR4_RAM_ADDR = 0x800000000;  // FPGA PL externalDDR4 RAM memory address
 
     // FPGA private functions
     void fpga_acquisition_test_register(void);
@@ -219,6 +219,7 @@ private:
     uint32_t d_xfft_num_channels;
     uint32_t d_max_dwells;
     uint32_t d_vect_addr;
+    uint32_t d_vect_addr2;
 };
 
 
