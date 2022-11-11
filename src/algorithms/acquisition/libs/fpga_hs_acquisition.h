@@ -190,7 +190,7 @@ private:
     static const uint32_t FPGA_xFFT_SIZE = 65536;    // FPGA FFT size
     static const uint32_t FPGA_xFFT_NUM_BITS = 16;   // FPGA xFFT number of bits
     // PL DDR4 RAM address
-    static const uint64_t FPGA_PL_DDR4_RAM_ADDR = 0x800000000;  // FPGA PL externalDDR4 RAM memory address
+    static const uint64_t FPGA_PL_DDR4_RAM_ADDR = 0x400000000;  // FPGA PL externalDDR4 RAM memory address
 
     // FPGA private functions
     void fpga_acquisition_test_register(void);
@@ -212,6 +212,7 @@ private:
     int16_t *d_PL_DDR4_RAM_map_base;  // PL DDR4 RAM driver memory map
     int32_t d_fd;                     // ACQ IP driver descriptor
     int32_t d_fd_PL_DDR4_RAM;         // PL DDR4 RAM driver descriptor
+    int32_t d_max_block_exp_fft;
     uint32_t d_nsamples;              // number of samples not including padding
     uint32_t d_nsamples_first_block;  // number of samples of the first coherent integration
     uint32_t d_select_queue;          // queue selection

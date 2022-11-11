@@ -346,33 +346,32 @@ void Fpga_HS_Acquisition::run_Doppl_Wipeoff_FFT(void)
 
     uint32_t xfft_status_data = d_map_base[xfft_status_data_reg_addr];
     int32_t block_exp[d_xfft_num_channels];
+    d_max_block_exp_fft = 0;
     for (uint k = 0; k < d_xfft_num_channels; k++)
         {
             block_exp[k] = (xfft_status_data >> k * 5) & 0x1F;
-        }
-
-    float fft_scaling_factor[d_xfft_num_channels];
-    for (uint32_t k = 0; k < d_xfft_num_channels; k++)
-        {
-            fft_scaling_factor[k] = pow(2, block_exp[k]);
+            if (block_exp[k] > d_max_block_exp_fft)
+                {
+                    d_max_block_exp_fft = block_exp[k];
+                }
         }
 
     volatile int16_t *vect_samples = static_cast<int16_t *>(d_PL_DDR4_RAM_map_base);
 
     for (uint32_t index2 = 0; index2 < FPGA_xFFT_SIZE; index2++)
         {
-            std::complex<float> fft_value0 = {static_cast<int16_t>((vect_samples[d_vect_addr + (0 + index2 * d_xfft_num_channels) * 2])) * fft_scaling_factor[0],
-                static_cast<int16_t>((vect_samples[d_vect_addr + (0 + index2 * d_xfft_num_channels) * 2 + 1])) * fft_scaling_factor[0]};
-            std::complex<float> fft_value1 = {static_cast<int16_t>((vect_samples[d_vect_addr + (1 + index2 * d_xfft_num_channels) * 2])) * fft_scaling_factor[1],
-                static_cast<int16_t>((vect_samples[d_vect_addr + (1 + index2 * d_xfft_num_channels) * 2 + 1])) * fft_scaling_factor[1]};
-            std::complex<float> fft_value2 = {static_cast<int16_t>((vect_samples[d_vect_addr + (2 + index2 * d_xfft_num_channels) * 2])) * fft_scaling_factor[2],
-                static_cast<int16_t>((vect_samples[d_vect_addr + (2 + index2 * d_xfft_num_channels) * 2 + 1])) * fft_scaling_factor[2]};
-            std::complex<float> fft_value3 = {static_cast<int16_t>((vect_samples[d_vect_addr + (3 + index2 * d_xfft_num_channels) * 2])) * fft_scaling_factor[3],
-                static_cast<int16_t>((vect_samples[d_vect_addr + (3 + index2 * d_xfft_num_channels) * 2 + 1])) * fft_scaling_factor[3]};
-            std::complex<float> fft_value4 = {static_cast<int16_t>((vect_samples[d_vect_addr + (4 + index2 * d_xfft_num_channels) * 2])) * fft_scaling_factor[4],
-                static_cast<int16_t>((vect_samples[d_vect_addr + (4 + index2 * d_xfft_num_channels) * 2 + 1])) * fft_scaling_factor[4]};
-            std::complex<float> fft_value5 = {static_cast<int16_t>((vect_samples[d_vect_addr + (5 + index2 * d_xfft_num_channels) * 2])) * fft_scaling_factor[5],
-                static_cast<int16_t>((vect_samples[d_vect_addr + (5 + index2 * d_xfft_num_channels) * 2 + 1])) * fft_scaling_factor[5]};
+            std::complex<float> fft_value0 = {static_cast<int16_t>((vect_samples[d_vect_addr + (0 + index2 * d_xfft_num_channels) * 2])),
+                static_cast<int16_t>((vect_samples[d_vect_addr + (0 + index2 * d_xfft_num_channels) * 2 + 1]))};
+            std::complex<float> fft_value1 = {static_cast<int16_t>((vect_samples[d_vect_addr + (1 + index2 * d_xfft_num_channels) * 2])),
+                static_cast<int16_t>((vect_samples[d_vect_addr + (1 + index2 * d_xfft_num_channels) * 2 + 1]))};
+            std::complex<float> fft_value2 = {static_cast<int16_t>((vect_samples[d_vect_addr + (2 + index2 * d_xfft_num_channels) * 2])),
+                static_cast<int16_t>((vect_samples[d_vect_addr + (2 + index2 * d_xfft_num_channels) * 2 + 1]))};
+            std::complex<float> fft_value3 = {static_cast<int16_t>((vect_samples[d_vect_addr + (3 + index2 * d_xfft_num_channels) * 2])),
+                static_cast<int16_t>((vect_samples[d_vect_addr + (3 + index2 * d_xfft_num_channels) * 2 + 1]))};
+            std::complex<float> fft_value4 = {static_cast<int16_t>((vect_samples[d_vect_addr + (4 + index2 * d_xfft_num_channels) * 2])),
+                static_cast<int16_t>((vect_samples[d_vect_addr + (4 + index2 * d_xfft_num_channels) * 2 + 1]))};
+            std::complex<float> fft_value5 = {static_cast<int16_t>((vect_samples[d_vect_addr + (5 + index2 * d_xfft_num_channels) * 2])),
+                static_cast<int16_t>((vect_samples[d_vect_addr + (5 + index2 * d_xfft_num_channels) * 2 + 1]))};
 
             for (uint32_t index1 = 0; index1 < d_xfft_num_channels; index1++)
                 {
@@ -458,32 +457,33 @@ void Fpga_HS_Acquisition::run_iFFT(volk_gnsssdr::vector<std::complex<float>> &bu
 
     uint32_t xfft_status_data = d_map_base[xfft_status_data_reg_addr];
     int32_t block_exp[d_xfft_num_channels];
+    int32_t max_block_exp = 0;
     for (uint k = 0; k < d_xfft_num_channels; k++)
         {
             block_exp[k] = (xfft_status_data >> k * 5) & 0x1F;
+            if (block_exp[k] > max_block_exp)
+                {
+                    max_block_exp = block_exp[k];
+                }
         }
 
-    float ifft_scaling_factor[d_xfft_num_channels];
-    for (uint32_t k = 0; k < d_xfft_num_channels; k++)
-        {
-            ifft_scaling_factor[k] = pow(2, block_exp[k]) * max_val * d_scaling_factor;
-        }
+    float final_scaling_factor = max_val * d_scaling_factor * pow(2, d_max_block_exp_fft) * pow(2, max_block_exp);
 
     // combine using twiddle factors
     for (uint32_t index2 = 0; index2 < FPGA_xFFT_SIZE; index2++)
         {
-            std::complex<float> fft_value0 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (0 + index2 * d_xfft_num_channels) * 2])) * ifft_scaling_factor[0],
-                static_cast<int16_t>((vect_samples[d_vect_addr2 + (0 + index2 * d_xfft_num_channels) * 2 + 1])) * ifft_scaling_factor[0]};
-            std::complex<float> fft_value1 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (1 + index2 * d_xfft_num_channels) * 2])) * ifft_scaling_factor[1],
-                static_cast<int16_t>((vect_samples[d_vect_addr2 + (1 + index2 * d_xfft_num_channels) * 2 + 1])) * ifft_scaling_factor[1]};
-            std::complex<float> fft_value2 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (2 + index2 * d_xfft_num_channels) * 2])) * ifft_scaling_factor[2],
-                static_cast<int16_t>((vect_samples[d_vect_addr2 + (2 + index2 * d_xfft_num_channels) * 2 + 1])) * ifft_scaling_factor[2]};
-            std::complex<float> fft_value3 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (3 + index2 * d_xfft_num_channels) * 2])) * ifft_scaling_factor[3],
-                static_cast<int16_t>((vect_samples[d_vect_addr2 + (3 + index2 * d_xfft_num_channels) * 2 + 1])) * ifft_scaling_factor[3]};
-            std::complex<float> fft_value4 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (4 + index2 * d_xfft_num_channels) * 2])) * ifft_scaling_factor[4],
-                static_cast<int16_t>((vect_samples[d_vect_addr2 + (4 + index2 * d_xfft_num_channels) * 2 + 1])) * ifft_scaling_factor[4]};
-            std::complex<float> fft_value5 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (5 + index2 * d_xfft_num_channels) * 2])) * ifft_scaling_factor[5],
-                static_cast<int16_t>((vect_samples[d_vect_addr2 + (5 + index2 * d_xfft_num_channels) * 2 + 1])) * ifft_scaling_factor[5]};
+            std::complex<float> fft_value0 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (0 + index2 * d_xfft_num_channels) * 2])) * final_scaling_factor,
+                static_cast<int16_t>((vect_samples[d_vect_addr2 + (0 + index2 * d_xfft_num_channels) * 2 + 1])) * final_scaling_factor};
+            std::complex<float> fft_value1 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (1 + index2 * d_xfft_num_channels) * 2])) * final_scaling_factor,
+                static_cast<int16_t>((vect_samples[d_vect_addr2 + (1 + index2 * d_xfft_num_channels) * 2 + 1])) * final_scaling_factor};
+            std::complex<float> fft_value2 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (2 + index2 * d_xfft_num_channels) * 2])) * final_scaling_factor,
+                static_cast<int16_t>((vect_samples[d_vect_addr2 + (2 + index2 * d_xfft_num_channels) * 2 + 1])) * final_scaling_factor};
+            std::complex<float> fft_value3 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (3 + index2 * d_xfft_num_channels) * 2])) * final_scaling_factor,
+                static_cast<int16_t>((vect_samples[d_vect_addr2 + (3 + index2 * d_xfft_num_channels) * 2 + 1])) * final_scaling_factor};
+            std::complex<float> fft_value4 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (4 + index2 * d_xfft_num_channels) * 2])) * final_scaling_factor,
+                static_cast<int16_t>((vect_samples[d_vect_addr2 + (4 + index2 * d_xfft_num_channels) * 2 + 1])) * final_scaling_factor};
+            std::complex<float> fft_value5 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (5 + index2 * d_xfft_num_channels) * 2])) * final_scaling_factor,
+                static_cast<int16_t>((vect_samples[d_vect_addr2 + (5 + index2 * d_xfft_num_channels) * 2 + 1])) * final_scaling_factor};
 
             for (uint32_t index1 = 0; index1 < d_xfft_num_channels; index1++)
                 {
