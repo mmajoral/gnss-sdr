@@ -207,12 +207,12 @@ private:
     volatile uint32_t *d_map_base;  // driver memory map
 
     float d_scaling_factor;  // prevent overflow in the calculations of the non-coherent integrations
+    float d_scaling_factor_fft;
 
     int64_t d_fs_in;
     int16_t *d_PL_DDR4_RAM_map_base;  // PL DDR4 RAM driver memory map
     int32_t d_fd;                     // ACQ IP driver descriptor
     int32_t d_fd_PL_DDR4_RAM;         // PL DDR4 RAM driver descriptor
-    int32_t d_max_block_exp_fft;
     uint32_t d_nsamples;              // number of samples not including padding
     uint32_t d_nsamples_first_block;  // number of samples of the first coherent integration
     uint32_t d_select_queue;          // queue selection

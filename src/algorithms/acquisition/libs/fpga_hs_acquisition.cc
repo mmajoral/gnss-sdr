@@ -344,17 +344,7 @@ void Fpga_HS_Acquisition::run_Doppl_Wipeoff_FFT(void)
 {
     run_Doppl_Wipeoff_xFFT();
 
-    uint32_t xfft_status_data = d_map_base[xfft_status_data_reg_addr];
-    int32_t block_exp[d_xfft_num_channels];
-    d_max_block_exp_fft = 0;
-    for (uint k = 0; k < d_xfft_num_channels; k++)
-        {
-            block_exp[k] = (xfft_status_data >> k * 5) & 0x1F;
-            if (block_exp[k] > d_max_block_exp_fft)
-                {
-                    d_max_block_exp_fft = block_exp[k];
-                }
-        }
+    d_scaling_factor_fft = d_map_base[xfft_status_data_reg_addr];
 
     volatile int16_t *vect_samples = static_cast<int16_t *>(d_PL_DDR4_RAM_map_base);
 
@@ -455,19 +445,8 @@ void Fpga_HS_Acquisition::run_iFFT(volk_gnsssdr::vector<std::complex<float>> &bu
     // run iFFT
     run_Doppl_Wipeoff_xFFT();
 
-    uint32_t xfft_status_data = d_map_base[xfft_status_data_reg_addr];
-    int32_t block_exp[d_xfft_num_channels];
-    int32_t max_block_exp = 0;
-    for (uint k = 0; k < d_xfft_num_channels; k++)
-        {
-            block_exp[k] = (xfft_status_data >> k * 5) & 0x1F;
-            if (block_exp[k] > max_block_exp)
-                {
-                    max_block_exp = block_exp[k];
-                }
-        }
-
-    float final_scaling_factor = max_val * d_scaling_factor * pow(2, d_max_block_exp_fft) * pow(2, max_block_exp);
+    float scaling_factor_ifft = d_map_base[xfft_status_data_reg_addr];
+    float final_scaling_factor = max_val * d_scaling_factor * scaling_factor_ifft * d_scaling_factor_fft;
 
     // combine using twiddle factors
     for (uint32_t index2 = 0; index2 < FPGA_xFFT_SIZE; index2++)
