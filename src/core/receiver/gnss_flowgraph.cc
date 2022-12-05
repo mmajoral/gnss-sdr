@@ -1851,7 +1851,15 @@ void GNSSFlowgraph::acquisition_manager(unsigned int who)
                                     if (configuration_->property("GNSS-SDR.enable_hs", false))
                                         {
                                             // check if assistance is available from the XML files
-                                            uint32_t PRN = gnss_signal.get_satellite().get_PRN();
+                                            uint32_t PRN;
+                                            if (sat_ == 0)
+                                                {
+                                                    PRN = gnss_signal.get_satellite().get_PRN();  // THIS GIVES 0 IF SATELLITE IS MANUALLY SET !
+                                                }
+                                            else
+                                                {
+                                                    PRN = channels_[current_channel]->get_signal().get_satellite().get_PRN();
+                                                }
                                             int doppler_center = 0;
                                             std::map<int, int>::iterator it = agnss_xml_estimated_doppler_map_.find(PRN);
                                             if (it != agnss_xml_estimated_doppler_map_.end())
