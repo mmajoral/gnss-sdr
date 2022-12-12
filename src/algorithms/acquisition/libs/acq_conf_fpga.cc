@@ -33,7 +33,7 @@ void Acq_Conf_Fpga::SetFromConfiguration(const ConfigurationInterface *configura
     doppler_max = configuration->property(role + ".doppler_max", doppler_max);
 
     // downsampling factor
-    downsampling_factor = configuration->property(role + ".downsampling_factor", downs_factor);
+    uint32_t downsampling_factor = configuration->property(role + ".downsampling_factor", downs_factor);
     fs_in = fs_in / downsampling_factor;
 
     // code length in samples

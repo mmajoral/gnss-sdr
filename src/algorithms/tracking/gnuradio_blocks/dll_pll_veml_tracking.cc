@@ -127,12 +127,16 @@ dll_pll_veml_tracking::dll_pll_veml_tracking(const Dll_Pll_Conf &conf_)
       d_Flag_PLL_180_deg_phase_locked(false),
       d_enable_hs(d_trk_parameters.enable_hs)
 {
+#if GNURADIO_GREATER_THAN_38
+    this->set_relative_rate(1, static_cast<uint64_t>(d_trk_parameters.vector_length));
+#else
+    this->set_relative_rate(1.0 / static_cast<double>(d_trk_parameters.vector_length));
+#endif
     // prevent telemetry symbols accumulation in output buffers
     this->set_max_noutput_items(1);
 
     // Telemetry bit synchronization message port input
     this->message_port_register_out(pmt::mp("events"));
-    this->set_relative_rate(1.0 / static_cast<double>(d_trk_parameters.vector_length));
 
     // Telemetry message port input
     this->message_port_register_in(pmt::mp("telemetry_to_trk"));

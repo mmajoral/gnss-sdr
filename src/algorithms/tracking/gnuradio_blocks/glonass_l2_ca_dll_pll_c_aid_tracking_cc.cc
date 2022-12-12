@@ -189,7 +189,11 @@ glonass_l2_ca_dll_pll_c_aid_tracking_cc::glonass_l2_ca_dll_pll_c_aid_tracking_cc
 
     systemName["R"] = std::string("Glonass");
 
-    set_relative_rate(1.0 / static_cast<double>(d_vector_length));
+#if GNURADIO_GREATER_THAN_38
+    this->set_relative_rate(1, static_cast<uint64_t>(d_vector_length));
+#else
+    this->set_relative_rate(1.0 / static_cast<double>(d_vector_length));
+#endif
     // set_min_output_buffer((int64_t)300);
 }
 
@@ -713,7 +717,7 @@ int glonass_l2_ca_dll_pll_c_aid_tracking_cc::general_work(int noutput_items __at
                     d_correlation_length_samples = K_prn_samples + d_rem_code_phase_integer_samples;
                     d_rem_code_phase_samples = d_rem_code_phase_samples - d_rem_code_phase_integer_samples;
 
-                    //################### PLL COMMANDS #################################################
+                    // ################### PLL COMMANDS #################################################
                     // carrier phase step (NCO phase increment per sample) [rads/sample]
                     d_carrier_phase_step_rad = TWO_PI * d_carrier_frequency_hz / static_cast<double>(d_fs_in);
                     d_acc_carrier_phase_cycles -= d_carrier_phase_step_rad * d_correlation_length_samples / TWO_PI;
@@ -722,7 +726,7 @@ int glonass_l2_ca_dll_pll_c_aid_tracking_cc::general_work(int noutput_items __at
                     // remnant carrier phase [rad]
                     d_rem_carrier_phase_rad = fmod(d_rem_carrier_phase_rad + TWO_PI * d_carrier_frequency_hz * CORRECTED_INTEGRATION_TIME_S, TWO_PI);
 
-                    //################### DLL COMMANDS #################################################
+                    // ################### DLL COMMANDS #################################################
                     // code phase step (Code resampler phase increment per sample) [chips/sample]
                     d_code_phase_step_chips = d_code_freq_chips / static_cast<double>(d_fs_in);
                     // remnant code phase [chips]
