@@ -281,8 +281,9 @@ void Fpga_HS_Acquisition::configure_Doppl_Wipeoff_FFT(float doppler_freq,
     d_map_base[nsamples_Doppl_Wipeoff_xFFT_reg_addr] = d_fft_size;
 
     // configure PL DDR4 read addresses
-    uint32_t fpga_pl_ddr4_ram_addr_LSW = ((FPGA_PL_DDR4_RAM_ADDR + d_fft_size * 4 * (ncoh_integr_counter - 1)) & SELECT_LSW);
-    uint32_t fpga_pl_ddr4_ram_addr_MSW = (FPGA_PL_DDR4_RAM_ADDR & SELECT_MSW) >> SHIFT_32_BITS;
+    uint32_t offset_rd_addr = d_fft_size * 4 * (ncoh_integr_counter - 1);
+    uint32_t fpga_pl_ddr4_ram_addr_LSW = ((FPGA_PL_DDR4_RAM_ADDR + offset_rd_addr) & SELECT_LSW);
+    uint32_t fpga_pl_ddr4_ram_addr_MSW = ((FPGA_PL_DDR4_RAM_ADDR + offset_rd_addr) & SELECT_MSW) >> SHIFT_32_BITS;
     d_map_base[read_address_Doppl_Wipeoff_xFFT_LSW_reg_addr] = fpga_pl_ddr4_ram_addr_LSW;
     d_map_base[read_address_Doppl_Wipeoff_xFFT_MSW_reg_addr] = fpga_pl_ddr4_ram_addr_MSW;
 
@@ -290,11 +291,13 @@ void Fpga_HS_Acquisition::configure_Doppl_Wipeoff_FFT(float doppler_freq,
     d_map_base[fwd_inv_fft_length_reg_addr] = 0x30;  // disable doppl wipeoff=0x70 -- enable doppl wipeoff= 0x30;
 
     // configure PL DDR4 write addresses , here 3 is the number of doppler searches
-    uint32_t fpga_pl_ddr4_ram_wr_addr_LSW = fpga_pl_ddr4_ram_addr_LSW + (d_fft_size)*7 * 4 + (d_fft_size)*4 * 7 * doppler_index;  // + (d_fft_size)*4*doppler_index;
+    uint32_t offset_wr_addr = offset_rd_addr + (d_fft_size)*7 * 4 + (d_fft_size)*4 * 7 * doppler_index;
+    uint32_t fpga_pl_ddr4_ram_wr_addr_LSW = ((FPGA_PL_DDR4_RAM_ADDR + offset_wr_addr) & SELECT_LSW);
+    uint32_t fpga_pl_ddr4_ram_wr_addr_MSW = ((FPGA_PL_DDR4_RAM_ADDR + offset_wr_addr) & SELECT_MSW) >> SHIFT_32_BITS;
     d_map_base[write_address_Doppl_Wipeoff_xFFT_LSW_reg_addr] = fpga_pl_ddr4_ram_wr_addr_LSW;
-    d_map_base[write_address_Doppl_Wipeoff_xFFT_MSW_reg_addr] = fpga_pl_ddr4_ram_addr_MSW;
+    d_map_base[write_address_Doppl_Wipeoff_xFFT_MSW_reg_addr] = fpga_pl_ddr4_ram_wr_addr_MSW;
 
-    d_vect_addr = fpga_pl_ddr4_ram_wr_addr_LSW / 2;
+    d_vect_addr = offset_wr_addr / 2;
 }
 
 void Fpga_HS_Acquisition::run_Doppl_Wipeoff_xFFT()
@@ -379,27 +382,27 @@ void Fpga_HS_Acquisition::run_code_mult(volk_gnsssdr::vector<std::complex<float>
 
 void Fpga_HS_Acquisition::configure_iFFT(uint32_t ncoh_integr_counter, uint32_t doppler_index)
 {
-    // set up addresses
-    uint32_t fpga_pl_ddr4_ram_addr_LSW = ((FPGA_PL_DDR4_RAM_ADDR + d_fft_size * 4 * (ncoh_integr_counter - 1) + (d_fft_size)*7 * 4 + (d_fft_size)*4 * 7 * doppler_index + (d_fft_size)*4 * 7 * 10) & SELECT_LSW);
-    uint32_t fpga_pl_ddr4_ram_addr_MSW = (FPGA_PL_DDR4_RAM_ADDR & SELECT_MSW) >> SHIFT_32_BITS;
-    uint32_t fpga_pl_ddr4_ram_wr_addr_LSW = fpga_pl_ddr4_ram_addr_LSW + (d_fft_size)*4 * 7 * 10;  // assume max 10 doppler indices for now
-    d_vect_addr = fpga_pl_ddr4_ram_addr_LSW / 2;
-    d_vect_addr2 = fpga_pl_ddr4_ram_wr_addr_LSW / 2;
+    // set up read addresses
+    uint32_t offset_rd_addr = d_fft_size * 4 * (ncoh_integr_counter - 1) + (d_fft_size)*7 * 4 + (d_fft_size)*4 * 7 * doppler_index + (d_fft_size)*4 * 7 * 10;
+    uint32_t fpga_pl_ddr4_ram_addr_LSW = ((FPGA_PL_DDR4_RAM_ADDR + offset_rd_addr) & SELECT_LSW);
+    uint32_t fpga_pl_ddr4_ram_addr_MSW = ((FPGA_PL_DDR4_RAM_ADDR + offset_rd_addr) & SELECT_MSW) >> SHIFT_32_BITS;
+    d_map_base[read_address_Doppl_Wipeoff_xFFT_LSW_reg_addr] = fpga_pl_ddr4_ram_addr_LSW;
+    d_map_base[read_address_Doppl_Wipeoff_xFFT_MSW_reg_addr] = fpga_pl_ddr4_ram_addr_MSW;
+    d_vect_addr = offset_rd_addr / 2;
 
     // configure the number of samples
     d_map_base[nsamples_Doppl_Wipeoff_xFFT_reg_addr] = d_fft_size;
 
-    // configure PL DDR4 read addresses
-    d_map_base[read_address_Doppl_Wipeoff_xFFT_LSW_reg_addr] = fpga_pl_ddr4_ram_addr_LSW;
-    d_map_base[read_address_Doppl_Wipeoff_xFFT_MSW_reg_addr] = fpga_pl_ddr4_ram_addr_MSW;
-
     // configure log small FFT length and forward FFT
     d_map_base[fwd_inv_fft_length_reg_addr] = 0x50;  // disable doppl wipeoff=0x50 -- enable doppl wipeoff= 0x10; //16; // FW FFTS
 
-    // configure PL DDR4 write addresses , here 3 is the number of doppler searches
-    uint32_t fpga_pl_ddr4_ram_wr_addr_LSW2 = fpga_pl_ddr4_ram_wr_addr_LSW;
-    d_map_base[write_address_Doppl_Wipeoff_xFFT_LSW_reg_addr] = fpga_pl_ddr4_ram_wr_addr_LSW2;
-    d_map_base[write_address_Doppl_Wipeoff_xFFT_MSW_reg_addr] = fpga_pl_ddr4_ram_addr_MSW;
+    // set up write addresses
+    uint32_t offset_wr_addr = offset_rd_addr + (d_fft_size)*4 * 7 * 10;
+    uint32_t fpga_pl_ddr4_ram_wr_addr_LSW = ((FPGA_PL_DDR4_RAM_ADDR + offset_wr_addr) & SELECT_LSW);
+    uint32_t fpga_pl_ddr4_ram_wr_addr_MSW = ((FPGA_PL_DDR4_RAM_ADDR + offset_wr_addr) & SELECT_MSW) >> SHIFT_32_BITS;
+    d_map_base[write_address_Doppl_Wipeoff_xFFT_LSW_reg_addr] = fpga_pl_ddr4_ram_wr_addr_LSW;
+    d_map_base[write_address_Doppl_Wipeoff_xFFT_MSW_reg_addr] = fpga_pl_ddr4_ram_wr_addr_MSW;
+    d_vect_addr2 = offset_wr_addr / 2;
 }
 
 
