@@ -565,7 +565,6 @@ float pcps_acquisition::max_to_input_power_statistic(uint32_t& indext, int32_t& 
         {
             doppler = static_cast<int32_t>(d_doppler_center_step_two + (static_cast<float>(index_doppler) - static_cast<float>(floor(d_num_doppler_bins_step2 / 2.0))) * d_acq_parameters.doppler_step2);
         }
-
     return grid_maximum / d_input_power;
 }
 
@@ -850,11 +849,60 @@ void pcps_acquisition::acquisition_core(uint64_t samp_count)
                     if (d_num_noncoherent_integrations_counter == 1)
                         {
                             volk_32fc_magnitude_squared_32f(d_magnitude_grid[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+
+                            if (d_enable_hs)
+                                {
+                                    // save current ifft output
+                                    volk_32fc_conjugate_32fc(d_prev_ifft[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                                }
                         }
                     else
                         {
                             volk_32fc_magnitude_squared_32f(d_tmp_buffer.data(), d_ifft->get_outbuf() + offset, effective_fft_size);
-                            volk_32f_x2_add_32f(d_magnitude_grid[doppler_index].data(), d_magnitude_grid[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+
+                            if (d_enable_hs)
+                                {
+                                    if (d_num_noncoherent_integrations_counter == 2)
+                                        {
+                                            // accumulate NPDI term
+                                            volk_32f_x2_add_32f(d_NPDI_term[doppler_index].data(), d_magnitude_grid[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                        }
+                                    else
+                                        {
+                                            // accumulate NPDI term
+                                            volk_32f_x2_add_32f(d_NPDI_term[doppler_index].data(), d_NPDI_term[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                        }
+
+                                    if (d_num_noncoherent_integrations_counter == 2)
+                                        {
+                                            // compute DPDI term
+                                            volk_32fc_x2_multiply_32fc(d_DPDI_term[doppler_index].data(), d_ifft->get_outbuf() + offset, d_prev_ifft[doppler_index].data(), effective_fft_size);
+                                        }
+                                    else
+                                        {
+                                            // compute DPDI term
+                                            volk_32fc_x2_multiply_32fc(d_DPDI_term_buffer.data(), d_ifft->get_outbuf() + offset, d_prev_ifft[doppler_index].data(), effective_fft_size);
+
+                                            // accumulate DPDI term
+                                            volk_32fc_x2_add_32fc(d_DPDI_term[doppler_index].data(), d_DPDI_term[doppler_index].data(), d_DPDI_term_buffer.data(), effective_fft_size);
+                                        }
+
+                                    // compute the magnitude of the DPDI term
+                                    volk_32fc_magnitude_32f(d_tmp_buffer.data(), d_DPDI_term[doppler_index].data(), effective_fft_size);
+
+                                    // multiply the magnitude of the DPDI term by two
+                                    volk_32f_s32f_multiply_32f(d_tmp_buffer.data(), d_tmp_buffer.data(), 2.0, effective_fft_size);
+
+                                    // add DPDI and NPDI terms
+                                    volk_32f_x2_add_32f(d_magnitude_grid[doppler_index].data(), d_NPDI_term[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+
+                                    // save current ifft output
+                                    volk_32fc_conjugate_32fc(d_prev_ifft[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                                }
+                            else
+                                {
+                                    volk_32f_x2_add_32f(d_magnitude_grid[doppler_index].data(), d_magnitude_grid[doppler_index].data(), d_tmp_buffer.data(), effective_fft_size);
+                                }
                         }
                     // Record results to file if required
                     if (d_dump and d_channel == d_dump_channel)
@@ -875,7 +923,14 @@ void pcps_acquisition::acquisition_core(uint64_t samp_count)
             if (d_acq_parameters.use_automatic_resampler)
                 {
                     // take into account the acquisition resampler ratio
-                    d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(indext), d_acq_parameters.samples_per_code)) * d_acq_parameters.resampler_ratio;
+                    if (d_enable_hs)
+                        {
+                            d_gnss_synchro->Acq_delay_samples = static_cast<double>(indext) * d_acq_parameters.resampler_ratio;
+                        }
+                    else
+                        {
+                            d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(indext), d_acq_parameters.samples_per_code)) * d_acq_parameters.resampler_ratio;
+                        }
                     d_gnss_synchro->Acq_delay_samples -= static_cast<double>(d_acq_parameters.resampler_latency_samples);  // account the resampler filter latency
                     d_gnss_synchro->Acq_doppler_hz = static_cast<double>(doppler);
                     d_gnss_synchro->Acq_samplestamp_samples = rint(static_cast<double>(samp_count) * d_acq_parameters.resampler_ratio);
@@ -883,7 +938,14 @@ void pcps_acquisition::acquisition_core(uint64_t samp_count)
                 }
             else
                 {
-                    d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(indext), d_acq_parameters.samples_per_code));
+                    if (d_enable_hs)
+                        {
+                            d_gnss_synchro->Acq_delay_samples = static_cast<double>(indext);
+                        }
+                    else
+                        {
+                            d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(indext), d_acq_parameters.samples_per_code));
+                        }
                     d_gnss_synchro->Acq_doppler_hz = static_cast<double>(doppler);
                     d_gnss_synchro->Acq_samplestamp_samples = samp_count;
                     d_gnss_synchro->Acq_doppler_step = d_acq_parameters.doppler_step2;
