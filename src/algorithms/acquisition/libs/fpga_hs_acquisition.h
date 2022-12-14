@@ -86,7 +86,6 @@ public:
     /*!
      * \brief capture samples
      */
-    //std::vector<int16_t> * capture_samples();
     void capture_samples();
 
     /*!
@@ -200,11 +199,8 @@ private:
     // FPGA private functions
     void fpga_acquisition_test_register(void);
     void fpga_acquisition_test_PL_DDR4_RAM(void);
-    void compute_twiddle_factors();
     void run_Doppl_Wipeoff_xFFT();
 
-    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_fft_combine_twiddle_factors;
-    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_ifft_combine_twiddle_factors;
     volk_gnsssdr::vector<std::complex<float>> d_buffer_data;  // buffer to store intermediate results
 
     std::string d_device_name;  // HW device name

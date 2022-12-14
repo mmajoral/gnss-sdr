@@ -76,9 +76,6 @@ Fpga_HS_Acquisition::Fpga_HS_Acquisition(std::string device_name,
     Fpga_HS_Acquisition::fpga_acquisition_test_PL_DDR4_RAM();
     Fpga_HS_Acquisition::close_PL_DDR4_RAM_device();
 
-    // compute xFFT hardware assistance twiddle factors
-    compute_twiddle_factors();
-
     d_buffer_data = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
 
     d_xfft_num_channels = d_fft_size / FPGA_xFFT_SIZE;
@@ -322,25 +319,6 @@ void Fpga_HS_Acquisition::run_Doppl_Wipeoff_xFFT()
 }
 
 
-void Fpga_HS_Acquisition::compute_twiddle_factors()
-{
-    d_fft_combine_twiddle_factors = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(5, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
-    d_ifft_combine_twiddle_factors = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(5, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
-
-    for (uint32_t index1 = 0; index1 < 5; index1++)
-        {
-            for (uint32_t index2 = 0; index2 < d_fft_size; index2++)
-                {
-                    d_fft_combine_twiddle_factors[index1][index2] = {
-                        static_cast<float>(cos(((static_cast<float>(index1 + 1) * (static_cast<float>(index2)) / static_cast<float>(d_fft_size))) * 2.0 * M_PI)),
-                        static_cast<float>(-sin(((static_cast<float>(index1 + 1) * (static_cast<float>(index2)) / static_cast<float>(d_fft_size))) * 2.0 * M_PI))};
-                    d_ifft_combine_twiddle_factors[index1][index2] = {d_fft_combine_twiddle_factors[index1][index2].real(),
-                        -d_fft_combine_twiddle_factors[index1][index2].imag()};
-                }
-        }
-}
-
-
 void Fpga_HS_Acquisition::run_Doppl_Wipeoff_FFT(void)
 {
     run_Doppl_Wipeoff_xFFT();
@@ -349,25 +327,10 @@ void Fpga_HS_Acquisition::run_Doppl_Wipeoff_FFT(void)
 
     volatile int16_t *vect_samples = static_cast<int16_t *>(d_PL_DDR4_RAM_map_base);
 
-    for (uint32_t index2 = 0; index2 < FPGA_xFFT_SIZE; index2++)
+    // read the FFT results
+    for (uint32_t k = 0; k < d_fft_size; k++)
         {
-            std::complex<float> fft_value0 = {static_cast<int16_t>((vect_samples[d_vect_addr + (0 + index2 * d_xfft_num_channels) * 2])),
-                static_cast<int16_t>((vect_samples[d_vect_addr + (0 + index2 * d_xfft_num_channels) * 2 + 1]))};
-            std::complex<float> fft_value1 = {static_cast<int16_t>((vect_samples[d_vect_addr + (1 + index2 * d_xfft_num_channels) * 2])),
-                static_cast<int16_t>((vect_samples[d_vect_addr + (1 + index2 * d_xfft_num_channels) * 2 + 1]))};
-            std::complex<float> fft_value2 = {static_cast<int16_t>((vect_samples[d_vect_addr + (2 + index2 * d_xfft_num_channels) * 2])),
-                static_cast<int16_t>((vect_samples[d_vect_addr + (2 + index2 * d_xfft_num_channels) * 2 + 1]))};
-            std::complex<float> fft_value3 = {static_cast<int16_t>((vect_samples[d_vect_addr + (3 + index2 * d_xfft_num_channels) * 2])),
-                static_cast<int16_t>((vect_samples[d_vect_addr + (3 + index2 * d_xfft_num_channels) * 2 + 1]))};
-            std::complex<float> fft_value4 = {static_cast<int16_t>((vect_samples[d_vect_addr + (4 + index2 * d_xfft_num_channels) * 2])),
-                static_cast<int16_t>((vect_samples[d_vect_addr + (4 + index2 * d_xfft_num_channels) * 2 + 1]))};
-            std::complex<float> fft_value5 = {static_cast<int16_t>((vect_samples[d_vect_addr + (5 + index2 * d_xfft_num_channels) * 2])),
-                static_cast<int16_t>((vect_samples[d_vect_addr + (5 + index2 * d_xfft_num_channels) * 2 + 1]))};
-
-            for (uint32_t index1 = 0; index1 < d_xfft_num_channels; index1++)
-                {
-                    d_buffer_data[(index1 * FPGA_xFFT_SIZE) + index2] = (fft_value0 + fft_value1 * d_fft_combine_twiddle_factors[0][(index1 * FPGA_xFFT_SIZE) + index2] + fft_value2 * d_fft_combine_twiddle_factors[1][(index1 * FPGA_xFFT_SIZE) + index2] + fft_value3 * d_fft_combine_twiddle_factors[2][(index1 * FPGA_xFFT_SIZE) + index2] + fft_value4 * d_fft_combine_twiddle_factors[3][(index1 * FPGA_xFFT_SIZE) + index2] + fft_value5 * d_fft_combine_twiddle_factors[4][(index1 * FPGA_xFFT_SIZE) + index2]);
-                }
+            d_buffer_data[k] = {vect_samples[d_vect_addr + 2 * k], vect_samples[d_vect_addr + 2 * k + 1]};
         }
 }
 
@@ -449,25 +412,9 @@ void Fpga_HS_Acquisition::run_iFFT(volk_gnsssdr::vector<std::complex<float>> &bu
     float scaling_factor_ifft = d_map_base[xfft_status_data_reg_addr];
     float final_scaling_factor = max_val * SCALING_FACT_PREVENT_OVERFLOW * scaling_factor_ifft * d_scaling_factor_fft;
 
-    // combine using twiddle factors
-    for (uint32_t index2 = 0; index2 < FPGA_xFFT_SIZE; index2++)
+    // read the iFFT results
+    for (uint32_t k = 0; k < d_fft_size; k++)
         {
-            std::complex<float> fft_value0 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (0 + index2 * d_xfft_num_channels) * 2])) * final_scaling_factor,
-                static_cast<int16_t>((vect_samples[d_vect_addr2 + (0 + index2 * d_xfft_num_channels) * 2 + 1])) * final_scaling_factor};
-            std::complex<float> fft_value1 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (1 + index2 * d_xfft_num_channels) * 2])) * final_scaling_factor,
-                static_cast<int16_t>((vect_samples[d_vect_addr2 + (1 + index2 * d_xfft_num_channels) * 2 + 1])) * final_scaling_factor};
-            std::complex<float> fft_value2 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (2 + index2 * d_xfft_num_channels) * 2])) * final_scaling_factor,
-                static_cast<int16_t>((vect_samples[d_vect_addr2 + (2 + index2 * d_xfft_num_channels) * 2 + 1])) * final_scaling_factor};
-            std::complex<float> fft_value3 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (3 + index2 * d_xfft_num_channels) * 2])) * final_scaling_factor,
-                static_cast<int16_t>((vect_samples[d_vect_addr2 + (3 + index2 * d_xfft_num_channels) * 2 + 1])) * final_scaling_factor};
-            std::complex<float> fft_value4 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (4 + index2 * d_xfft_num_channels) * 2])) * final_scaling_factor,
-                static_cast<int16_t>((vect_samples[d_vect_addr2 + (4 + index2 * d_xfft_num_channels) * 2 + 1])) * final_scaling_factor};
-            std::complex<float> fft_value5 = {static_cast<int16_t>((vect_samples[d_vect_addr2 + (5 + index2 * d_xfft_num_channels) * 2])) * final_scaling_factor,
-                static_cast<int16_t>((vect_samples[d_vect_addr2 + (5 + index2 * d_xfft_num_channels) * 2 + 1])) * final_scaling_factor};
-
-            for (uint32_t index1 = 0; index1 < d_xfft_num_channels; index1++)
-                {
-                    buffer_short_ifft_data[(index1 * FPGA_xFFT_SIZE) + index2] = (fft_value0 + fft_value1 * d_ifft_combine_twiddle_factors[0][(index1 * FPGA_xFFT_SIZE) + index2] + fft_value2 * d_ifft_combine_twiddle_factors[1][(index1 * FPGA_xFFT_SIZE) + index2] + fft_value3 * d_ifft_combine_twiddle_factors[2][(index1 * FPGA_xFFT_SIZE) + index2] + fft_value4 * d_ifft_combine_twiddle_factors[3][(index1 * FPGA_xFFT_SIZE) + index2] + fft_value5 * d_ifft_combine_twiddle_factors[4][(index1 * FPGA_xFFT_SIZE) + index2]);
-                }
+            buffer_short_ifft_data[k] = {vect_samples[d_vect_addr2 + 2 * k] * final_scaling_factor, vect_samples[d_vect_addr2 + 2 * k + 1] * final_scaling_factor};
         }
 }
