@@ -191,6 +191,10 @@ public:
     uint64_t get_sample_counter();
 
 private:
+    // Scaling factor to prevent post-detection integration algorithm variables to overflow when processing the results of the
+    // SW coherent integration
+    const float SCALING_FACT_PREVENT_OVERFLOW = 1e-11;
+
     friend pcps_hs_acquisition_fpga_sptr pcps_make_hs_acquisition_fpga(Acq_Conf_Fpga &conf_);
     explicit pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_);
 
@@ -253,8 +257,6 @@ private:
     float d_input_power;
     float d_test_statistics;
     float d_doppler_center_step_two;
-
-    //int32_t coh_shift_samples_dec;
 
     uint32_t d_downsampling_factor;
     int32_t d_state;

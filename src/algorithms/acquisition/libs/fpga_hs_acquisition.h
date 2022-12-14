@@ -189,8 +189,13 @@ private:
     static const uint32_t FPGA_LOG2_xFFT_SIZE = 16;  // log 2(FPGA FFT size)
     static const uint32_t FPGA_xFFT_SIZE = 65536;    // FPGA FFT size
     static const uint32_t FPGA_xFFT_NUM_BITS = 16;   // FPGA xFFT number of bits
+
     // PL DDR4 RAM address
     static const uint64_t FPGA_PL_DDR4_RAM_ADDR = 0x400000000;  // FPGA PL externalDDR4 RAM memory address
+
+    // Scaling factor to prevent post-detection integration algorithm variables to overflow when processing the results of the
+    // FPGA-assisted coherent integration
+    const float SCALING_FACT_PREVENT_OVERFLOW = 1e-11;
 
     // FPGA private functions
     void fpga_acquisition_test_register(void);
@@ -206,7 +211,6 @@ private:
 
     volatile uint32_t *d_map_base;  // driver memory map
 
-    float d_scaling_factor;  // prevent overflow in the calculations of the non-coherent integrations
     float d_scaling_factor_fft;
 
     int64_t d_fs_in;

@@ -209,8 +209,12 @@ void pcps_hs_acquisition_fpga::update_local_carrier(own::span<gr_complex> carrie
 
     if (d_enable_hs)
         {
-            // scale the carrier vector down to avoid overflow when performing long integrations
-            volk_32fc_s32fc_multiply_32fc(carrier_vector.data(), carrier_vector.data(), d_acq_parameters.sampled_ms * 1e-8, carrier_vector.size());
+            // scale the carrier vector down to scale the results of the coherent integration down
+            // in order to avoid overflow in the post-detection integration algorithm
+            // scaling the carrier vector down only needs to be done once during initialization
+            // as opposed to scaling the results of the coherent integration down, which would
+            // need to be computed every time during acquisition.
+            volk_32fc_s32fc_multiply_32fc(carrier_vector.data(), carrier_vector.data(), SCALING_FACT_PREVENT_OVERFLOW, carrier_vector.size());
         }
 }
 
@@ -473,6 +477,8 @@ float pcps_hs_acquisition_fpga::max_to_input_power_statistic(uint32_t &indext, i
         }
     else
         {
+            const auto index_opp = (index_doppler + d_num_doppler_bins_step2 / 2) % d_num_doppler_bins_step2;
+            d_input_power = static_cast<float>(std::accumulate(d_magnitude_grid[index_opp].data(), d_magnitude_grid[index_opp].data() + effective_fft_size, static_cast<float>(0.0)) / effective_fft_size / 2.0 / d_num_noncoherent_integrations_counter);
             doppler = static_cast<int32_t>(d_doppler_center_step_two + (static_cast<float>(index_doppler) - static_cast<float>(floor(d_num_doppler_bins_step2 / 2.0))) * d_acq_parameters.doppler_step2);
         }
 

@@ -83,8 +83,6 @@ Fpga_HS_Acquisition::Fpga_HS_Acquisition(std::string device_name,
 
     d_xfft_num_channels = d_fft_size / FPGA_xFFT_SIZE;
 
-    d_scaling_factor = (8.0 * (1e-4 / static_cast<float>(sampled_ms))) / (pow(2, FPGA_xFFT_NUM_BITS - 1));
-
     DLOG(INFO) << "Acquisition HS FPGA class created";
 }
 
@@ -449,7 +447,7 @@ void Fpga_HS_Acquisition::run_iFFT(volk_gnsssdr::vector<std::complex<float>> &bu
     run_Doppl_Wipeoff_xFFT();
 
     float scaling_factor_ifft = d_map_base[xfft_status_data_reg_addr];
-    float final_scaling_factor = max_val * d_scaling_factor * scaling_factor_ifft * d_scaling_factor_fft;
+    float final_scaling_factor = max_val * SCALING_FACT_PREVENT_OVERFLOW * scaling_factor_ifft * d_scaling_factor_fft;
 
     // combine using twiddle factors
     for (uint32_t index2 = 0; index2 < FPGA_xFFT_SIZE; index2++)
