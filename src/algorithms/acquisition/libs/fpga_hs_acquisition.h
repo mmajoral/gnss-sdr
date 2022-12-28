@@ -76,12 +76,7 @@ public:
      */
     void configure_acquisition();
 
-    /*!
-     * \brief Write the FFT/IFFT parameters into the FPGA
-     */
-    void configure_Doppl_Wipeoff_FFT(float doppler_freq,
-        uint32_t ncoh_integr_counter,
-        uint32_t doppler_index);
+    void set_local_code(volk_gnsssdr::vector<std::complex<float>> fft_code);
 
     /*!
      * \brief capture samples
@@ -89,21 +84,12 @@ public:
     void capture_samples();
 
     /*!
-     * \brief run Doppler Wipeoff + xFFT
+     * \brief Perform the non-coherent integration in the FPGA
      */
-    void run_Doppl_Wipeoff_FFT(void);
-
-    /*!
-     * \brief run code mult
-     */
-    void run_code_mult(volk_gnsssdr::vector<std::complex<float>> &d_fft_codes);
-
-    void configure_iFFT(uint32_t ncoh_integr_counter, uint32_t doppler_index);
-
-    /*!
-     * \brief run Doppler Wipeoff + iFFT
-     */
-    void run_iFFT(volk_gnsssdr::vector<std::complex<float>> &buffer_short_ifft_data);
+    void run_coherent_integration(float doppler_freq,
+        uint32_t ncoh_integr_counter,
+        uint32_t doppler_index,
+        volk_gnsssdr::vector<std::complex<float>> &buffer_short_ifft_data);
 
     /*!
      * \brief Open the device driver
@@ -140,9 +126,6 @@ public:
      */
     void unblock_acq();
 
-
-    //    void deb_unlock_acq();
-
 private:
     // FPGA register adresses
     // write addresses
@@ -161,8 +144,11 @@ private:
     static const uint32_t write_address_LSW_reg_addr = 12;
     static const uint32_t write_address_MSW_reg_addr = 13;
     static const uint32_t blocking_reg_addr = 14;
+    static const uint32_t local_code_read_address_LSW_reg_addr = 15;
+    static const uint32_t local_code_read_address_MSW_reg_addr = 16;
+    static const uint32_t output_scaling_factor_reg_addr = 17;
     // read-write addresses
-    static const uint32_t test_reg_addr = 15;
+    static const uint32_t test_reg_addr = 31;
     // read addresses
     static const uint32_t result_valid_reg_addr = 0;
     static const uint32_t sample_counter_LSW_reg_addr = 1;
@@ -188,26 +174,34 @@ private:
     static const uint32_t FPGA_LOG2_xFFT_SIZE = 16;  // log 2(FPGA FFT size)
     static const uint32_t FPGA_xFFT_SIZE = 65536;    // FPGA FFT size
     static const uint32_t FPGA_xFFT_NUM_BITS = 16;   // FPGA xFFT number of bits
+    static const uint32_t FW_FFT = 0x20;
+    static const uint32_t DISABLE_DOPPLER_WIPEOFF = 0x40;
+    static const uint32_t DISABLE_CODE_MULT = 0x80;
 
     // PL DDR4 RAM address
-    static const uint64_t FPGA_PL_DDR4_RAM_ADDR = 0x400000000;  // FPGA PL externalDDR4 RAM memory address
-
+    static const uint64_t FPGA_PL_DDR4_RAM_ADDR = 0x400000000;           // FPGA PL external DDR4 RAM memory address
+    static const uint64_t FPGA_PL_DDR4_RAM_LC_OFFSET_ADDR = 0x1FE80000;  // Local Code address in FPGA PL externaL DDR4 RAM memory
     // Scaling factor to prevent post-detection integration algorithm variables to overflow when processing the results of the
     // FPGA-assisted coherent integration
     const float SCALING_FACT_PREVENT_OVERFLOW = 1e-11;
+    const float MAX_POS_VALUE_16BIT = 32767.0;
 
     // FPGA private functions
-    void fpga_acquisition_test_register(void);
+    void
+    fpga_acquisition_test_register(void);
     void fpga_acquisition_test_PL_DDR4_RAM(void);
+    void configure_Doppl_Wipeoff_FFT(float doppler_freq, uint32_t offset_rd_addr, uint32_t offset_wr_addr);
     void run_Doppl_Wipeoff_xFFT();
+    void run_Doppl_Wipeoff_FFT(float &d_scaling_factor_fft);
+    void configure_iFFT(uint32_t offset_rd_addr, uint32_t offset_wr_addr);
+    void run_iFFT(float &scaling_factor_ifft);
+    void apply_scaling_correction_factor(volk_gnsssdr::vector<std::complex<float>> &buffer_short_ifft_data, float scaling_factor, uint32_t offset_rd_addr);
 
     volk_gnsssdr::vector<std::complex<float>> d_buffer_data;  // buffer to store intermediate results
 
     std::string d_device_name;  // HW device name
 
     volatile uint32_t *d_map_base;  // driver memory map
-
-    float d_scaling_factor_fft;
 
     int64_t d_fs_in;
     int16_t *d_PL_DDR4_RAM_map_base;  // PL DDR4 RAM driver memory map
@@ -219,8 +213,6 @@ private:
     uint32_t d_fft_size;
     uint32_t d_xfft_num_channels;
     uint32_t d_max_dwells;
-    uint32_t d_vect_addr;
-    uint32_t d_vect_addr2;
 };
 
 

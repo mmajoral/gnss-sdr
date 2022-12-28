@@ -714,18 +714,10 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                             // compute the Doppler Wipeoff and the forward FFT
                             float doppler_freq = (static_cast<float>(doppler_index) - static_cast<float>(floor(d_num_doppler_bins_step2 / 2.0))) * d_acq_parameters.doppler_step2 + d_doppler_center_step_two;
 
-                            d_acquisition_fpga->configure_Doppl_Wipeoff_FFT(doppler_freq, d_num_noncoherent_integrations_counter, doppler_index);
-
-                            // run Doppler Wipeoff and FFT
-                            d_acquisition_fpga->run_Doppl_Wipeoff_FFT();
-
-                            // perform code mult
-                            d_acquisition_fpga->run_code_mult(d_fft_codes);
-
-                            d_acquisition_fpga->configure_iFFT(d_num_noncoherent_integrations_counter, doppler_index);
-
-                            // compute the inverse FFT
-                            d_acquisition_fpga->run_iFFT(d_fpga_ifft_pcps_buffer_data);
+                            d_acquisition_fpga->run_coherent_integration(doppler_freq,
+                                d_num_noncoherent_integrations_counter,
+                                doppler_index,
+                                d_fpga_ifft_pcps_buffer_data);
 
                             buffer_pointer = d_fpga_ifft_pcps_buffer_data.data();
                         }
@@ -968,6 +960,12 @@ void pcps_hs_acquisition_fpga::run_acquisition(
     int16_t *vect_samples = d_acquisition_fpga->open_PL_DDR4_RAM_device();
     // configure the acquisition
     d_acquisition_fpga->configure_acquisition();
+
+    if (d_enable_fpga_acceleration)
+        {
+            // copy local code to PL DDR4 memory before starting the acquisition process
+            d_acquisition_fpga->set_local_code(d_fft_codes);
+        }
     // block the acquisition if blocking mode is enabled
     if (d_acq_parameters.blocking)
         {
