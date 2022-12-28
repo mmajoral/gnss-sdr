@@ -570,11 +570,14 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
     uint32_t indext = 0U;
     const int32_t effective_fft_size = (d_acq_parameters.bit_transition_flag ? d_fft_size / 2 : d_fft_size);
 
-    if (d_fft_size > d_consumed_samples)
+    if (!(d_step_two and d_enable_fpga_acceleration))
         {
-            for (uint32_t i = d_consumed_samples; i < d_fft_size; i++)
+            if (d_fft_size > d_consumed_samples)
                 {
-                    input_signal[i] = gr_complex(0.0, 0.0);
+                    for (uint32_t i = d_consumed_samples; i < d_fft_size; i++)
+                        {
+                            input_signal[i] = gr_complex(0.0, 0.0);
+                        }
                 }
         }
 
