@@ -36,6 +36,7 @@
 #include <cstdint>                            // for uint32_t
 #include <memory>                             // for shared_ptr
 #include <string>                             // for string
+#include <thread>
 
 #if HAS_STD_SPAN
 #include <span>
@@ -204,6 +205,8 @@ private:
     void send_negative_acquisition();
     void send_positive_acquisition();
     void dump_results(int32_t effective_fft_size);
+    void wait_for_coherent_integration_in_fpga(void);
+    void run_coherent_integration_in_fpga(uint32_t doppler_index, uint32_t num_doppler_bins, float doppler_step, float doppler_center, uint32_t num_noncoherent_integrations_counter);
     void run_acquisition(
         volk_gnsssdr::vector<float> &tmp_buffer,
         volk_gnsssdr::vector<std::complex<float>> &input_signal,
@@ -225,13 +228,12 @@ private:
     void calculate_threshold(void);
     float first_vs_second_peak_statistic(uint32_t &indext, int32_t &doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step, volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid, volk_gnsssdr::vector<float> &d_tmp_buffer);
     float max_to_input_power_statistic(uint32_t &indext, int32_t &doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step, volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid);
+    std::thread thread_coherent_integration;
 
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_grid_doppler_wipeoffs;
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_grid_doppler_wipeoffs_step_two;
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_fpga_ifft_pcps_buffer_data;
     volk_gnsssdr::vector<std::complex<float>> d_fft_codes;
-    volk_gnsssdr::vector<lv_16sc_t> d_data_buffer_sc;
-
-    volk_gnsssdr::vector<std::complex<float>> d_fpga_ifft_pcps_buffer_data;
     std::unique_ptr<gnss_fft_complex_fwd> d_fft_if;
     std::unique_ptr<gnss_fft_complex_rev> d_ifft;
     std::weak_ptr<ChannelFsm> d_channel_fsm;
@@ -257,6 +259,9 @@ private:
     float d_input_power;
     float d_test_statistics;
     float d_doppler_center_step_two;
+
+    uint32_t d_fpga_coh_integr_wr_buff_select;
+    uint32_t d_ncoh_integr_rd_buff_select;
 
     uint32_t d_downsampling_factor;
     int32_t d_state;

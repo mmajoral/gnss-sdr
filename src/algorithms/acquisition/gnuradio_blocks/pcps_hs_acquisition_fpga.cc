@@ -118,7 +118,13 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
             if ((d_acq_parameters.sampled_ms >= 100) and (d_fft_size % 65536 == 0))
                 {
                     d_enable_fpga_acceleration = true;
-                    d_acquisition_fpga = std::make_unique<Fpga_HS_Acquisition>(d_acq_parameters.device_name, d_acq_parameters.fs_in, d_buffer_size, d_consumed_samples, d_acq_parameters.select_queue_Fpga, d_fft_size, d_acq_parameters.max_dwells, d_acq_parameters.sampled_ms);
+                    // the coherent integration in the FPGA is overlapped with the non-coherent combinations in the SW: a double buffer is used for exchanging data
+                    // if the CFAR algorithm is used then the IFFT in the FPGA does not sort the output data and the true location of the peak value is compute taking into account the
+                    // IFFT output data ordering. The CFAR algorithm can work with the IFFT data stored in memory non-sequentially. Not sorting the IFFT data speeds up the FPGA memory accesses.
+                    bool sort_ifft_output = (d_use_CFAR_algorithm_flag ? false : true);
+                    d_acquisition_fpga = std::make_unique<Fpga_HS_Acquisition>(d_acq_parameters.device_name, d_acq_parameters.fs_in, d_buffer_size, d_consumed_samples, d_acq_parameters.select_queue_Fpga, d_fft_size, d_acq_parameters.max_dwells, sort_ifft_output);
+                    d_fpga_coh_integr_wr_buff_select = 0;  // select the buffer where the FPGA writes the result of the coherent integration
+                    d_ncoh_integr_rd_buff_select = 0;      // select the buffer where the SW reads the result of the coherent integration coming from the FPGA
                 }
             else
                 {
@@ -554,6 +560,72 @@ float pcps_hs_acquisition_fpga::first_vs_second_peak_statistic(uint32_t &indext,
     return firstPeak / secondPeak;
 }
 
+void pcps_hs_acquisition_fpga::wait_for_coherent_integration_in_fpga(void)
+{
+    // wait until the FPGA finishes the coherent integration
+    if (thread_coherent_integration.joinable())
+        {
+            thread_coherent_integration.join();
+        }
+}
+
+// run the coherent integration in the FPGA
+void pcps_hs_acquisition_fpga::run_coherent_integration_in_fpga(uint32_t doppler_index, uint32_t num_doppler_bins, float doppler_step, float doppler_center, uint32_t num_noncoherent_integrations_counter)
+{
+    // run the first coherent integration (first Doppler frequency and first iteration)
+    if ((d_num_noncoherent_integrations_counter == 1) && (doppler_index == 0))
+        {
+            // coherent integration: first iteration, first doppler shift
+            // Perform the FFT-based convolution  (parallel time search)
+            float doppler_freq = (static_cast<float>(doppler_index) - static_cast<float>(floor(num_doppler_bins / 2.0))) * doppler_step + doppler_center;
+            thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_noncoherent_integrations_counter, doppler_index, d_fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
+            if (d_fpga_coh_integr_wr_buff_select == 0)
+                {
+                    d_fpga_coh_integr_wr_buff_select = 1;
+                }
+            else
+                {
+                    d_fpga_coh_integr_wr_buff_select = 0;
+                }
+            // wait until the coherent integration is finished
+            wait_for_coherent_integration_in_fpga();
+        }
+
+    // launch the next coherent integration concurrently with the non-coherent combinations in the FPGA
+    if (doppler_index < num_doppler_bins - 1)
+        {
+            // Perform the FFT-based convolution  (parallel time search)
+            float doppler_freq = (static_cast<float>(doppler_index + 1) - static_cast<float>(floor(num_doppler_bins / 2.0))) * doppler_step + doppler_center;
+            thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_noncoherent_integrations_counter, doppler_index + 1, d_fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
+            if (d_fpga_coh_integr_wr_buff_select == 0)
+                {
+                    d_fpga_coh_integr_wr_buff_select = 1;
+                }
+            else
+                {
+                    d_fpga_coh_integr_wr_buff_select = 0;
+                }
+        }
+    else
+        {
+            if (num_noncoherent_integrations_counter < d_acq_parameters.max_dwells)
+                {
+                    // start executing speculatively the coherent integration corresponding to the first doppler index of the next iteration
+                    // Perform the FFT-based convolution  (parallel time search)
+                    float doppler_freq = -static_cast<float>(floor(num_doppler_bins / 2.0)) * doppler_step + doppler_center;
+                    thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_noncoherent_integrations_counter + 1, 0, d_fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
+                    if (d_fpga_coh_integr_wr_buff_select == 0)
+                        {
+                            d_fpga_coh_integr_wr_buff_select = 1;
+                        }
+                    else
+                        {
+                            d_fpga_coh_integr_wr_buff_select = 0;
+                        }
+                }
+        }
+}
+
 void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
     volk_gnsssdr::vector<float> &tmp_buffer,
     volk_gnsssdr::vector<std::complex<float>> &input_signal,
@@ -711,18 +783,19 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                 {
                     if (d_enable_fpga_acceleration)
                         {
-                            // Perform the FFT-based convolution  (parallel time search)
-                            // Compute the FFT of the carrier wiped--off incoming signal
+                            // run the coherent integration in the FPGA while the SW runs the non-coherent combinations
+                            run_coherent_integration_in_fpga(doppler_index, d_num_doppler_bins_step2, d_acq_parameters.doppler_step2, d_doppler_center_step_two, d_num_noncoherent_integrations_counter);
 
-                            // compute the Doppler Wipeoff and the forward FFT
-                            float doppler_freq = (static_cast<float>(doppler_index) - static_cast<float>(floor(d_num_doppler_bins_step2 / 2.0))) * d_acq_parameters.doppler_step2 + d_doppler_center_step_two;
-
-                            d_acquisition_fpga->run_coherent_integration(doppler_freq,
-                                d_num_noncoherent_integrations_counter,
-                                doppler_index,
-                                d_fpga_ifft_pcps_buffer_data);
-
-                            buffer_pointer = d_fpga_ifft_pcps_buffer_data.data();
+                            // select the buffer where to read the results of the previous coherent integration in the FPGA
+                            buffer_pointer = d_fpga_ifft_pcps_buffer_data[d_ncoh_integr_rd_buff_select].data();
+                            if (d_ncoh_integr_rd_buff_select == 0)
+                                {
+                                    d_ncoh_integr_rd_buff_select = 1;
+                                }
+                            else
+                                {
+                                    d_ncoh_integr_rd_buff_select = 0;
+                                }
                         }
                     else
                         {
@@ -806,11 +879,25 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                         {
                             std::copy(magnitude_grid[doppler_index].data(), magnitude_grid[doppler_index].data() + effective_fft_size, d_narrow_grid.colptr(doppler_index));
                         }
+
+                    if (d_enable_fpga_acceleration)
+                        {
+                            if ((doppler_index < d_num_doppler_bins_step2 - 1))
+                                {
+                                    // wait until the FPGA finishes the coherent integration corresponding to the next Doppler index before running the non-coherent combinations in the sw
+                                    wait_for_coherent_integration_in_fpga();
+                                }
+                        }
                 }
             // Compute the test statistic
             if (d_use_CFAR_algorithm_flag)
                 {
                     d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins_step2, static_cast<int32_t>(d_doppler_center_step_two - (static_cast<float>(d_num_doppler_bins_step2) / 2.0) * d_acq_parameters.doppler_step2), d_acq_parameters.doppler_step2, magnitude_grid);
+                    if (d_enable_fpga_acceleration)
+                        {
+                            // to speed up the memory accesses, the FPGA does not sort the IFFT results when it writes them to memory so we have to compute the peak value true position
+                            indext = d_acquisition_fpga->invert_ifft_ordering(indext);
+                        }
                 }
             else
                 {
@@ -831,6 +918,13 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
             d_gnss_synchro->Acq_doppler_hz = static_cast<double>(doppler);
             d_gnss_synchro->Acq_samplestamp_samples = d_downsampling_factor * samp_count;  // - static_cast<uint64_t>(d_downsampling_filter_delay_samples);
             d_gnss_synchro->Acq_doppler_step = d_acq_parameters.doppler_step2;
+
+            if (d_enable_fpga_acceleration)
+                {
+                    if (!(d_num_noncoherent_integrations_counter == d_acq_parameters.max_dwells))
+                        // wait until the FPGA finishes the coherent integration corresponding to the first Doppler index of the next iteration before running the non-coherent combinations in the sw
+                        wait_for_coherent_integration_in_fpga();
+                }
         }
 
     if (!d_acq_parameters.bit_transition_flag)
@@ -1057,7 +1151,11 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
         {
             if (d_enable_fpga_acceleration)
                 {
-                    d_fpga_ifft_pcps_buffer_data = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
+                    // the coherent integration in the FPGA is overlapped with the non-coherent combinations in the SW
+                    // a double buffer is used for exchanging data
+                    d_fpga_ifft_pcps_buffer_data = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(2, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
+                    d_fpga_coh_integr_wr_buff_select = 0;
+                    d_ncoh_integr_rd_buff_select = 0;
                 }
         }
 

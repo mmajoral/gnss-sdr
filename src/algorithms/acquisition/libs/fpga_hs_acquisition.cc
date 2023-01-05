@@ -56,15 +56,15 @@ Fpga_HS_Acquisition::Fpga_HS_Acquisition(std::string device_name,
     uint32_t select_queue,
     uint32_t fft_size,
     uint32_t max_dwells,
-    int32_t sampled_ms) : d_device_name(std::move(device_name)),
-                          d_fs_in(fs_in),
-                          d_nsamples(nsamples),
-                          d_nsamples_first_block(nsamples_first_block),
-                          d_select_queue(select_queue),
-                          d_fft_size(fft_size)
+    bool sort_ifft_output) : d_device_name(std::move(device_name)),
+                             d_fs_in(fs_in),
+                             d_nsamples(nsamples),
+                             d_nsamples_first_block(nsamples_first_block),
+                             d_select_queue(select_queue),
+                             d_fft_size(fft_size),
+                             d_max_dwells(max_dwells),
+                             d_sort_ifft_output(sort_ifft_output)
 {
-    d_max_dwells = max_dwells;
-
     // High Sensitivity Acquisition IP sanity check
     Fpga_HS_Acquisition::open_device();
     Fpga_HS_Acquisition::reset_acquisition();
@@ -120,6 +120,26 @@ int16_t *Fpga_HS_Acquisition::open_PL_DDR4_RAM_device()
             std::cout << "Acq: cannot map the FPGA acquisition module into user memory" << '\n';
         }
     return d_PL_DDR4_RAM_map_base;
+}
+
+int16_t *Fpga_HS_Acquisition::open_PL_DDR4_RAM_LC_device()
+{
+    // open communication with HW accelerator
+    if ((d_fd_PL_DDR4_RAM_LC = open("/dev/mem", O_RDWR)) == -1)
+        {
+            LOG(WARNING) << "Cannot open PL DDR4 RAM device";
+            std::cout << "Acq: cannot open PL DDR4 RAM device" << '\n';
+        }
+
+    d_PL_DDR4_RAM_LC_map_base = reinterpret_cast<int16_t *>(mmap(nullptr, PL_DDR4_RAM_LC_PAGE_SIZE,
+        PROT_READ | PROT_WRITE, MAP_SHARED, d_fd_PL_DDR4_RAM_LC, FPGA_PL_DDR4_RAM_LC_ADDR));
+
+    if (d_PL_DDR4_RAM_LC_map_base == reinterpret_cast<void *>(-1))
+        {
+            LOG(WARNING) << "Cannot map the FPGA acquisition module into user memory";
+            std::cout << "Acq: cannot map the FPGA acquisition module into user memory" << '\n';
+        }
+    return d_PL_DDR4_RAM_LC_map_base;
 }
 
 void Fpga_HS_Acquisition::fpga_acquisition_test_register()
@@ -230,9 +250,10 @@ void Fpga_HS_Acquisition::set_local_code(volk_gnsssdr::vector<std::complex<float
                 }
         }
 
-    // set vectors
-    volatile int16_t *vect_samples = static_cast<int16_t *>(d_PL_DDR4_RAM_map_base);
-    uint32_t vect_addr = FPGA_PL_DDR4_RAM_LC_OFFSET_ADDR / 2;
+    // a separate memory region is used for the local code. The local code memory region is not catched.
+    volatile int16_t *vect_samples = open_PL_DDR4_RAM_LC_device();
+
+    uint32_t vect_addr = 0;
 
     uint32_t k = 0;
     for (uint32_t index1 = 0; index1 < FPGA_xFFT_SIZE; index1++)
@@ -248,6 +269,8 @@ void Fpga_HS_Acquisition::set_local_code(volk_gnsssdr::vector<std::complex<float
                     k++;
                 }
         }
+
+    close_PL_DDR4_RAM_LC_device();
 }
 
 void Fpga_HS_Acquisition::close_device()
@@ -268,6 +291,16 @@ void Fpga_HS_Acquisition::close_PL_DDR4_RAM_device()
             std::cout << "Failed to unmap memory uio\n";
         }
     close(d_fd_PL_DDR4_RAM);
+}
+
+void Fpga_HS_Acquisition::close_PL_DDR4_RAM_LC_device()
+{
+    auto *aux = const_cast<int16_t *>(d_PL_DDR4_RAM_LC_map_base);
+    if (munmap(static_cast<void *>(aux), PL_DDR4_RAM_LC_PAGE_SIZE) == -1)
+        {
+            std::cout << "Failed to unmap memory uio\n";
+        }
+    close(d_fd_PL_DDR4_RAM_LC);
 }
 
 
@@ -319,7 +352,7 @@ void Fpga_HS_Acquisition::configure_Doppl_Wipeoff_FFT(float doppler_freq,
     d_map_base[read_address_Doppl_Wipeoff_xFFT_MSW_reg_addr] = fpga_pl_ddr4_ram_addr_MSW;
 
     // configure log small FFT length and forward FFT
-    d_map_base[fwd_inv_fft_length_reg_addr] = FW_FFT | FPGA_LOG2_xFFT_SIZE;
+    d_map_base[fwd_inv_fft_length_reg_addr] = REORDER_xFFT_COMBINING_RESULT | FW_FFT | FPGA_LOG2_xFFT_SIZE;
 
     // configure PL DDR4 write addresses , here 3 is the number of doppler searches
     uint32_t fpga_pl_ddr4_ram_wr_addr_LSW = ((FPGA_PL_DDR4_RAM_ADDR + offset_wr_addr) & SELECT_LSW);
@@ -332,8 +365,8 @@ void Fpga_HS_Acquisition::configure_Doppl_Wipeoff_FFT(float doppler_freq,
     d_map_base[local_code_read_address_LSW_reg_addr] = ((FPGA_PL_DDR4_RAM_ADDR + offset_lc_rd_addr) & SELECT_LSW);
     d_map_base[local_code_read_address_MSW_reg_addr] = ((FPGA_PL_DDR4_RAM_ADDR + offset_lc_rd_addr) & SELECT_MSW) >> SHIFT_32_BITS;
 
-    // output scaling factor
-    d_map_base[output_scaling_factor_reg_addr] = 9;
+    // output scaling factors
+    d_map_base[output_scaling_factors_reg_addr] = (FFT_OUTPUT_SCALING_FACTOR << xFFT_OUTPUT_SCALING_FACTOR_BIT_POS) + CODE_MULT_OUTPUT_SCALING_FACTOR;
 }
 
 void Fpga_HS_Acquisition::run_Doppl_Wipeoff_xFFT()
@@ -381,13 +414,23 @@ void Fpga_HS_Acquisition::configure_iFFT(uint32_t offset_rd_addr, uint32_t offse
     d_map_base[nsamples_Doppl_Wipeoff_xFFT_reg_addr] = d_fft_size;
 
     // configure log small FFT length and forward FFT
-    d_map_base[fwd_inv_fft_length_reg_addr] = DISABLE_CODE_MULT | DISABLE_DOPPLER_WIPEOFF | FPGA_LOG2_xFFT_SIZE;
+    if (d_sort_ifft_output)
+        {
+            d_map_base[fwd_inv_fft_length_reg_addr] = REORDER_xFFT_COMBINING_RESULT | DISABLE_CODE_MULT | DISABLE_DOPPLER_WIPEOFF | FPGA_LOG2_xFFT_SIZE;
+        }
+    else
+        {
+            d_map_base[fwd_inv_fft_length_reg_addr] = DISABLE_CODE_MULT | DISABLE_DOPPLER_WIPEOFF | FPGA_LOG2_xFFT_SIZE;
+        }
 
     // set up write addresses
     uint32_t fpga_pl_ddr4_ram_wr_addr_LSW = ((FPGA_PL_DDR4_RAM_ADDR + offset_wr_addr) & SELECT_LSW);
     uint32_t fpga_pl_ddr4_ram_wr_addr_MSW = ((FPGA_PL_DDR4_RAM_ADDR + offset_wr_addr) & SELECT_MSW) >> SHIFT_32_BITS;
     d_map_base[write_address_Doppl_Wipeoff_xFFT_LSW_reg_addr] = fpga_pl_ddr4_ram_wr_addr_LSW;
     d_map_base[write_address_Doppl_Wipeoff_xFFT_MSW_reg_addr] = fpga_pl_ddr4_ram_wr_addr_MSW;
+
+    // output scaling factor
+    d_map_base[output_scaling_factors_reg_addr] = (IFFT_OUTPUT_SCALING_FACTOR << xFFT_OUTPUT_SCALING_FACTOR_BIT_POS);
 }
 
 void Fpga_HS_Acquisition::run_iFFT(float &scaling_factor_ifft)
@@ -399,25 +442,34 @@ void Fpga_HS_Acquisition::run_iFFT(float &scaling_factor_ifft)
     scaling_factor_ifft = d_map_base[xfft_status_data_reg_addr];
 }
 
-void Fpga_HS_Acquisition::apply_scaling_correction_factor(volk_gnsssdr::vector<std::complex<float>> &buffer_short_ifft_data, float scaling_factor, uint32_t offset_rd_addr)
+void Fpga_HS_Acquisition::apply_scaling_correction_factor(lv_32fc_t *input_buff, float scaling_factor, uint32_t offset_rd_addr)
 {
     uint32_t vect_addr = offset_rd_addr / 2;  // 16-bit addressing mode
     volatile int16_t *vect_samples = static_cast<int16_t *>(d_PL_DDR4_RAM_map_base);
 
+    float *aPtr = (float *)input_buff;
+
     // read the iFFT results
     for (uint32_t k = 0; k < d_fft_size; k++)
         {
-            buffer_short_ifft_data[k] = {vect_samples[vect_addr + 2 * k] * scaling_factor, vect_samples[vect_addr + 2 * k + 1] * scaling_factor};
+            *aPtr++ = vect_samples[vect_addr + 2 * k] * scaling_factor;      // re part
+            *aPtr++ = vect_samples[vect_addr + 2 * k + 1] * scaling_factor;  // im part
         }
 }
 
-void Fpga_HS_Acquisition::run_coherent_integration(float doppler_freq, uint32_t ncoh_integr_counter, uint32_t doppler_index, volk_gnsssdr::vector<std::complex<float>> &buffer_short_ifft_data)
+uint32_t Fpga_HS_Acquisition::invert_ifft_ordering(uint32_t indext)
+{
+    // invert the ordering of the ifft output
+    return (indext % FPGA_xFFT_NUM_CHAN) * FPGA_xFFT_SIZE + (indext / FPGA_xFFT_NUM_CHAN);  // integer division rounds towards 0
+}
+
+void Fpga_HS_Acquisition::run_coherent_integration(float doppler_freq, uint32_t ncoh_integr_counter, uint32_t doppler_index, lv_32fc_t *buffer_short_ifft_data)
 {
     float scaling_factor_fft, scaling_factor_ifft;
 
     // set input and output memory addresses for Doppler wipeoff, FFT and code mult
-    uint32_t offset_rd_addr = d_fft_size * 4 * (ncoh_integr_counter - 1);
-    uint32_t offset_wr_addr = offset_rd_addr + (d_fft_size)*7 * 4 + (d_fft_size)*4 * 7 * doppler_index;
+    uint32_t offset_rd_addr = d_fft_size * BYTES_PER_COMPLEX_SAMPLE * (ncoh_integr_counter - 1);
+    uint32_t offset_wr_addr = offset_rd_addr + (d_fft_size)*d_max_dwells * BYTES_PER_COMPLEX_SAMPLE + (d_fft_size)*BYTES_PER_COMPLEX_SAMPLE * d_max_dwells * doppler_index;
 
     // configure Doppler wipeoff, FFT and code mult
     Fpga_HS_Acquisition::configure_Doppl_Wipeoff_FFT(doppler_freq, offset_rd_addr, offset_wr_addr);
@@ -427,7 +479,7 @@ void Fpga_HS_Acquisition::run_coherent_integration(float doppler_freq, uint32_t 
 
     // set input and output memory addresses for the iFFT
     offset_rd_addr = offset_wr_addr;  // read from the output of the Doppler wipeoff, FFT and code mult
-    offset_wr_addr = offset_rd_addr + (d_fft_size)*4 * 7 * 10;
+    offset_wr_addr = offset_rd_addr + (d_fft_size)*BYTES_PER_COMPLEX_SAMPLE * d_max_dwells * MAX_NUM_ITERATIONS;
 
     // configure iFFT
     Fpga_HS_Acquisition::configure_iFFT(offset_rd_addr, offset_wr_addr);
