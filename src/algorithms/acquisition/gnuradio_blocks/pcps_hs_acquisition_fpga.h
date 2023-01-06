@@ -283,6 +283,7 @@ private:
     uint32_t d_buffer_sample_counter;
     uint32_t d_downsampling_filter_delay_samples;
     uint32_t d_max_num_acqs;
+    uint32_t d_num_acq;
 
     bool d_enable_fpga_acceleration;
     bool d_active;

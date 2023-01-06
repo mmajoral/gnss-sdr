@@ -964,13 +964,17 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
 
             if (d_num_noncoherent_integrations_counter == d_acq_parameters.max_dwells)
                 {
-                    d_state = 0;
                     d_active = false;
-                    const bool was_step_two = d_step_two;
-                    d_step_two = false;
-                    if (was_step_two)
+                    // repeat the second step acquisition a number of times to increase the probability of detecting weak signals
+                    if (d_num_acq == d_max_num_acqs)
                         {
-                            calculate_threshold();
+                            d_state = 0;
+                            const bool was_step_two = d_step_two;
+                            d_step_two = false;
+                            if (was_step_two)
+                                {
+                                    calculate_threshold();
+                                }
                         }
                 }
         }
@@ -1003,12 +1007,16 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                 }
             else
                 {
-                    d_state = 0;  // Negative acquisition
-                    const bool was_step_two = d_step_two;
-                    d_step_two = false;
-                    if (was_step_two)
+                    // repeat the second step acquisition a number of times to increase the probability of detecting weak signals
+                    if (d_num_acq == d_max_num_acqs)
                         {
-                            calculate_threshold();
+                            d_state = 0;  // Negative acquisition
+                            const bool was_step_two = d_step_two;
+                            d_step_two = false;
+                            if (was_step_two)
+                                {
+                                    calculate_threshold();
+                                }
                         }
                 }
         }
@@ -1186,8 +1194,8 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
         {
             d_doppler_center_step_two = static_cast<float>(d_gnss_synchro->Acq_doppler_hz);
             update_grid_doppler_wipeoffs_step2();
-            uint32_t num_second_acq = 1;
-            while (num_second_acq < d_max_num_acqs)
+            d_num_acq = 1;
+            while (d_num_acq < d_max_num_acqs)
                 {
                     d_active = active;
                     run_acquisition(d_tmp_buffer,
@@ -1202,7 +1210,7 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
                         {
                             break;
                         }
-                    num_second_acq++;
+                    d_num_acq++;
                 }
         }
 
