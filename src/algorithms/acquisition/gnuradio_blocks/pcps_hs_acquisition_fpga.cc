@@ -110,10 +110,11 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
     d_grid = arma::fmat();
     d_narrow_grid = arma::fmat();
 
-    bool sort_ifft_output = false;  // this parameter is by default not used, unless FPGA acceleration is used for the high-sensitivity mode
+    bool sort_ifft_output = false;       // this parameter is by default not used, unless FPGA acceleration is used for the high-sensitivity mode
+    d_enable_fpga_acceleration = false;  // disable FPGA HW acceleration by default
+    d_buffer_size = d_consumed_samples * d_acq_parameters.max_dwells;
     if (d_enable_hs)
         {
-            d_buffer_size = d_consumed_samples * d_acq_parameters.max_dwells;
             d_buffer_sample_counter = 0;
 
             if ((d_acq_parameters.sampled_ms >= 100) and (d_fft_size % 65536 == 0))
@@ -126,14 +127,6 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
                     d_fpga_coh_integr_wr_buff_select = 0;  // select the buffer where the FPGA writes the result of the coherent integration
                     d_ncoh_integr_rd_buff_select = 0;      // select the buffer where the SW reads the result of the coherent integration coming from the FPGA
                 }
-            else
-                {
-                    d_enable_fpga_acceleration = false;
-                }
-        }
-    else
-        {
-            d_buffer_size = d_consumed_samples * d_acq_parameters.max_dwells;
         }
 
     d_acquisition_fpga = std::make_unique<Fpga_HS_Acquisition>(d_acq_parameters.device_name, d_acq_parameters.fs_in, d_buffer_size, d_consumed_samples, d_acq_parameters.select_queue_Fpga, d_fft_size, d_acq_parameters.max_dwells, sort_ifft_output);
