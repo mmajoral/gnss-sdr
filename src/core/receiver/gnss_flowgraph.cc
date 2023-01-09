@@ -1990,6 +1990,14 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
 #if ENABLE_FPGA
                     if (enable_fpga_offloading_)
                         {
+                            if (configuration_->property("GNSS-SDR.enable_hs", false))
+                                {
+                                    if (sat == 0)
+                                        {
+                                            // put the signal back in the list of available satellites
+                                            push_back_signal(channels_[who]->get_signal());
+                                        }
+                                }
                             // create a task for the FPGA such that it doesn't stop the flow
                             std::thread tmp_thread(&ChannelInterface::start_acquisition, channels_[who]);
                             tmp_thread.detach();
