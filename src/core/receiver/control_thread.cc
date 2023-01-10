@@ -1304,11 +1304,14 @@ uint32_t ControlThread::get_num_chan_1B_in_eph()
                  gal_eph_iter != supl_client_ephemeris_.gal_ephemeris_map.cend();
                  gal_eph_iter++)
                 {
-                    // Do not read the same PRN twice
-                    if (std::find(PRNs_available.begin(), PRNs_available.end(), gal_eph_iter->second.PRN) == PRNs_available.end())
+                    if (gal_eph_iter->second.PRN > 0)
                         {
-                            num_sats++;
-                            PRNs_available.push_back(gal_eph_iter->second.PRN);
+                            // Do not read the same PRN twice
+                            if (std::find(PRNs_available.begin(), PRNs_available.end(), gal_eph_iter->second.PRN) == PRNs_available.end())
+                                {
+                                    num_sats++;
+                                    PRNs_available.push_back(gal_eph_iter->second.PRN);
+                                }
                         }
                 }
         }

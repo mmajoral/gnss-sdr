@@ -2940,9 +2940,12 @@ void GNSSFlowgraph::set_eph_available_sats()
             bool ephimeris_data_available = false;
             for (eph_it = gal_ephemeris_map_.begin(); eph_it != gal_ephemeris_map_.end(); eph_it++)
                 {
-                    if (gnss_signals_it->get_satellite().get_PRN() == eph_it->second.PRN)
+                    if (eph_it->second.PRN > 0)
                         {
-                            ephimeris_data_available = true;
+                            if (gnss_signals_it->get_satellite().get_PRN() == eph_it->second.PRN)
+                                {
+                                    ephimeris_data_available = true;
+                                }
                         }
                 }
             if (!ephimeris_data_available)
