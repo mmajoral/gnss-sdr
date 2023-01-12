@@ -463,7 +463,7 @@ uint32_t Fpga_HS_Acquisition::invert_ifft_ordering(uint32_t indext)
     return (indext % FPGA_xFFT_NUM_CHAN) * FPGA_xFFT_SIZE + (indext / FPGA_xFFT_NUM_CHAN);  // integer division rounds towards 0
 }
 
-void Fpga_HS_Acquisition::run_coherent_integration(float doppler_freq, uint32_t ncoh_integr_counter, uint32_t doppler_index, lv_32fc_t *buffer_short_ifft_data)
+void Fpga_HS_Acquisition::run_coherent_integration(float doppler_freq, uint32_t num_doppler_bins, uint32_t ncoh_integr_counter, uint32_t doppler_index, lv_32fc_t *buffer_short_ifft_data)
 {
     float scaling_factor_fft, scaling_factor_ifft;
 
@@ -479,7 +479,7 @@ void Fpga_HS_Acquisition::run_coherent_integration(float doppler_freq, uint32_t 
 
     // set input and output memory addresses for the iFFT
     offset_rd_addr = offset_wr_addr;  // read from the output of the Doppler wipeoff, FFT and code mult
-    offset_wr_addr = offset_rd_addr + (d_fft_size)*BYTES_PER_COMPLEX_SAMPLE * d_max_dwells * MAX_NUM_ITERATIONS;
+    offset_wr_addr = offset_rd_addr + (d_fft_size)*BYTES_PER_COMPLEX_SAMPLE * d_max_dwells * num_doppler_bins;
 
     // configure iFFT
     Fpga_HS_Acquisition::configure_iFFT(offset_rd_addr, offset_wr_addr);

@@ -90,6 +90,7 @@ public:
      * \brief Perform the non-coherent integration in the FPGA
      */
     void run_coherent_integration(float doppler_freq,
+        uint32_t num_doppler_bins,
         uint32_t ncoh_integr_counter,
         uint32_t doppler_index,
         lv_32fc_t *buffer_short_ifft_data);
@@ -193,7 +194,6 @@ private:
     static const uint32_t IFFT_OUTPUT_SCALING_FACTOR = 0;
     static const uint32_t CODE_MULT_OUTPUT_SCALING_FACTOR = 9;
     static const uint32_t BYTES_PER_COMPLEX_SAMPLE = 4;
-    static const uint32_t MAX_NUM_ITERATIONS = 10;
 
     // PL DDR4 RAM address
     static const uint64_t FPGA_PL_DDR4_RAM_ADDR = 0x400000000;           // FPGA PL external DDR4 RAM memory address

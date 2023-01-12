@@ -573,7 +573,7 @@ void pcps_hs_acquisition_fpga::run_coherent_integration_in_fpga(uint32_t doppler
             // coherent integration: first iteration, first doppler shift
             // Perform the FFT-based convolution  (parallel time search)
             float doppler_freq = (static_cast<float>(doppler_index) - static_cast<float>(floor(num_doppler_bins / 2.0))) * doppler_step + doppler_center;
-            thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_noncoherent_integrations_counter, doppler_index, d_fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
+            thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_doppler_bins, num_noncoherent_integrations_counter, doppler_index, d_fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
             if (d_fpga_coh_integr_wr_buff_select == 0)
                 {
                     d_fpga_coh_integr_wr_buff_select = 1;
@@ -591,7 +591,7 @@ void pcps_hs_acquisition_fpga::run_coherent_integration_in_fpga(uint32_t doppler
         {
             // Perform the FFT-based convolution  (parallel time search)
             float doppler_freq = (static_cast<float>(doppler_index + 1) - static_cast<float>(floor(num_doppler_bins / 2.0))) * doppler_step + doppler_center;
-            thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_noncoherent_integrations_counter, doppler_index + 1, d_fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
+            thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_doppler_bins, num_noncoherent_integrations_counter, doppler_index + 1, d_fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
             if (d_fpga_coh_integr_wr_buff_select == 0)
                 {
                     d_fpga_coh_integr_wr_buff_select = 1;
@@ -608,7 +608,7 @@ void pcps_hs_acquisition_fpga::run_coherent_integration_in_fpga(uint32_t doppler
                     // start executing speculatively the coherent integration corresponding to the first doppler index of the next iteration
                     // Perform the FFT-based convolution  (parallel time search)
                     float doppler_freq = -static_cast<float>(floor(num_doppler_bins / 2.0)) * doppler_step + doppler_center;
-                    thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_noncoherent_integrations_counter + 1, 0, d_fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
+                    thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_doppler_bins, num_noncoherent_integrations_counter + 1, 0, d_fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
                     if (d_fpga_coh_integr_wr_buff_select == 0)
                         {
                             d_fpga_coh_integr_wr_buff_select = 1;
