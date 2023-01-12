@@ -1552,28 +1552,52 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                         int64_t acq_trk_diff_samples;
                         double acq_trk_diff_seconds;
                         double delta_trk_to_acq_prn_start_samples;
-                        uint64_t absolute_samples_offset;
+                        uint64_t trk_initial_sample;
 
                         d_multicorrelator_fpga->lock_channel();
                         const uint64_t counter_value = d_multicorrelator_fpga->read_sample_counter();
                         if (counter_value > (d_acq_sample_stamp + d_acq_code_phase_samples))
                             {
                                 // Signal alignment (skip samples until the incoming signal is aligned with local replica)
-                                acq_trk_diff_samples = static_cast<int64_t>(counter_value) - static_cast<int64_t>(d_acq_sample_stamp);
+                                int64_t acq_trk_diff_samples = static_cast<int64_t>(counter_value) - static_cast<int64_t>(d_acq_sample_stamp);
                                 acq_trk_diff_seconds = static_cast<double>(acq_trk_diff_samples) / d_trk_parameters.fs_in;
                                 delta_trk_to_acq_prn_start_samples = static_cast<double>(acq_trk_diff_samples) - d_acq_code_phase_samples;
-                                // doppler correction
+
+                                d_code_freq_chips = d_code_chip_rate;
+                                d_code_phase_step_chips = d_code_freq_chips / d_trk_parameters.fs_in;
+                                d_code_phase_rate_step_chips = 0.0;
+                                const double T_chip_mod_seconds = 1.0 / d_code_freq_chips;
+                                const double T_prn_mod_seconds = T_chip_mod_seconds * static_cast<double>(d_code_length_chips);
+                                const double T_prn_mod_samples = T_prn_mod_seconds * d_trk_parameters.fs_in;
+
                                 uint32_t align_length;
                                 if (d_enable_hs)
                                     {
-                                        align_length = round(static_cast<float>(d_trk_parameters.extend_correlation_symbols) * static_cast<float>(d_code_period) * d_trk_parameters.fs_in);
+                                        align_length = GALILEO_E1_C_SECONDARY_CODE_LENGTH;
+                                        d_acq_code_phase_samples = (T_prn_mod_samples * align_length) - std::fmod(delta_trk_to_acq_prn_start_samples, T_prn_mod_samples * align_length);
                                     }
                                 else
                                     {
-                                        align_length = d_current_integration_length_samples;
+                                        align_length = 1;
+                                        d_acq_code_phase_samples = (T_prn_mod_samples * align_length) - std::fmod(delta_trk_to_acq_prn_start_samples, T_prn_mod_samples * align_length);
                                     }
-                                const uint32_t num_frames = ceil((delta_trk_to_acq_prn_start_samples) / align_length);
-                                absolute_samples_offset = static_cast<uint64_t>(d_acq_code_phase_samples + d_acq_sample_stamp + num_frames * align_length);
+
+                                d_current_integration_length_samples = round(T_prn_mod_samples);
+
+                                double nsamples_acq_to_trk_pnt = d_acq_code_phase_samples + delta_trk_to_acq_prn_start_samples;
+
+                                double nsamples_code_doppler_correction_in_1_s = static_cast<float>(d_acq_carrier_doppler_hz) * static_cast<float>(d_trk_parameters.fs_in) / GALILEO_E1_FREQ_HZ;
+                                double nsamples_code_doppler_correction_per_sample = nsamples_code_doppler_correction_in_1_s / static_cast<float>(d_trk_parameters.fs_in);
+                                double nsamples_code_doppler_correction = round(nsamples_code_doppler_correction_per_sample * (nsamples_acq_to_trk_pnt));
+
+                                d_acq_code_phase_samples = d_acq_code_phase_samples - nsamples_code_doppler_correction;
+
+                                int32_t samples_offset = round(d_acq_code_phase_samples);
+                                d_acc_carrier_phase_rad -= d_carrier_phase_step_rad * static_cast<double>(samples_offset);
+                                d_cn0_smoother.reset();
+                                d_carrier_lock_test_smoother.reset();
+
+                                trk_initial_sample = samples_offset + counter_value;
                             }
                         else
                             {
@@ -1582,23 +1606,12 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                 acq_trk_diff_seconds = static_cast<double>(acq_trk_diff_samples) / d_trk_parameters.fs_in;
                                 delta_trk_to_acq_prn_start_samples = static_cast<double>(acq_trk_diff_samples) + d_acq_code_phase_samples;
 
-                                absolute_samples_offset = static_cast<uint64_t>(delta_trk_to_acq_prn_start_samples);
+                                trk_initial_sample = static_cast<uint64_t>(delta_trk_to_acq_prn_start_samples);
                             }
 
-                        d_multicorrelator_fpga->set_initial_sample(absolute_samples_offset);
-                        d_sample_counter = absolute_samples_offset;
+                        d_multicorrelator_fpga->set_initial_sample(trk_initial_sample);
+                        d_sample_counter = trk_initial_sample;
                         d_sample_counter_next = d_sample_counter;
-
-                        // Doppler effect Fd = (C / (C + Vr)) * F
-                        const double radial_velocity = (d_signal_carrier_freq + d_acq_carrier_doppler_hz) / d_signal_carrier_freq;
-                        // new chip and PRN sequence periods based on acq Doppler
-                        d_code_freq_chips = radial_velocity * d_code_chip_rate;
-                        d_code_phase_step_chips = d_code_freq_chips / d_trk_parameters.fs_in;
-
-                        d_acq_code_phase_samples = absolute_samples_offset;
-
-                        const int32_t samples_offset = round(d_acq_code_phase_samples);
-                        d_acc_carrier_phase_rad -= d_carrier_phase_step_rad * static_cast<double>(samples_offset);
 
                         if (d_enable_hs)
                             {
@@ -1615,11 +1628,6 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                         // DEBUG OUTPUT
                         std::cout << "Tracking of " << d_systemName << " " << d_signal_pretty_name << " signal started on channel " << d_channel << " for satellite " << Gnss_Satellite(d_systemName, d_acquisition_gnss_synchro->PRN) << '\n';
                         DLOG(INFO) << "Starting tracking of satellite " << Gnss_Satellite(d_systemName, d_acquisition_gnss_synchro->PRN) << " on channel " << d_channel;
-
-                        // DLOG(INFO) << "Number of samples between Acquisition and Tracking = " << acq_trk_diff_samples << " ( " << acq_trk_diff_seconds << " s)";
-                        // std::cout << "Number of samples between Acquisition and Tracking = " << acq_trk_diff_samples << " ( " << acq_trk_diff_seconds << " s)\n";
-                        // DLOG(INFO) << "PULL-IN Doppler [Hz] = " << d_carrier_doppler_hz
-                        //            << ". PULL-IN Code Phase [samples] = " << d_acq_code_phase_samples;
 
                         break;
                     }
