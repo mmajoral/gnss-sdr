@@ -62,7 +62,7 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
       d_num_doppler_bins_step2(conf_.num_doppler_bins_step2),
       d_dump_channel(conf_.dump_channel),
       d_buffer_count(0U),
-      d_downsampling_filter_delay_samples(conf_.downsampling_factor > 1 ? 44 : 0),
+      d_resampler_latency_samples(conf_.downsampling_factor > 1 ? RESAMPLER_LATENCY_SAMPLES : 0),
       d_max_num_acqs(conf_.max_num_acqs),
       d_active(false),
       //d_worker_active(false),
@@ -760,17 +760,15 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
 
             if (d_enable_hs)
                 {
-                    //d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples) - coh_shift_samples_dec * d_downsampling_factor, d_downsampling_factor * d_consumed_samples));
-                    d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples), d_downsampling_factor * d_consumed_samples));
+                    d_gnss_synchro->Acq_delay_samples = static_cast<double>(indext) * static_cast<float>(d_downsampling_factor);
                 }
             else
                 {
-                    //d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples) - coh_shift_samples_dec * d_downsampling_factor, d_downsampling_factor * d_acq_parameters.samples_per_code));
-                    d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples), d_downsampling_factor * d_acq_parameters.samples_per_code));
+                    d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(indext), d_acq_parameters.samples_per_code)) * static_cast<float>(d_downsampling_factor);
                 }
-
+            d_gnss_synchro->Acq_delay_samples -= static_cast<double>(d_resampler_latency_samples);  // account the resampler filter latency
             d_gnss_synchro->Acq_doppler_hz = static_cast<double>(doppler);
-            d_gnss_synchro->Acq_samplestamp_samples = d_downsampling_factor * samp_count;  // - static_cast<uint64_t>(d_downsampling_filter_delay_samples);
+            d_gnss_synchro->Acq_samplestamp_samples = rint(static_cast<double>(samp_count) * static_cast<float>(d_downsampling_factor));
         }
     else
         {
@@ -901,17 +899,15 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
 
             if (d_enable_hs)
                 {
-                    //d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples) - d_downsampling_factor * coh_shift_samples_dec, d_downsampling_factor * d_consumed_samples));
-                    d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples), d_downsampling_factor * d_consumed_samples));
+                    d_gnss_synchro->Acq_delay_samples = static_cast<double>(indext) * static_cast<float>(d_downsampling_factor);
                 }
             else
                 {
-                    //d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples) - d_downsampling_factor * coh_shift_samples_dec, d_downsampling_factor * d_acq_parameters.samples_per_code));
-                    d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(d_downsampling_factor * indext) - static_cast<float>(d_downsampling_filter_delay_samples), d_downsampling_factor * d_acq_parameters.samples_per_code));
+                    d_gnss_synchro->Acq_delay_samples = static_cast<double>(std::fmod(static_cast<float>(indext), d_acq_parameters.samples_per_code)) * static_cast<float>(d_downsampling_factor);
                 }
-
+            d_gnss_synchro->Acq_delay_samples -= static_cast<double>(d_resampler_latency_samples);  // account the resampler filter latency
             d_gnss_synchro->Acq_doppler_hz = static_cast<double>(doppler);
-            d_gnss_synchro->Acq_samplestamp_samples = d_downsampling_factor * samp_count;  // - static_cast<uint64_t>(d_downsampling_filter_delay_samples);
+            d_gnss_synchro->Acq_samplestamp_samples = rint(static_cast<double>(samp_count) * static_cast<float>(d_downsampling_factor));
             d_gnss_synchro->Acq_doppler_step = d_acq_parameters.doppler_step2;
 
             if (d_enable_fpga_acceleration)
@@ -1244,9 +1240,9 @@ uint64_t pcps_hs_acquisition_fpga::get_sample_counter()
     d_acquisition_fpga->close_device();
     // avoid negative numbers when sample counter is still near 0
     uint64_t tmp_sample_counter = sample_counter * d_downsampling_factor;
-    if (tmp_sample_counter > d_downsampling_filter_delay_samples)
+    if (tmp_sample_counter > d_resampler_latency_samples)
         {
-            return tmp_sample_counter - d_downsampling_filter_delay_samples;
+            return tmp_sample_counter - d_resampler_latency_samples;
         }
     else
         {

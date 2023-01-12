@@ -192,10 +192,9 @@ public:
     uint64_t get_sample_counter();
 
 private:
-    // Scaling factor to prevent post-detection integration algorithm variables to overflow when processing the results of the
-    // SW coherent integration
-    const float SCALING_FACT_PREVENT_OVERFLOW = 1e-11;
-
+    static const uint32_t RESAMPLER_LATENCY_SAMPLES = 44;  // Downsampling Filter latency in the FPGA
+    const float SCALING_FACT_PREVENT_OVERFLOW = 1e-11;     // Scaling factor to prevent post-detection integration algorithm variables to overflow when processing the results of the
+                                                           // SW coherent integration
     friend pcps_hs_acquisition_fpga_sptr pcps_make_hs_acquisition_fpga(Acq_Conf_Fpga &conf_);
     explicit pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_);
 
@@ -281,7 +280,7 @@ private:
     uint32_t d_dump_channel;
     uint32_t d_buffer_count;
     uint32_t d_buffer_sample_counter;
-    uint32_t d_downsampling_filter_delay_samples;
+    uint32_t d_resampler_latency_samples;
     uint32_t d_max_num_acqs;
     uint32_t d_num_acq;
 
