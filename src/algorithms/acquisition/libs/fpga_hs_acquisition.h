@@ -90,7 +90,6 @@ public:
      * \brief Perform the non-coherent integration in the FPGA
      */
     void run_coherent_integration(float doppler_freq,
-        uint32_t num_doppler_bins,
         uint32_t ncoh_integr_counter,
         uint32_t doppler_index,
         lv_32fc_t *buffer_short_ifft_data);
