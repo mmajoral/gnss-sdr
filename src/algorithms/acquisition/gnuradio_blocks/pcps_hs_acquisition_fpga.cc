@@ -666,35 +666,55 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
         {
             for (uint32_t doppler_index = 0; doppler_index < d_num_doppler_bins; doppler_index++)
                 {
-                    // Remove Doppler
-                    volk_32fc_x2_multiply_32fc(d_fft_if->get_inbuf(), in, d_grid_doppler_wipeoffs[doppler_index].data(), d_fft_size);
-
-                    // Perform the FFT-based convolution  (parallel time search)
-                    // Compute the FFT of the carrier wiped--off incoming signal
-
-                    d_fft_if->execute();
-
-                    // Multiply carrier wiped--off, Fourier transformed incoming signal with the local FFT'd code reference
-                    volk_32fc_x2_multiply_32fc(d_ifft->get_inbuf(), d_fft_if->get_outbuf(), d_fft_codes.data(), d_fft_size);
-
-                    // Compute the inverse FFT
-                    d_ifft->execute();
-
-                    // Compute squared magnitude (and accumulate in case of non-coherent integration)
-                    const size_t offset = (d_acq_parameters.bit_transition_flag ? effective_fft_size : 0);
-                    if (d_num_noncoherent_integrations_counter == 1)
+                    if (d_enable_fpga_acceleration)
                         {
-                            volk_32fc_magnitude_squared_32f(magnitude_grid[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                            // run the coherent integration in the FPGA while the SW runs the non-coherent combinations
+                            run_coherent_integration_in_fpga(doppler_index, d_num_doppler_bins, d_acq_parameters.doppler_step, d_doppler_center, d_num_noncoherent_integrations_counter);
 
-                            if (d_enable_hs)
+                            // select the buffer where to read the results of the previous coherent integration in the FPGA
+                            buffer_pointer = d_fpga_ifft_pcps_buffer_data[d_ncoh_integr_rd_buff_select].data();
+                            if (d_ncoh_integr_rd_buff_select == 0)
                                 {
-                                    // save current ifft output
-                                    volk_32fc_conjugate_32fc(prev_ifft[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                                    d_ncoh_integr_rd_buff_select = 1;
+                                }
+                            else
+                                {
+                                    d_ncoh_integr_rd_buff_select = 0;
                                 }
                         }
                     else
                         {
-                            volk_32fc_magnitude_squared_32f(tmp_buffer.data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                            // Remove Doppler
+                            volk_32fc_x2_multiply_32fc(d_fft_if->get_inbuf(), in, d_grid_doppler_wipeoffs[doppler_index].data(), d_fft_size);
+
+                            // Perform the FFT-based convolution  (parallel time search)
+                            // Compute the FFT of the carrier wiped--off incoming signal
+
+                            d_fft_if->execute();
+
+                            // Multiply carrier wiped--off, Fourier transformed incoming signal with the local FFT'd code reference
+                            volk_32fc_x2_multiply_32fc(d_ifft->get_inbuf(), d_fft_if->get_outbuf(), d_fft_codes.data(), d_fft_size);
+
+                            // Compute the inverse FFT
+                            d_ifft->execute();
+
+                            buffer_pointer = d_ifft->get_outbuf();
+                        }
+                    // Compute squared magnitude (and accumulate in case of non-coherent integration)
+                    const size_t offset = (d_acq_parameters.bit_transition_flag ? effective_fft_size : 0);
+                    if (d_num_noncoherent_integrations_counter == 1)
+                        {
+                            volk_32fc_magnitude_squared_32f(magnitude_grid[doppler_index].data(), buffer_pointer + offset, effective_fft_size);
+
+                            if (d_enable_hs)
+                                {
+                                    // save current ifft output
+                                    volk_32fc_conjugate_32fc(prev_ifft[doppler_index].data(), buffer_pointer + offset, effective_fft_size);
+                                }
+                        }
+                    else
+                        {
+                            volk_32fc_magnitude_squared_32f(tmp_buffer.data(), buffer_pointer + offset, effective_fft_size);
 
                             if (d_enable_hs)
                                 {
@@ -712,12 +732,12 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                                     if (d_num_noncoherent_integrations_counter == 2)
                                         {
                                             // compute DPDI term
-                                            volk_32fc_x2_multiply_32fc(DPDI_term[doppler_index].data(), d_ifft->get_outbuf() + offset, prev_ifft[doppler_index].data(), effective_fft_size);
+                                            volk_32fc_x2_multiply_32fc(DPDI_term[doppler_index].data(), buffer_pointer + offset, prev_ifft[doppler_index].data(), effective_fft_size);
                                         }
                                     else
                                         {
                                             // compute DPDI term
-                                            volk_32fc_x2_multiply_32fc(DPDI_term_buffer.data(), d_ifft->get_outbuf() + offset, prev_ifft[doppler_index].data(), effective_fft_size);
+                                            volk_32fc_x2_multiply_32fc(DPDI_term_buffer.data(), buffer_pointer + offset, prev_ifft[doppler_index].data(), effective_fft_size);
 
                                             // accumulate DPDI term
                                             volk_32fc_x2_add_32fc(DPDI_term[doppler_index].data(), DPDI_term[doppler_index].data(), DPDI_term_buffer.data(), effective_fft_size);
@@ -733,7 +753,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                                     volk_32f_x2_add_32f(magnitude_grid[doppler_index].data(), NPDI_term[doppler_index].data(), tmp_buffer.data(), effective_fft_size);
 
                                     // save current ifft output
-                                    volk_32fc_conjugate_32fc(prev_ifft[doppler_index].data(), d_ifft->get_outbuf() + offset, effective_fft_size);
+                                    volk_32fc_conjugate_32fc(prev_ifft[doppler_index].data(), buffer_pointer + offset, effective_fft_size);
                                 }
                             else
                                 {
@@ -746,12 +766,26 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                         {
                             std::copy(magnitude_grid[doppler_index].data(), magnitude_grid[doppler_index].data() + effective_fft_size, d_grid.colptr(doppler_index));
                         }
+
+                    if (d_enable_fpga_acceleration)
+                        {
+                            if ((doppler_index < d_num_doppler_bins - 1))
+                                {
+                                    // wait until the FPGA finishes the coherent integration corresponding to the next Doppler index before running the non-coherent combinations in the sw
+                                    wait_for_coherent_integration_in_fpga();
+                                }
+                        }
                 }
 
             // Compute the test statistic
             if (d_use_CFAR_algorithm_flag)
                 {
                     d_test_statistics = max_to_input_power_statistic(indext, doppler, d_num_doppler_bins, d_acq_parameters.doppler_max, d_doppler_step, magnitude_grid);
+                    if (d_enable_fpga_acceleration)
+                        {
+                            // to speed up the memory accesses, the FPGA does not sort the IFFT results when it writes them to memory so we have to compute the peak value true position
+                            indext = d_acquisition_fpga->invert_ifft_ordering(indext);
+                        }
                 }
             else
                 {
@@ -769,6 +803,13 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
             d_gnss_synchro->Acq_delay_samples -= static_cast<double>(d_resampler_latency_samples);  // account the resampler filter latency
             d_gnss_synchro->Acq_doppler_hz = static_cast<double>(doppler);
             d_gnss_synchro->Acq_samplestamp_samples = rint(static_cast<double>(samp_count) * static_cast<float>(d_downsampling_factor));
+
+            if (d_enable_fpga_acceleration)
+                {
+                    if (!(d_num_noncoherent_integrations_counter == d_acq_parameters.max_dwells))
+                        // wait until the FPGA finishes the coherent integration corresponding to the first Doppler index of the next iteration before running the non-coherent combinations in the sw
+                        wait_for_coherent_integration_in_fpga();
+                }
         }
     else
         {
@@ -1146,18 +1187,6 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
             d_NPDI_term = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
         }
 
-    if (d_enable_hs)
-        {
-            if (d_enable_fpga_acceleration)
-                {
-                    // the coherent integration in the FPGA is overlapped with the non-coherent combinations in the SW
-                    // a double buffer is used for exchanging data
-                    d_fpga_ifft_pcps_buffer_data = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(2, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
-                    d_fpga_coh_integr_wr_buff_select = 0;
-                    d_ncoh_integr_rd_buff_select = 0;
-                }
-        }
-
     calculate_threshold();
     d_active = active;
 
@@ -1166,12 +1195,17 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
                << ", threshold: " << d_threshold << ", doppler_max: " << d_doppler_max
                << ", doppler_step: " << d_doppler_step;
 
-    // when running in the FPGA the acquisition runs as a detached process.
-    // wait until the acquisition process is completely finished before
-    // notifying positive or negative acquisition.
-    // Otherwise the channel fsm may launch the next acquisition process before
-    // the FPGA interface devices are closed
-    bool positive_acquisition = false;
+    bool positive_acquisition = false;  // positive acquisition is false by default
+
+    if (d_enable_fpga_acceleration)
+        {
+            // the coherent integration in the FPGA is overlapped with the non-coherent combinations in the SW
+            // a double buffer is used for exchanging data
+            d_fpga_ifft_pcps_buffer_data = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(2, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
+            d_fpga_coh_integr_wr_buff_select = 0;
+            d_ncoh_integr_rd_buff_select = 0;
+        }
+
     run_acquisition(d_tmp_buffer,
         d_input_signal,
         d_magnitude_grid,
@@ -1188,6 +1222,13 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
             d_num_acq = 1;
             while (d_num_acq < d_max_num_acqs)
                 {
+                    // init FPGA double-buffer variables again
+                    if (d_enable_fpga_acceleration)
+                        {
+                            d_fpga_coh_integr_wr_buff_select = 0;
+                            d_ncoh_integr_rd_buff_select = 0;
+                        }
+
                     d_active = active;
                     run_acquisition(d_tmp_buffer,
                         d_input_signal,
@@ -1205,6 +1246,11 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
                 }
         }
 
+    // when using the FPGA the acquisition runs as a detached process.
+    // wait until the acquisition process is completely finished before
+    // notifying positive or negative acquisition.
+    // Otherwise the channel fsm may launch the next acquisition process before
+    // the FPGA interface devices are closed
     if (positive_acquisition)
         {
             send_positive_acquisition();
@@ -1238,7 +1284,7 @@ uint64_t pcps_hs_acquisition_fpga::get_sample_counter()
     d_acquisition_fpga->open_device();
     uint64_t sample_counter = d_acquisition_fpga->read_sample_counter();
     d_acquisition_fpga->close_device();
-    // avoid negative numbers when sample counter is still near 0
+    // avoid negative numbers when sample counter value is less than the resampler latency
     uint64_t tmp_sample_counter = sample_counter * d_downsampling_factor;
     if (tmp_sample_counter > d_resampler_latency_samples)
         {
