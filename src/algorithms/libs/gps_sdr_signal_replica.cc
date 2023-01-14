@@ -176,8 +176,8 @@ void gps_l1_ca_code_gen_complex_sampled(own::span<std::complex<float>> dest, uin
 }
 
 /*
- *  Generates complex GPS L1 C/A code for the desired SV ID and sampled to specific sampling frequency, using a number of codes
- *  The sampling frequency may not divide the code length.
+ *  Generates complex GPS L1 C/A code for the desired SV ID and sampled to specific sampling frequency including code repetition
+ *  The sampling frequency may not divide the code length so code repetition is done together with the resampling process.
  *  NOTICE: the number of samples is rounded towards zero (integer truncation)
  */
 void gps_l1_ca_code_gen_complex_sampled(own::span<std::complex<float>> dest, uint32_t prn, int32_t sampling_freq, uint32_t chip_shift, uint32_t num_codes)

@@ -49,6 +49,12 @@ void gps_l5q_code_gen_float(own::span<float> dest, uint32_t prn);
 //! Generates complex GPS L5I code for the desired SV ID, and sampled to specific sampling frequency
 void gps_l5i_code_gen_complex_sampled(own::span<std::complex<float>> dest, uint32_t prn, int32_t sampling_freq);
 
+/*
+ *  Generates complex GPS L5i code for the desired SV ID and sampled to specific sampling frequency including code repetition
+ *  The sampling frequency may not divide the code length so code repetition is done together with the resampling process.
+ */
+void gps_l5i_code_gen_complex_sampled(own::span<std::complex<float>> dest, uint32_t prn, int32_t sampling_freq, uint32_t num_codes);
+
 //! Generates complex GPS L5Q code for the desired SV ID, and sampled to specific sampling frequency
 void gps_l5q_code_gen_complex_sampled(own::span<std::complex<float>> dest, uint32_t prn, int32_t sampling_freq);
 

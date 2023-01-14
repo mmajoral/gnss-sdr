@@ -225,6 +225,45 @@ void gps_l5i_code_gen_complex_sampled(own::span<std::complex<float>> dest, uint3
         }
 }
 
+/*
+ *  Generates complex GPS L5i code for the desired SV ID and sampled to specific sampling frequency including code repetition
+ *  The sampling frequency may not divide the code length so code repetition is done together with the resampling process.
+ */
+void gps_l5i_code_gen_complex_sampled(own::span<std::complex<float>> dest, uint32_t prn, int32_t sampling_freq, uint32_t num_codes)
+{
+    constexpr int32_t codeLength = GPS_L5I_CODE_LENGTH_CHIPS;
+    constexpr float tc = 1.0 / static_cast<float>(GPS_L5I_CODE_RATE_CPS);  // L5I primary chip period in sec
+
+    const auto samplesPerCode = static_cast<int32_t>(static_cast<double>(sampling_freq) / (static_cast<double>(GPS_L5I_CODE_RATE_CPS) / static_cast<double>(codeLength * num_codes)));
+    const float ts = 1.0F / static_cast<float>(sampling_freq);  // Sampling period in sec
+    int32_t codeValueIndex;
+
+    std::array<int32_t, GPS_L5I_CODE_LENGTH_CHIPS> code_aux{};
+    if (prn > 0 and prn < 51)
+        {
+            make_l5i(code_aux, prn - 1);
+        }
+
+    for (int32_t i = 0; i < samplesPerCode; i++)
+        {
+            // === Digitizing ==================================================
+
+            // --- Make index array to read L5 code values ---------------------
+            codeValueIndex = static_cast<int32_t>(std::ceil(ts * static_cast<float>(i + 1.0F) / tc)) - 1;
+
+            // --- Make the digitized version of the L5I code ------------------
+            if (i == samplesPerCode - 1)
+                {
+                    // --- Correct the last index (due to number rounding issues) -----------
+                    dest[i] = std::complex<float>(1.0F - 2.0F * code_aux[codeLength - 1], 0.0);
+                }
+            else
+                {
+                    dest[i] = std::complex<float>(1.0F - 2.0F * code_aux[(codeValueIndex % GPS_L5I_CODE_LENGTH_CHIPS)], 0.0);  // repeat the chip -> upsample
+                }
+        }
+}
+
 
 void gps_l5q_code_gen_complex(own::span<std::complex<float>> dest, uint32_t prn)
 {

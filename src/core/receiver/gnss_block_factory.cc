@@ -135,6 +135,7 @@
 #include "gps_l2_m_pcps_acquisition_fpga.h"
 #include "gps_l5_dll_pll_tracking_fpga.h"
 #include "gps_l5i_pcps_acquisition_fpga.h"
+#include "gps_l5i_pcps_hs_acquisition_fpga.h"
 #endif
 
 #if OPENCL_BLOCKS
@@ -1072,6 +1073,12 @@ std::unique_ptr<GNSSBlockInterface> GNSSBlockFactory::GetBlock(
                         out_streams);
                     block = std::move(block_);
                 }
+            else if (implementation == "GPS_L5i_PCPS_HS_Acquisition_Fpga")
+                {
+                    std::unique_ptr<AcquisitionInterface> block_ = std::make_unique<GpsL5iPcpsHSAcquisitionFpga>(configuration, role, in_streams,
+                        out_streams);
+                    block = std::move(block_);
+                }
             else if (implementation == "Galileo_E5a_Pcps_Acquisition_Fpga")
                 {
                     std::unique_ptr<GNSSBlockInterface> block_ = std::make_unique<GalileoE5aPcpsAcquisitionFpga>(configuration, role, in_streams,
@@ -1519,6 +1526,12 @@ std::unique_ptr<AcquisitionInterface> GNSSBlockFactory::GetAcqBlock(
     else if (implementation == "GPS_L5i_PCPS_Acquisition_Fpga")
         {
             std::unique_ptr<AcquisitionInterface> block_ = std::make_unique<GpsL5iPcpsAcquisitionFpga>(configuration, role, in_streams,
+                out_streams);
+            block = std::move(block_);
+        }
+    else if (implementation == "GPS_L5i_PCPS_HS_Acquisition_Fpga")
+        {
+            std::unique_ptr<AcquisitionInterface> block_ = std::make_unique<GpsL5iPcpsHSAcquisitionFpga>(configuration, role, in_streams,
                 out_streams);
             block = std::move(block_);
         }
