@@ -1,18 +1,15 @@
 /*!
- * \file gps_l1_ca_pcps_acquisition_fpga.cc
+ * \file gps_l1_ca_pcps_hs_acquisition_fpga.cc
  * \brief Adapts a PCPS acquisition block to an AcquisitionInterface
  *  for GPS L1 C/A signals for the FPGA high-sensitivity acquisition
- * \authors <ul>
- *          <li> Marc Majoral, 2019. mmajoral(at)cttc.es
- *          <li> Javier Arribas, 2019. jarribas(at)cttc.es
- *          </ul>
+ * \author Marc Majoral, 2023. mmajoral(at)cttc.es
  *
  * -----------------------------------------------------------------------------
  *
  * GNSS-SDR is a Global Navigation Satellite System software-defined receiver.
  * This file is part of GNSS-SDR.
  *
- * Copyright (C) 2010-2022  (see AUTHORS file for a list of contributors)
+ * Copyright (C) 2010-2023  (see AUTHORS file for a list of contributors)
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * -----------------------------------------------------------------------------

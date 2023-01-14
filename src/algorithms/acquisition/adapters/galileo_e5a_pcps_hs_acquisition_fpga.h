@@ -1,7 +1,7 @@
 /*!
- * \file gps_l1_ca_pcps_hs_acquisition_fpga.h
- * \brief Adapts a PCPS acquisition block to an AcquisitionInterface
- *  for GPS L1 C/A signals for the FPGA high-sensitivity acquisition
+ * \file galileo_e5a_pcps_hs_acquisition_fpga.h
+ * \brief Adapts a PCPS acquisition block to an AcquisitionInterface for
+ *  Galileo E5a data and pilot Signals for the FPGA high-sensitivity acquisition
  * \author Marc Majoral, 2023. mmajoral(at)cttc.es
  *
  * -----------------------------------------------------------------------------
@@ -15,8 +15,8 @@
  * -----------------------------------------------------------------------------
  */
 
-#ifndef GNSS_SDR_GPS_L1_CA_PCPS_HS_ACQUISITION_FPGA_H
-#define GNSS_SDR_GPS_L1_CA_PCPS_HS_ACQUISITION_FPGA_H
+#ifndef GNSS_SDR_GALILEO_E5A_PCPS_HS_ACQUISITION_FPGA_H
+#define GNSS_SDR_GALILEO_E5A_PCPS_HS_ACQUISITION_FPGA_H
 
 #include "acq_conf_fpga.h"
 #include "channel_fsm.h"
@@ -34,17 +34,19 @@
 
 class ConfigurationInterface;
 
+
 /*!
  * \brief This class adapts a PCPS acquisition block off-loaded on an FPGA
- * to an AcquisitionInterface for GPS L1 C/A signals
+ * to an AcquisitionInterface for Galileo E5a signals
  */
-class GpsL1CaPcpsHSAcquisitionFpga : public AcquisitionInterface
+class GalileoE5aPcpsHSAcquisitionFpga : public AcquisitionInterface
 {
 public:
     /*!
      * \brief Constructor
      */
-    GpsL1CaPcpsHSAcquisitionFpga(const ConfigurationInterface* configuration,
+    GalileoE5aPcpsHSAcquisitionFpga(
+        const ConfigurationInterface* configuration,
         const std::string& role,
         unsigned int in_streams,
         unsigned int out_streams);
@@ -52,7 +54,7 @@ public:
     /*!
      * \brief Destructor
      */
-    ~GpsL1CaPcpsHSAcquisitionFpga() = default;
+    ~GalileoE5aPcpsHSAcquisitionFpga() = default;
 
     /*!
      * \brief Role
@@ -63,11 +65,11 @@ public:
     }
 
     /*!
-     * \brief Returns "GPS_L1_CA_PCPS_Acquisition_Fpga"
+     * \brief Returns "Galileo_E5a_Pcps_Acquisition_Fpga"
      */
     inline std::string implementation() override
     {
-        return "GPS_L1_CA_PCPS_Acquisition_Fpga";
+        return "Galileo_E5a_Pcps_Acquisition_Fpga";
     }
 
     /*!
@@ -101,7 +103,7 @@ public:
     /*!
      * \brief Set acquisition/tracking common Gnss_Synchro object pointer
      * to efficiently exchange synchronization data between acquisition and
-     * tracking blocks
+     *  tracking blocks
      */
     void set_gnss_synchro(Gnss_Synchro* p_gnss_synchro) override;
 
@@ -126,8 +128,6 @@ public:
     /*!
      * \brief Set statistics threshold of PCPS algorithm
      */
-    std::string item_type_;
-
     void set_threshold(float threshold) override;
 
     /*!
@@ -151,7 +151,7 @@ public:
     void init() override;
 
     /*!
-     * \brief Sets local code for GPS L1/CA PCPS acquisition algorithm.
+     * \brief Sets local Galileo E5a code for PCPS acquisition algorithm.
      */
     void set_local_code() override;
 
@@ -166,9 +166,16 @@ public:
     void reset() override;
 
     /*!
-     * \brief If state = 1, it forces the block to start acquiring from the first sample
+     * \brief If set to 1, ensures that acquisition starts at the
+     * first available sample.
+     * \param state - int=1 forces start of acquisition
      */
     void set_state(int state) override;
+
+    /*!
+     * \brief This function is only used in the unit tests
+     */
+    void set_single_doppler_flag(unsigned int single_doppler_flag);
 
     /*!
      * \brief Stop running acquisition
@@ -176,7 +183,7 @@ public:
     void stop_acquisition() override;
 
     /*!
-     * \brief Set Resampler Latency
+     * \brief Set resampler latency
      */
     void set_resampler_latency(uint32_t latency_samples __attribute__((unused))) override{};
 
@@ -186,8 +193,9 @@ public:
     uint64_t get_sample_counter();
 
 private:
-    static const uint32_t fpga_downsampling_factor = 4;  // downampling factor in the FPGA
-    static const uint32_t fpga_buff_num = 0;             // L1/E1 band
+    static const uint32_t fpga_downsampling_factor = 1;  // downampling factor in the FPGA
+    static const uint32_t fpga_buff_num = 1;             // L5/E5a band
+
 
     pcps_hs_acquisition_fpga_sptr acquisition_fpga_;
     volk_gnsssdr::vector<std::complex<float>> code_;
@@ -205,9 +213,11 @@ private:
     unsigned int sampled_ms_;
     unsigned int in_streams_;
     unsigned int out_streams_;
+    bool acq_pilot_;
+    bool acq_iq_;
 };
 
 
 /** \} */
 /** \} */
-#endif  // GNSS_SDR_GPS_L1_CA_PCPS_HS_ACQUISITION_FPGA_H
+#endif  // GNSS_SDR_GALILEO_E5A_PCPS_HS_ACQUISITION_FPGA_H

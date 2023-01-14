@@ -121,6 +121,47 @@ void galileo_e5_a_code_gen_complex_sampled(own::span<std::complex<float>> dest,
         }
 }
 
+// The sampling frequency may not divide the code length so code repetition is done together with the resampling process.
+void galileo_e5_a_code_gen_complex_sampled(own::span<std::complex<float>> dest,
+    uint32_t prn,
+    const std::array<char, 3>& signal_id,
+    int32_t sampling_freq,
+    uint32_t chip_shift,
+    uint32_t num_codes)
+{
+    constexpr uint32_t codeLength = GALILEO_E5A_CODE_LENGTH_CHIPS;
+    constexpr int32_t codeFreqBasis = GALILEO_E5A_CODE_CHIP_RATE_CPS;
+    constexpr float tc = 1.0 / static_cast<float>(GALILEO_E5A_CODE_CHIP_RATE_CPS);  // L5I primary chip period in sec
+
+    const auto samplesPerCode = static_cast<uint32_t>(static_cast<double>(sampling_freq) / (static_cast<double>(codeFreqBasis) / static_cast<double>(codeLength * num_codes)));
+    const uint32_t delay = ((codeLength - chip_shift) % codeLength) * samplesPerCode / codeLength;
+
+    const float ts = 1.0F / static_cast<float>(sampling_freq);  // Sampling period in sec
+    int32_t codeValueIndex;
+
+    std::vector<std::complex<float>> code_aux(codeLength);
+    galileo_e5_a_code_gen_complex_primary(code_aux, prn, signal_id);
+
+    for (uint32_t i = 0; i < samplesPerCode; i++)
+        {
+            // === Digitizing ==================================================
+
+            // --- Make index array to read E5a code values ---------------------
+            codeValueIndex = static_cast<int32_t>(std::ceil(ts * static_cast<float>(i + 1.0F) / tc)) - 1;
+
+            // --- Make the digitized version of the L5I code ------------------
+            if (i == samplesPerCode - 1)
+                {
+                    // --- Correct the last index (due to number rounding issues) -----------
+                    dest[(i + delay) % samplesPerCode] = code_aux[codeLength - 1];
+                }
+            else
+                {
+                    dest[(i + delay) % samplesPerCode] = code_aux[(codeValueIndex % GALILEO_E5A_CODE_LENGTH_CHIPS)];  // repeat the chip -> upsample
+                }
+        }
+}
+
 
 void galileo_e5_b_code_gen_complex_primary(own::span<std::complex<float>> dest,
     int32_t prn,

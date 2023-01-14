@@ -56,6 +56,18 @@ void galileo_e5_a_code_gen_complex_sampled(own::span<std::complex<float>> dest,
     int32_t sampling_freq,
     uint32_t chip_shift);
 
+/*!
+ * \brief Generates Galileo E5a complex code, shifted to the desired chip and
+ * sampled at a frequency sampling_freq, including code repetition
+ * The sampling frequency may not divide the code length so code repetition 
+ * is done together with the resampling process.
+ */
+void galileo_e5_a_code_gen_complex_sampled(own::span<std::complex<float>> dest,
+    uint32_t prn,
+    const std::array<char, 3>& signal_id,
+    int32_t sampling_freq,
+    uint32_t chip_shift,
+    uint32_t num_codes);
 
 /*!
  * \brief Generates Galileo E5b code at 1 sample/chip

@@ -1,18 +1,15 @@
 /*!
- * \file gps_l5i_pcps_acquisition_fpga.h
+ * \file gps_l5i_pcps_hs_acquisition_fpga.h
  * \brief Adapts a PCPS acquisition block to an AcquisitionInterface for
- *  GPS L5i signals for the FPGA
- * \authors <ul>
- *          <li> Marc Majoral, 2019. mmajoral(at)cttc.es
- *          <li> Javier Arribas, 2019. jarribas(at)cttc.es
- *          </ul>
+ *  GPS L5i signals for the FPGA high-sensitivity acquisition
+ * \author Marc Majoral, 2023. mmajoral(at)cttc.es
  *
  * -----------------------------------------------------------------------------
  *
  * GNSS-SDR is a Global Navigation Satellite System software-defined receiver.
  * This file is part of GNSS-SDR.
  *
- * Copyright (C) 2010-2022  (see AUTHORS file for a list of contributors)
+ * Copyright (C) 2010-2023  (see AUTHORS file for a list of contributors)
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * -----------------------------------------------------------------------------
@@ -189,8 +186,6 @@ public:
     uint64_t get_sample_counter();
 
 private:
-    static const uint32_t NUM_PRNs = 32;
-
     static const uint32_t fpga_downsampling_factor = 1;  // downampling factor in the FPGA
     static const uint32_t fpga_buff_num = 1;             // L5/E5a band
 

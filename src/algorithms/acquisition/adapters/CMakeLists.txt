@@ -59,6 +59,7 @@ if(ENABLE_FPGA)
         galileo_e1_pcps_ambiguous_acquisition_fpga.cc
         galileo_e1_pcps_hs_ambiguous_acquisition_fpga.cc        
         galileo_e5a_pcps_acquisition_fpga.cc
+        galileo_e5a_pcps_hs_acquisition_fpga.cc
         galileo_e5b_pcps_acquisition_fpga.cc
         gps_l5i_pcps_acquisition_fpga.cc
         gps_l5i_pcps_hs_acquisition_fpga.cc
@@ -70,6 +71,7 @@ if(ENABLE_FPGA)
         galileo_e1_pcps_ambiguous_acquisition_fpga.h
         galileo_e1_pcps_hs_ambiguous_acquisition_fpga.h
         galileo_e5a_pcps_acquisition_fpga.h
+        galileo_e5a_pcps_hs_acquisition_fpga.h
         galileo_e5b_pcps_acquisition_fpga.h
         gps_l5i_pcps_acquisition_fpga.h
         gps_l5i_pcps_hs_acquisition_fpga.h

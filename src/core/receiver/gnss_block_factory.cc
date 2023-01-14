@@ -127,6 +127,7 @@
 #include "galileo_e1_pcps_hs_ambiguous_acquisition_fpga.h"
 #include "galileo_e5a_dll_pll_tracking_fpga.h"
 #include "galileo_e5a_pcps_acquisition_fpga.h"
+#include "galileo_e5a_pcps_hs_acquisition_fpga.h"
 #include "galileo_e5b_pcps_acquisition_fpga.h"
 #include "gps_l1_ca_dll_pll_tracking_fpga.h"
 #include "gps_l1_ca_pcps_acquisition_fpga.h"
@@ -1085,6 +1086,12 @@ std::unique_ptr<GNSSBlockInterface> GNSSBlockFactory::GetBlock(
                         out_streams);
                     block = std::move(block_);
                 }
+            else if (implementation == "Galileo_E5a_Pcps_HS_Acquisition_Fpga")
+                {
+                    std::unique_ptr<GNSSBlockInterface> block_ = std::make_unique<GalileoE5aPcpsHSAcquisitionFpga>(configuration, role, in_streams,
+                        out_streams);
+                    block = std::move(block_);
+                }
             else if (implementation == "Galileo_E5b_PCPS_Acquisition_FPGA")
                 {
                     std::unique_ptr<AcquisitionInterface> block_ = std::make_unique<GalileoE5bPcpsAcquisitionFpga>(configuration, role, in_streams,
@@ -1538,6 +1545,12 @@ std::unique_ptr<AcquisitionInterface> GNSSBlockFactory::GetAcqBlock(
     else if (implementation == "Galileo_E5a_Pcps_Acquisition_Fpga")
         {
             std::unique_ptr<AcquisitionInterface> block_ = std::make_unique<GalileoE5aPcpsAcquisitionFpga>(configuration, role, in_streams,
+                out_streams);
+            block = std::move(block_);
+        }
+    else if (implementation == "Galileo_E5a_Pcps_HS_Acquisition_Fpga")
+        {
+            std::unique_ptr<AcquisitionInterface> block_ = std::make_unique<GalileoE5aPcpsHSAcquisitionFpga>(configuration, role, in_streams,
                 out_streams);
             block = std::move(block_);
         }
