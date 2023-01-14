@@ -37,7 +37,6 @@ GalileoE1PcpsHSAmbiguousAcquisitionFpga::GalileoE1PcpsHSAmbiguousAcquisitionFpga
     unsigned int out_streams) : gnss_synchro_(nullptr),
                                 configuration_(configuration),
                                 role_(role),
-                                threshold_(0.0),
                                 doppler_center_(0),
                                 channel_(0),
                                 doppler_step_(0),
@@ -45,7 +44,7 @@ GalileoE1PcpsHSAmbiguousAcquisitionFpga::GalileoE1PcpsHSAmbiguousAcquisitionFpga
                                 out_streams_(out_streams)
 {
     acq_parameters_.ms_per_code = 4;
-    acq_parameters_.SetFromHSConfiguration(configuration_, role, fpga_downsampling_factor, fpga_buff_num, GALILEO_E1_CODE_CHIP_RATE_CPS);
+    acq_parameters_.SetFromHSConfiguration(configuration_, role, fpga_downsampling_factor, fpga_buff_num, GALILEO_E1_CODE_CHIP_RATE_CPS, GALILEO_E1_B_CODE_LENGTH_CHIPS);
 
     DLOG(INFO) << "role " << role;
 
@@ -90,8 +89,8 @@ void GalileoE1PcpsHSAmbiguousAcquisitionFpga::stop_acquisition()
 
 void GalileoE1PcpsHSAmbiguousAcquisitionFpga::set_threshold(float threshold)
 {
-    threshold_ = threshold;
-    acquisition_fpga_->set_threshold(threshold_);
+    DLOG(INFO) << "Channel " << channel_ << " Threshold = " << threshold;
+    acquisition_fpga_->set_threshold(threshold);
 }
 
 

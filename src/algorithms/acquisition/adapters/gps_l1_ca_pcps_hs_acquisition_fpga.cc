@@ -1,0 +1,188 @@
+/*!
+ * \file gps_l1_ca_pcps_acquisition_fpga.cc
+ * \brief Adapts a PCPS acquisition block to an AcquisitionInterface
+ *  for GPS L1 C/A signals for the FPGA high-sensitivity acquisition
+ * \authors <ul>
+ *          <li> Marc Majoral, 2019. mmajoral(at)cttc.es
+ *          <li> Javier Arribas, 2019. jarribas(at)cttc.es
+ *          </ul>
+ *
+ * -----------------------------------------------------------------------------
+ *
+ * GNSS-SDR is a Global Navigation Satellite System software-defined receiver.
+ * This file is part of GNSS-SDR.
+ *
+ * Copyright (C) 2010-2022  (see AUTHORS file for a list of contributors)
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * -----------------------------------------------------------------------------
+ */
+
+#include "gps_l1_ca_pcps_hs_acquisition_fpga.h"
+#include "GPS_L1_CA.h"
+#include "configuration_interface.h"
+#include "gnss_sdr_fft.h"
+#include "gnss_sdr_flags.h"
+#include "gps_sdr_signal_replica.h"
+#include <glog/logging.h>
+#include <gnuradio/gr_complex.h>  // for gr_complex
+#include <volk/volk.h>            // for volk_32fc_conjugate_32fc
+#include <algorithm>              // for copy_n
+#include <cmath>                  // for abs, pow, floor
+#include <complex>                // for complex
+
+GpsL1CaPcpsHSAcquisitionFpga::GpsL1CaPcpsHSAcquisitionFpga(
+    const ConfigurationInterface* configuration,
+    const std::string& role,
+    unsigned int in_streams,
+    unsigned int out_streams) : gnss_synchro_(nullptr),
+                                role_(role),
+                                doppler_center_(0),
+                                channel_(0),
+                                doppler_step_(0),
+                                in_streams_(in_streams),
+                                out_streams_(out_streams)
+{
+    acq_parameters_.SetFromHSConfiguration(configuration, role, fpga_downsampling_factor, fpga_buff_num, GPS_L1_CA_CODE_RATE_CPS, GPS_L1_CA_CODE_LENGTH_CHIPS);
+
+    DLOG(INFO) << "role " << role;
+
+    if (FLAGS_doppler_max != 0)
+        {
+            acq_parameters_.doppler_max = FLAGS_doppler_max;
+        }
+    doppler_max_ = acq_parameters_.doppler_max;
+    doppler_step_ = static_cast<unsigned int>(acq_parameters_.doppler_step);
+    fs_in_ = acq_parameters_.fs_in;
+
+    code_length_ = acq_parameters_.code_length;
+    vector_length_ = static_cast<unsigned int>(std::round(acq_parameters_.sampled_ms * acq_parameters_.samples_per_ms) * (acq_parameters_.bit_transition_flag ? 2.0 : 1.0));
+
+    code_ = volk_gnsssdr::vector<std::complex<float>>(vector_length_);
+
+    sampled_ms_ = acq_parameters_.sampled_ms;
+
+    acquisition_fpga_ = pcps_make_hs_acquisition_fpga(acq_parameters_);
+
+    if (in_streams_ > 1)
+        {
+            LOG(ERROR) << "This implementation only supports one input stream";
+        }
+    if (out_streams_ > 0)
+        {
+            LOG(ERROR) << "This implementation does not provide an output stream";
+        }
+}
+
+
+void GpsL1CaPcpsHSAcquisitionFpga::stop_acquisition()
+{
+    // stop the acquisition and the other FPGA modules.
+    acquisition_fpga_->stop_acquisition();
+}
+
+
+void GpsL1CaPcpsHSAcquisitionFpga::set_threshold(float threshold)
+{
+    DLOG(INFO) << "Channel " << channel_ << " Threshold = " << threshold;
+    acquisition_fpga_->set_threshold(threshold);
+}
+
+
+void GpsL1CaPcpsHSAcquisitionFpga::set_doppler_max(unsigned int doppler_max)
+{
+    doppler_max_ = doppler_max;
+    acquisition_fpga_->set_doppler_max(doppler_max_);
+}
+
+
+void GpsL1CaPcpsHSAcquisitionFpga::set_doppler_step(unsigned int doppler_step)
+{
+    doppler_step_ = doppler_step;
+    acquisition_fpga_->set_doppler_step(doppler_step_);
+}
+
+
+void GpsL1CaPcpsHSAcquisitionFpga::set_doppler_center(int doppler_center)
+{
+    doppler_center_ = doppler_center;
+
+    acquisition_fpga_->set_doppler_center(doppler_center_);
+}
+
+
+void GpsL1CaPcpsHSAcquisitionFpga::set_gnss_synchro(Gnss_Synchro* gnss_synchro)
+{
+    gnss_synchro_ = gnss_synchro;
+    acquisition_fpga_->set_gnss_synchro(gnss_synchro_);
+}
+
+
+signed int GpsL1CaPcpsHSAcquisitionFpga::mag()
+{
+    return acquisition_fpga_->mag();
+}
+
+
+void GpsL1CaPcpsHSAcquisitionFpga::init()
+{
+    acquisition_fpga_->init();
+}
+
+
+void GpsL1CaPcpsHSAcquisitionFpga::set_local_code()
+{
+    uint32_t num_codes = sampled_ms_ / GPS_L1_CA_CODE_PERIOD_MS;
+
+    gps_l1_ca_code_gen_complex_sampled(code_, gnss_synchro_->PRN, fs_in_, 0, num_codes);  // generate PRN code
+
+    acquisition_fpga_->set_local_code(code_.data());
+}
+
+
+void GpsL1CaPcpsHSAcquisitionFpga::reset()
+{
+    // this function starts the acquisition process
+    acquisition_fpga_->set_active(true);
+}
+
+
+void GpsL1CaPcpsHSAcquisitionFpga::set_state(int state)
+{
+    acquisition_fpga_->set_state(state);
+}
+
+
+void GpsL1CaPcpsHSAcquisitionFpga::connect(gr::top_block_sptr top_block)
+{
+    if (top_block)
+        { /* top_block is not null */
+        };
+    // Nothing to connect
+}
+
+
+void GpsL1CaPcpsHSAcquisitionFpga::disconnect(gr::top_block_sptr top_block)
+{
+    if (top_block)
+        { /* top_block is not null */
+        };
+    // Nothing to disconnect
+}
+
+
+gr::basic_block_sptr GpsL1CaPcpsHSAcquisitionFpga::get_left_block()
+{
+    return nullptr;
+}
+
+
+gr::basic_block_sptr GpsL1CaPcpsHSAcquisitionFpga::get_right_block()
+{
+    return nullptr;
+}
+
+uint64_t GpsL1CaPcpsHSAcquisitionFpga::get_sample_counter()
+{
+    return acquisition_fpga_->get_sample_counter();
+}

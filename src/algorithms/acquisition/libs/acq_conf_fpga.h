@@ -39,7 +39,7 @@ public:
     void SetFromConfiguration(const ConfigurationInterface *configuration, const std::string &role, uint32_t downs_factor, uint32_t sel_queue_fpga, uint32_t blk_exp, double chip_rate, double code_length_chips);
 
     // high sensitivity configuration
-    void SetFromHSConfiguration(const ConfigurationInterface *configuration, const std::string &role, uint32_t downs_factor, uint32_t sel_queue_fpga, double chip_rate);
+    void SetFromHSConfiguration(const ConfigurationInterface *configuration, const std::string &role, uint32_t downs_factor, uint32_t sel_queue_fpga, double chip_rate, double code_length_chips);
 
     /* PCPS Acquisition configuration */
     std::string device_name = "uio0";

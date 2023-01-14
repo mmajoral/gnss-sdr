@@ -66,7 +66,7 @@ void Acq_Conf_Fpga::SetFromConfiguration(const ConfigurationInterface *configura
 }
 
 void Acq_Conf_Fpga::SetFromHSConfiguration(const ConfigurationInterface *configuration,
-    const std::string &role, uint32_t downs_factor, uint32_t sel_queue_fpga, double chip_rate)
+    const std::string &role, uint32_t downs_factor, uint32_t sel_queue_fpga, double chip_rate, double code_length_chips)
 {
     chips_per_second = chip_rate;
 
@@ -76,6 +76,9 @@ void Acq_Conf_Fpga::SetFromHSConfiguration(const ConfigurationInterface *configu
     // downsampling factor
     downsampling_factor = configuration->property(role + ".downsampling_factor", downs_factor);
     fs_in = fs_in / downsampling_factor;
+
+    // code length in samples
+    code_length = static_cast<uint32_t>(std::round(static_cast<double>(fs_in) / (chip_rate / code_length_chips)));
 
     doppler_max = configuration->property(role + ".doppler_max", doppler_max);
     sampled_ms = configuration->property(role + ".coherent_integration_time_ms", sampled_ms);

@@ -1,8 +1,11 @@
 /*!
- * \file galileo_e1_pcps_hs_ambiguous_acquisition_fpga.h
- * \brief Adapts a PCPS high sensitivity acquisition block to an AcquisitionInterface for
- *  Galileo E1 Signals for the FPGA
- * \author Marc Majoral, 2019. mmajoral(at)cttc.es
+ * \file gps_l1_ca_pcps_acquisition_fpga.h
+ * \brief Adapts a PCPS acquisition block to an AcquisitionInterface
+ *  for GPS L1 C/A signals for the FPGA high-sensitivity acquisition
+ * \authors <ul>
+ *          <li> Marc Majoral, 2019. mmajoral(at)cttc.es
+ *          <li> Javier Arribas, 2019. jarribas(at)cttc.es
+ *          </ul>
  *
  * -----------------------------------------------------------------------------
  *
@@ -15,8 +18,8 @@
  * -----------------------------------------------------------------------------
  */
 
-#ifndef GNSS_SDR_GALILEO_E1_PCPS_HS_AMBIGUOUS_ACQUISITION_FPGA_H
-#define GNSS_SDR_GALILEO_E1_PCPS_HS_AMBIGUOUS_ACQUISITION_FPGA_H
+#ifndef GNSS_SDR_GPS_L1_CA_PCPS_HS_ACQUISITION_FPGA_H
+#define GNSS_SDR_GPS_L1_CA_PCPS_HS_ACQUISITION_FPGA_H
 
 #include "acq_conf_fpga.h"
 #include "channel_fsm.h"
@@ -25,7 +28,6 @@
 #include <volk_gnsssdr/volk_gnsssdr_alloc.h>
 #include <memory>
 #include <string>
-#include <vector>
 
 /** \addtogroup Acquisition
  * \{ */
@@ -37,16 +39,15 @@ class ConfigurationInterface;
 
 /*!
  * \brief This class adapts a PCPS acquisition block off-loaded on an FPGA
- * to an AcquisitionInterface for Galileo E1 Signals
+ * to an AcquisitionInterface for GPS L1 C/A signals
  */
-class GalileoE1PcpsHSAmbiguousAcquisitionFpga : public AcquisitionInterface
+class GpsL1CaPcpsHSAcquisitionFpga : public AcquisitionInterface
 {
 public:
     /*!
      * \brief Constructor
      */
-    GalileoE1PcpsHSAmbiguousAcquisitionFpga(
-        const ConfigurationInterface* configuration,
+    GpsL1CaPcpsHSAcquisitionFpga(const ConfigurationInterface* configuration,
         const std::string& role,
         unsigned int in_streams,
         unsigned int out_streams);
@@ -54,7 +55,7 @@ public:
     /*!
      * \brief Destructor
      */
-    ~GalileoE1PcpsHSAmbiguousAcquisitionFpga() = default;
+    ~GpsL1CaPcpsHSAcquisitionFpga() = default;
 
     /*!
      * \brief Role
@@ -65,17 +66,17 @@ public:
     }
 
     /*!
-     * \brief Returns "Galileo_E1_PCPS_Ambiguous_Acquisition_Fpga"
+     * \brief Returns "GPS_L1_CA_PCPS_Acquisition_Fpga"
      */
     inline std::string implementation() override
     {
-        return "Galileo_E1_PCPS_HS_Ambiguous_Acquisition_Fpga";
+        return "GPS_L1_CA_PCPS_Acquisition_Fpga";
     }
 
     /*!
      * \brief Returns size of lv_16sc_t
      */
-    size_t item_size() override
+    inline size_t item_size() override
     {
         return sizeof(int16_t);
     }
@@ -103,7 +104,7 @@ public:
     /*!
      * \brief Set acquisition/tracking common Gnss_Synchro object pointer
      * to efficiently exchange synchronization data between acquisition and
-     *  tracking blocks
+     * tracking blocks
      */
     void set_gnss_synchro(Gnss_Synchro* p_gnss_synchro) override;
 
@@ -128,6 +129,8 @@ public:
     /*!
      * \brief Set statistics threshold of PCPS algorithm
      */
+    std::string item_type_;
+
     void set_threshold(float threshold) override;
 
     /*!
@@ -151,7 +154,7 @@ public:
     void init() override;
 
     /*!
-     * \brief Sets local code for Galileo E1 PCPS acquisition algorithm.
+     * \brief Sets local code for GPS L1/CA PCPS acquisition algorithm.
      */
     void set_local_code() override;
 
@@ -176,7 +179,7 @@ public:
     void stop_acquisition() override;
 
     /*!
-     * \brief Set resampler latency
+     * \brief Set Resampler Latency
      */
     void set_resampler_latency(uint32_t latency_samples __attribute__((unused))) override{};
 
@@ -186,6 +189,7 @@ public:
     uint64_t get_sample_counter();
 
 private:
+
     static const uint32_t fpga_downsampling_factor = 4;  // downampling factor in the FPGA
     static const uint32_t fpga_buff_num = 0;             // L1/E1 band
 
@@ -193,7 +197,6 @@ private:
     volk_gnsssdr::vector<std::complex<float>> code_;
     std::weak_ptr<ChannelFsm> channel_fsm_;
     Gnss_Synchro* gnss_synchro_;
-    const ConfigurationInterface* configuration_;
     Acq_Conf_Fpga acq_parameters_;
     std::string role_;
     int64_t fs_in_;
@@ -206,12 +209,9 @@ private:
     unsigned int sampled_ms_;
     unsigned int in_streams_;
     unsigned int out_streams_;
-    bool acquire_pilot_;
-
-    bool enable_hs;
 };
 
 
 /** \} */
 /** \} */
-#endif  // GNSS_SDR_GALILEO_E1_PCPS_HS_AMBIGUOUS_ACQUISITION_FPGA_H
+#endif  // GNSS_SDR_GPS_L1_CA_PCPS_HS_ACQUISITION_FPGA_H
