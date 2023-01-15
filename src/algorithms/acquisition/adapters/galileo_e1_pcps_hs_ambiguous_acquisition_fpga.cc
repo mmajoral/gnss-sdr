@@ -61,9 +61,30 @@ GalileoE1PcpsHSAmbiguousAcquisitionFpga::GalileoE1PcpsHSAmbiguousAcquisitionFpga
 
     code_length_ = static_cast<unsigned int>(std::floor(static_cast<double>(acq_parameters_.resampled_fs) / (GALILEO_E1_CODE_CHIP_RATE_CPS / GALILEO_E1_B_CODE_LENGTH_CHIPS)));
     vector_length_ = static_cast<unsigned int>(std::floor(acq_parameters_.sampled_ms * acq_parameters_.samples_per_ms) * (acq_parameters_.bit_transition_flag ? 2.0 : 1.0));
-    code_ = volk_gnsssdr::vector<std::complex<float>>(vector_length_);
 
     sampled_ms_ = acq_parameters_.sampled_ms;
+
+    enable_hs_ = acq_parameters_.enable_hs;
+
+    if (acq_parameters_.sampled_ms == acq_parameters_.ms_per_code)
+        {
+            fft_size_ = vector_length_;
+        }
+    else
+        {
+            if (enable_hs_)
+                {
+                    fft_size_ = vector_length_;
+                }
+            else
+                {
+                    fft_size_ = vector_length_ * 2;
+                }
+        }
+
+    code_aux_ = volk_gnsssdr::vector<std::complex<float>>(vector_length_);
+    code_ = volk_gnsssdr::vector<std::complex<float>>(fft_size_);
+    fft_if_ = gnss_fft_fwd_make_unique(fft_size_);
 
     acquisition_fpga_ = pcps_make_hs_acquisition_fpga(acq_parameters_);
 
@@ -75,8 +96,6 @@ GalileoE1PcpsHSAmbiguousAcquisitionFpga::GalileoE1PcpsHSAmbiguousAcquisitionFpga
         {
             LOG(ERROR) << "This implementation does not provide an output stream";
         }
-
-    enable_hs = acq_parameters_.enable_hs;
 }
 
 
@@ -139,8 +158,8 @@ void GalileoE1PcpsHSAmbiguousAcquisitionFpga::set_local_code()
     bool cboc = configuration_->property(
         "Acquisition" + std::to_string(channel_) + ".cboc", false);
 
-    uint32_t num_codes, codelength;
-    if (enable_hs)
+    uint32_t num_codes;  //, codelength;
+    if (enable_hs_)
         {
             // when using high sensitivity mode, the concatenated
             // PRN codes have to be interpolated for the whole
@@ -148,20 +167,20 @@ void GalileoE1PcpsHSAmbiguousAcquisitionFpga::set_local_code()
             // when using sampling periods that are not a divider
             // of the PRN code duration.
             num_codes = sampled_ms_ / GALILEO_E1_CODE_PERIOD_MS;
-            codelength = vector_length_;
+            //codelength = vector_length_;
         }
     else
         {
             num_codes = 1;
-            codelength = code_length_;
+            //codelength = code_length_;
         }
-    volk_gnsssdr::vector<std::complex<float>> code(codelength);
+    //volk_gnsssdr::vector<std::complex<float>> code(codelength);
 
     if (acquire_pilot_ == true)
         {
             // set local signal generator to Galileo E1 pilot component (1C)
             std::array<char, 3> pilot_signal = {{'1', 'C', '\0'}};
-            galileo_e1_code_gen_complex_sampled(code, pilot_signal,
+            galileo_e1_code_gen_complex_sampled(code_aux_, pilot_signal,
                 //cboc, gnss_synchro_->PRN, fs_in_, 0, num_codes, doppler_center_, false);
                 cboc, gnss_synchro_->PRN, fs_in_, 0, num_codes, 0, false);
         }
@@ -171,13 +190,13 @@ void GalileoE1PcpsHSAmbiguousAcquisitionFpga::set_local_code()
             Signal_[0] = gnss_synchro_->Signal[0];
             Signal_[1] = gnss_synchro_->Signal[1];
             Signal_[2] = '\0';
-            galileo_e1_code_gen_complex_sampled(code, Signal_,
+            galileo_e1_code_gen_complex_sampled(code_aux_, Signal_,
                 cboc, gnss_synchro_->PRN, fs_in_, 0, num_codes, false);
         }
 
     own::span<gr_complex> code_span(code_.data(), vector_length_);
 
-    if (enable_hs)
+    if (enable_hs_)
         {
             for (unsigned int i = 0; i < sampled_ms_ / GALILEO_E1_CODE_PERIOD_MS; i++)
                 {
@@ -187,11 +206,11 @@ void GalileoE1PcpsHSAmbiguousAcquisitionFpga::set_local_code()
                         {
                             if (GALILEO_E1_C_SECONDARY_CODE[i] == '0')
                                 {
-                                    code_[j] = code[j];
+                                    code_aux_[j] = code_aux_[j];
                                 }
                             else
                                 {
-                                    code_[j] = -code[j];
+                                    code_aux_[j] = -code_aux_[j];
                                 }
                         }
                 }
@@ -200,9 +219,43 @@ void GalileoE1PcpsHSAmbiguousAcquisitionFpga::set_local_code()
         {
             for (unsigned int i = 0; i < sampled_ms_ / 4; i++)
                 {
-                    std::copy_n(code.data(), code_length_, code_span.subspan(i * code_length_, code_length_).data());
+                    std::copy_n(code_aux_.data(), code_length_, code_span.subspan(i * code_length_, code_length_).data());
                 }
         }
+
+    // COD
+    // Here we want to create a buffer that looks like this:
+    // [ 0 0 0 ... 0 c_0 c_1 ... c_L]
+    // where c_i is the local code and there are L zeros and L chips
+    if (acq_parameters_.bit_transition_flag)
+        {
+            const int32_t offset = fft_size_ / 2;
+            std::fill_n(fft_if_->get_inbuf(), offset, gr_complex(0.0, 0.0));
+            std::copy(code_aux_.data(), code_aux_.data() + offset, fft_if_->get_inbuf() + offset);
+        }
+    else
+        {
+            if (acq_parameters_.sampled_ms == acq_parameters_.ms_per_code)
+                {
+                    std::copy(code_aux_.data(), code_aux_.data() + vector_length_, fft_if_->get_inbuf());
+                }
+            else
+                {
+                    if (enable_hs_)
+                        {
+                            std::copy(code_aux_.data(), code_aux_.data() + vector_length_, fft_if_->get_inbuf());
+                        }
+                    else
+                        {
+                            std::fill_n(fft_if_->get_inbuf(), fft_size_ - vector_length_, gr_complex(0.0, 0.0));
+                            std::copy(code_aux_.data(), code_aux_.data() + vector_length_, fft_if_->get_inbuf() + vector_length_);
+                        }
+                }
+        }
+
+    fft_if_->execute();  // We need the FFT of local code
+    volk_32fc_conjugate_32fc(code_.data(), fft_if_->get_outbuf(), fft_size_);
+
 
     acquisition_fpga_->set_local_code(code_.data());
 }

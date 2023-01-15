@@ -190,7 +190,9 @@ private:
     static const uint32_t fpga_buff_num = 0;             // L1/E1 band
 
     pcps_hs_acquisition_fpga_sptr acquisition_fpga_;
+    volk_gnsssdr::vector<std::complex<float>> code_aux_;
     volk_gnsssdr::vector<std::complex<float>> code_;
+    std::unique_ptr<gnss_fft_complex_fwd> fft_if_;
     std::weak_ptr<ChannelFsm> channel_fsm_;
     Gnss_Synchro* gnss_synchro_;
     const ConfigurationInterface* configuration_;
@@ -200,6 +202,7 @@ private:
     int32_t doppler_center_;
     unsigned int vector_length_;
     unsigned int code_length_;
+    uint32_t fft_size_;
     uint32_t channel_;
     uint32_t doppler_max_;
     uint32_t doppler_step_;
@@ -208,7 +211,7 @@ private:
     unsigned int out_streams_;
     bool acquire_pilot_;
 
-    bool enable_hs;
+    bool enable_hs_;
 };
 
 

@@ -87,22 +87,6 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
                 }
         }
 
-    // COD:
-    // Experimenting with the overlap/save technique for handling bit trannsitions
-    // The problem: Circular correlation is asynchronous with the received code.
-    // In effect the first code phase used in the correlation is the current
-    // estimate of the code phase at the start of the input buffer. If this is 1/2
-    // of the code period a bit transition would move all the signal energy into
-    // adjacent frequency bands at +/- 1/T where T is the integration time.
-    //
-    // We can avoid this by doing linear correlation, effectively doubling the
-    // size of the input buffer and padding the code with zeros.
-    // if (d_acq_parameters.bit_transition_flag)
-    // {
-    //  d_fft_size = d_consumed_samples * 2;
-    //  d_acq_parameters.max_dwells = 1;  // Activation of d_acq_parameters.bit_transition_flag invalidates the value of d_acq_parameters.max_dwells
-    // }
-
     d_fft_codes = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
     d_fft_if = gnss_fft_fwd_make_unique(d_fft_size);
     d_ifft = gnss_fft_rev_make_unique(d_fft_size);
@@ -167,38 +151,10 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
 
 void pcps_hs_acquisition_fpga::set_local_code(std::complex<float> *code)
 {
-    // COD
-    // Here we want to create a buffer that looks like this:
-    // [ 0 0 0 ... 0 c_0 c_1 ... c_L]
-    // where c_i is the local code and there are L zeros and L chips
-    if (d_acq_parameters.bit_transition_flag)
+    for (uint k = 0; k < d_fft_size; k++)
         {
-            const int32_t offset = d_fft_size / 2;
-            std::fill_n(d_fft_if->get_inbuf(), offset, gr_complex(0.0, 0.0));
-            std::copy(code, code + offset, d_fft_if->get_inbuf() + offset);
+            d_fft_codes[k] = code[k];
         }
-    else
-        {
-            if (d_acq_parameters.sampled_ms == d_acq_parameters.ms_per_code)
-                {
-                    std::copy(code, code + d_consumed_samples, d_fft_if->get_inbuf());
-                }
-            else
-                {
-                    if (d_enable_hs)
-                        {
-                            std::copy(code, code + d_consumed_samples, d_fft_if->get_inbuf());
-                        }
-                    else
-                        {
-                            std::fill_n(d_fft_if->get_inbuf(), d_fft_size - d_consumed_samples, gr_complex(0.0, 0.0));
-                            std::copy(code, code + d_consumed_samples, d_fft_if->get_inbuf() + d_consumed_samples);
-                        }
-                }
-        }
-
-    d_fft_if->execute();  // We need the FFT of local code
-    volk_32fc_conjugate_32fc(d_fft_codes.data(), d_fft_if->get_outbuf(), d_fft_size);
 }
 
 void pcps_hs_acquisition_fpga::update_local_carrier(own::span<gr_complex> carrier_vector, float freq) const

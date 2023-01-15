@@ -57,11 +57,50 @@ GpsL1CaPcpsHSAcquisitionFpga::GpsL1CaPcpsHSAcquisitionFpga(
     sampled_ms_ = acq_parameters_.sampled_ms;
 
     // pre-compute all PRN codes
+    uint32_t fft_size;
+    if (acq_parameters_.sampled_ms == acq_parameters_.ms_per_code)
+        {
+            fft_size = vector_length_;
+        }
+    else
+        {
+            fft_size = vector_length_ * 2;
+        }
     uint32_t num_codes = sampled_ms_ / GPS_L1_CA_CODE_PERIOD_MS;
-    codes_ = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(NUM_PRNs, volk_gnsssdr::vector<std::complex<float>>(vector_length_));
+    codes_ = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(NUM_PRNs, volk_gnsssdr::vector<std::complex<float>>(fft_size));
+
+    volk_gnsssdr::vector<std::complex<float>> code_aux(vector_length_);
+    auto fft_if = gnss_fft_fwd_make_unique(fft_size);  // Direct FFT
+
     for (uint32_t PRN = 1; PRN <= NUM_PRNs; PRN++)
         {
-            gps_l1_ca_code_gen_complex_sampled(codes_[PRN - 1], PRN, fs_in_, 0, num_codes);  // generate PRN code
+            gps_l1_ca_code_gen_complex_sampled(code_aux, PRN, fs_in_, 0, num_codes);  // generate PRN code
+
+            // COD
+            // Here we want to create a buffer that looks like this:
+            // [ 0 0 0 ... 0 c_0 c_1 ... c_L]
+            // where c_i is the local code and there are L zeros and L chips
+            if (acq_parameters_.bit_transition_flag)
+                {
+                    const int32_t offset = fft_size / 2;
+                    std::fill_n(fft_if->get_inbuf(), offset, gr_complex(0.0, 0.0));
+                    std::copy(code_aux.data(), code_aux.data() + offset, fft_if->get_inbuf() + offset);
+                }
+            else
+                {
+                    if (acq_parameters_.sampled_ms == acq_parameters_.ms_per_code)
+                        {
+                            std::copy(code_aux.data(), code_aux.data() + vector_length_, fft_if->get_inbuf());
+                        }
+                    else
+                        {
+                            std::fill_n(fft_if->get_inbuf(), fft_size - vector_length_, gr_complex(0.0, 0.0));
+                            std::copy(code_aux.data(), code_aux.data() + vector_length_, fft_if->get_inbuf() + vector_length_);
+                        }
+                }
+
+            fft_if->execute();  // We need the FFT of local code
+            volk_32fc_conjugate_32fc(codes_[PRN - 1].data(), fft_if->get_outbuf(), fft_size);
         }
 
     acquisition_fpga_ = pcps_make_hs_acquisition_fpga(acq_parameters_);
