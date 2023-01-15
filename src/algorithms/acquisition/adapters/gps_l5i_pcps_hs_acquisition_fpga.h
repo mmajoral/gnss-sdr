@@ -188,7 +188,7 @@ public:
 private:
     static const uint32_t fpga_downsampling_factor = 1;  // downampling factor in the FPGA
     static const uint32_t fpga_buff_num = 1;             // L5/E5a band
-
+    static const uint32_t ms_per_s = 1000;               // 1 s = 1000 ms
     float calculate_threshold(float pfa);
 
     pcps_hs_acquisition_fpga_sptr acquisition_fpga_;

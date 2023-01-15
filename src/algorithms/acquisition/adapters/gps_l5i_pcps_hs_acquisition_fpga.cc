@@ -130,7 +130,7 @@ void GpsL5iPcpsHSAcquisitionFpga::init()
 
 void GpsL5iPcpsHSAcquisitionFpga::set_local_code()
 {
-    uint32_t num_codes = sampled_ms_ / (GPS_L5I_PERIOD_S * 1e-3);  // code period in ms
+    uint32_t num_codes = sampled_ms_ / (GPS_L5I_PERIOD_S * ms_per_s);  // code period in ms
 
     gps_l5i_code_gen_complex_sampled(code_, gnss_synchro_->PRN, fs_in_, num_codes);
 
