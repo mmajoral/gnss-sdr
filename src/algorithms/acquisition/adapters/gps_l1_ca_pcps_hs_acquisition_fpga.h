@@ -186,11 +186,13 @@ public:
     uint64_t get_sample_counter();
 
 private:
+    static const uint32_t NUM_PRNs = 32;
+
     static const uint32_t fpga_downsampling_factor = 4;  // downampling factor in the FPGA
     static const uint32_t fpga_buff_num = 0;             // L1/E1 band
 
     pcps_hs_acquisition_fpga_sptr acquisition_fpga_;
-    volk_gnsssdr::vector<std::complex<float>> code_;
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> codes_;
     std::weak_ptr<ChannelFsm> channel_fsm_;
     Gnss_Synchro* gnss_synchro_;
     Acq_Conf_Fpga acq_parameters_;

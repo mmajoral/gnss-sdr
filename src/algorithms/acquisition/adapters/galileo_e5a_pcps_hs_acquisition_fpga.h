@@ -198,7 +198,7 @@ private:
 
 
     pcps_hs_acquisition_fpga_sptr acquisition_fpga_;
-    volk_gnsssdr::vector<std::complex<float>> code_;
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> codes_;
     std::weak_ptr<ChannelFsm> channel_fsm_;
     Gnss_Synchro* gnss_synchro_;
     Acq_Conf_Fpga acq_parameters_;

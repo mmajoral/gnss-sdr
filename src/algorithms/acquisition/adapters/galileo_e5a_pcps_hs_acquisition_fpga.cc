@@ -57,9 +57,38 @@ GalileoE5aPcpsHSAcquisitionFpga::GalileoE5aPcpsHSAcquisitionFpga(
 
     code_length_ = acq_parameters_.code_length;
     vector_length_ = static_cast<unsigned int>(std::floor(acq_parameters_.sampled_ms * acq_parameters_.samples_per_ms) * (acq_parameters_.bit_transition_flag ? 2.0 : 1.0));
-    code_ = volk_gnsssdr::vector<std::complex<float>>(vector_length_);
 
     sampled_ms_ = acq_parameters_.sampled_ms;
+
+    // pre-compute all PRN codes
+    uint32_t num_codes = sampled_ms_ / (GALILEO_E5A_CODE_PERIOD_MS);  // code period in ms
+    codes_ = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(GALILEO_E5A_NUMBER_OF_CODES, volk_gnsssdr::vector<std::complex<float>>(vector_length_));
+    if (acq_iq_)
+        {
+            acq_pilot_ = false;
+        }
+
+    std::array<char, 3> signal_;
+    signal_[0] = '5';
+    signal_[2] = '\0';
+
+    if (acq_iq_)
+        {
+            signal_[1] = 'X';
+        }
+    else if (acq_pilot_)
+        {
+            signal_[1] = 'Q';
+        }
+    else
+        {
+            signal_[1] = 'I';
+        }
+
+    for (uint32_t PRN = 1; PRN <= GALILEO_E5A_NUMBER_OF_CODES; PRN++)
+        {
+            galileo_e5_a_code_gen_complex_sampled(codes_[PRN - 1], PRN, signal_, fs_in_, 0, num_codes);
+        }
 
     acquisition_fpga_ = pcps_make_hs_acquisition_fpga(acq_parameters_);
 
@@ -131,33 +160,7 @@ void GalileoE5aPcpsHSAcquisitionFpga::init()
 
 void GalileoE5aPcpsHSAcquisitionFpga::set_local_code()
 {
-    uint32_t num_codes = sampled_ms_ / (GALILEO_E5A_CODE_PERIOD_MS);  // code period in ms
-
-    if (acq_iq_)
-        {
-            acq_pilot_ = false;
-        }
-
-    std::array<char, 3> signal_;
-    signal_[0] = '5';
-    signal_[2] = '\0';
-
-    if (acq_iq_)
-        {
-            signal_[1] = 'X';
-        }
-    else if (acq_pilot_)
-        {
-            signal_[1] = 'Q';
-        }
-    else
-        {
-            signal_[1] = 'I';
-        }
-
-    galileo_e5_a_code_gen_complex_sampled(code_, gnss_synchro_->PRN, signal_, fs_in_, 0, num_codes);
-
-    acquisition_fpga_->set_local_code(code_.data());
+    acquisition_fpga_->set_local_code(codes_[(gnss_synchro_->PRN) - 1].data());
 }
 
 

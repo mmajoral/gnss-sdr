@@ -186,13 +186,15 @@ public:
     uint64_t get_sample_counter();
 
 private:
+    static const uint32_t NUM_PRNs = 32;
+
     static const uint32_t fpga_downsampling_factor = 1;  // downampling factor in the FPGA
     static const uint32_t fpga_buff_num = 1;             // L5/E5a band
     static const uint32_t ms_per_s = 1000;               // 1 s = 1000 ms
     float calculate_threshold(float pfa);
 
     pcps_hs_acquisition_fpga_sptr acquisition_fpga_;
-    volk_gnsssdr::vector<std::complex<float>> code_;
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> codes_;
     std::weak_ptr<ChannelFsm> channel_fsm_;
     Gnss_Synchro* gnss_synchro_;
     Acq_Conf_Fpga acq_parameters_;

@@ -54,10 +54,15 @@ GpsL1CaPcpsHSAcquisitionFpga::GpsL1CaPcpsHSAcquisitionFpga(
 
     code_length_ = acq_parameters_.code_length;
     vector_length_ = static_cast<unsigned int>(std::round(acq_parameters_.sampled_ms * acq_parameters_.samples_per_ms) * (acq_parameters_.bit_transition_flag ? 2.0 : 1.0));
-
-    code_ = volk_gnsssdr::vector<std::complex<float>>(vector_length_);
-
     sampled_ms_ = acq_parameters_.sampled_ms;
+
+    // pre-compute all PRN codes
+    uint32_t num_codes = sampled_ms_ / GPS_L1_CA_CODE_PERIOD_MS;
+    codes_ = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(NUM_PRNs, volk_gnsssdr::vector<std::complex<float>>(vector_length_));
+    for (uint32_t PRN = 1; PRN <= NUM_PRNs; PRN++)
+        {
+            gps_l1_ca_code_gen_complex_sampled(codes_[PRN - 1], PRN, fs_in_, 0, num_codes);  // generate PRN code
+        }
 
     acquisition_fpga_ = pcps_make_hs_acquisition_fpga(acq_parameters_);
 
@@ -129,11 +134,7 @@ void GpsL1CaPcpsHSAcquisitionFpga::init()
 
 void GpsL1CaPcpsHSAcquisitionFpga::set_local_code()
 {
-    uint32_t num_codes = sampled_ms_ / GPS_L1_CA_CODE_PERIOD_MS;
-
-    gps_l1_ca_code_gen_complex_sampled(code_, gnss_synchro_->PRN, fs_in_, 0, num_codes);  // generate PRN code
-
-    acquisition_fpga_->set_local_code(code_.data());
+    acquisition_fpga_->set_local_code(codes_[(gnss_synchro_->PRN) - 1].data());
 }
 
 
