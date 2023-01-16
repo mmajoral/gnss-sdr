@@ -2922,7 +2922,11 @@ void GNSSFlowgraph::set_signal(int num_channel, const Gnss_Signal& gnss_signal)
         {
             if ((agnss_ref_location_.valid) && (agnss_ref_time_.valid))
                 {
-                    Doppler_freq_assist(num_channel, gnss_signal);
+                    std::string str_aux = gnss_signal.get_signal_str();
+                    if (str_aux == "1B")
+                        {
+                            Doppler_freq_assist(num_channel, gnss_signal);
+                        }
                 }
         }
     channels_.at(num_channel)->set_signal(gnss_signal);
