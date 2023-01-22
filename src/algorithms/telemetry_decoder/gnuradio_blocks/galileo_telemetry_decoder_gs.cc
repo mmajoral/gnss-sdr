@@ -885,14 +885,14 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                     if (std::abs(corr_value) >= d_samples_per_preamble)
                         {
                             // check preamble separation
-                            int32_t preamble_diff;
+                            int32_t preamble_diff = 0;
                             bool sync_preamble_detected = false;
                             if (d_enable_navdata_assist)
                                 {
                                     for (uint32_t k = 0; k < d_preamble_samplestamps.size(); k++)
                                         {
-                                            const auto preamble_diff = static_cast<int32_t>(d_symbol_counter - d_preamble_samplestamps[k]);
-                                            if (preamble_diff % d_preamble_period_symbols == 0)
+                                            int32_t preamble_diff_hs = static_cast<int32_t>(d_symbol_counter - d_preamble_samplestamps[k]);
+                                            if (preamble_diff_hs % d_preamble_period_symbols == 0)
                                                 {
                                                     sync_preamble_detected = true;
                                                     break;
@@ -902,7 +902,7 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                                 }
                             else
                                 {
-                                    const auto preamble_diff = static_cast<int32_t>(d_symbol_counter - d_preamble_index);
+                                    preamble_diff = static_cast<int32_t>(d_symbol_counter - d_preamble_index);
                                     if (std::abs(preamble_diff - d_preamble_period_symbols) == 0)
                                         {
                                             sync_preamble_detected = true;

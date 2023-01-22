@@ -100,8 +100,6 @@ public:
     void reset();
 
 private:
-    const double GALILEO_E1_CARR_TO_CODE = (1.0 / 1540.0);
-
     friend dll_pll_veml_tracking_fpga_sptr dll_pll_veml_make_tracking_fpga(const Dll_Pll_Conf_Fpga &conf_);
     explicit dll_pll_veml_tracking_fpga(const Dll_Pll_Conf_Fpga &conf_);
 
@@ -142,15 +140,6 @@ private:
     boost::circular_buffer<std::pair<double, double>> d_carr_ph_history;
     boost::circular_buffer<gr_complex> d_Prompt_circular_buffer;
 
-    std::string d_systemName;
-    std::string d_signal_type;
-    std::string d_secondary_code_string;
-    std::string d_data_secondary_code_string;
-    std::string d_signal_pretty_name;
-    std::string d_dump_filename;
-
-    std::ofstream d_dump_file;
-
     std::shared_ptr<Fpga_Multicorrelator_8sc> d_multicorrelator_fpga;
 
     boost::condition_variable d_m_condition;
@@ -162,13 +151,8 @@ private:
     double d_signal_carrier_freq;
     double d_code_period;
     double d_code_chip_rate;
-    double d_code_phase_step_chips;
-    double d_code_phase_rate_step_chips;
-    double d_carrier_phase_step_rad;
-    double d_carrier_phase_rate_step_rad;
     double d_acq_code_phase_samples;
     double d_acq_carrier_doppler_hz;
-    double d_rem_code_phase_samples;
     double d_rem_code_phase_samples_prev;
     double d_current_correlation_time_s;
     double d_carr_phase_error_hz;
@@ -187,6 +171,11 @@ private:
     double d_carrier_lock_test;
     double d_CN0_SNV_dB_Hz;
     double d_carrier_lock_threshold;
+    double d_carrier_phase_step_rad;
+    double d_carrier_phase_rate_step_rad;
+    double d_code_phase_step_chips;
+    double d_code_phase_rate_step_chips;
+    double d_rem_code_phase_samples;
 
     gr_complex *d_Very_Early;
     gr_complex *d_Early;
@@ -202,6 +191,14 @@ private:
     gr_complex d_VL_accu;
     gr_complex d_P_data_accu;
 
+    std::string d_secondary_code_string;
+    std::string d_data_secondary_code_string;
+    std::string d_systemName;
+    std::string d_signal_type;
+    std::string d_signal_pretty_name;
+    std::string d_dump_filename;
+
+    std::ofstream d_dump_file;
     uint64_t d_sample_counter;
     uint64_t d_acq_sample_stamp;
     uint64_t d_sample_counter_next;
@@ -211,6 +208,8 @@ private:
 
     int32_t d_symbols_per_bit;
     int32_t d_state;
+    int32_t d_correlation_length_ms;
+    int32_t d_n_correlator_taps;
     int32_t d_extend_correlation_symbols_count;
     int32_t d_current_symbol;
     int32_t d_current_data_symbol;
@@ -218,28 +217,26 @@ private:
     int32_t d_cn0_estimation_counter;
     int32_t d_carrier_lock_fail_counter;
     int32_t d_code_lock_fail_counter;
-    int32_t d_correlation_length_ms;
-    int32_t d_n_correlator_taps;
+    int32_t d_code_samples_per_chip;  // All signals have 1 sample per chip code except Gal. E1 which has 2 (CBOC disabled) or 12 (CBOC enabled)
+    int32_t d_code_length_chips;
     int32_t d_next_integration_length_samples;
     int32_t d_extend_fpga_integration_periods;
 
     uint32_t d_channel;
     uint32_t d_secondary_code_length;
     uint32_t d_data_secondary_code_length;
-    uint32_t d_code_length_chips;
-    uint32_t d_code_samples_per_chip;  // All signals have 1 sample per chip code except Gal. E1 which has 2 (CBOC disabled) or 12 (CBOC enabled)
     uint32_t d_fpga_integration_period;
     uint32_t d_current_fpga_integration_period;
 
+    bool d_pull_in_transitory;
+    bool d_corrected_doppler;
+    bool d_interchange_iq;
     bool d_veml;
     bool d_cloop;
     bool d_secondary;
     bool d_enable_extended_integration;
     bool d_dump;
     bool d_dump_mat;
-    bool d_pull_in_transitory;
-    bool d_corrected_doppler;
-    bool d_interchange_iq;
     bool d_acc_carrier_phase_initialized;
     bool d_worker_is_done;
     bool d_extended_correlation_in_fpga;
@@ -251,7 +248,6 @@ private:
     // high sensitivity mode
     bool d_enable_hs;
     bool d_skip_samples;
-    int64_t d_samples_to_consume;
     bool d_narrow_pll_dll_set;
 };
 

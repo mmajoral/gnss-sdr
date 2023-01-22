@@ -95,8 +95,6 @@ GpsL1CaDllPllTrackingFpga::GpsL1CaDllPllTrackingFpga(
                 }
         }
     trk_params_fpga.ca_codes = ca_codes_ptr_;
-    trk_params_fpga.code_length_chips = GPS_L1_CA_CODE_LENGTH_CHIPS;
-    trk_params_fpga.code_samples_per_chip = 1;  // 1 sample per chip
 
     trk_params_fpga.extended_correlation_in_fpga = false;  // by default
     trk_params_fpga.extend_fpga_integration_periods = 1;   // (number of FPGA integrations that are combined in the SW)

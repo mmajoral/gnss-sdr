@@ -130,21 +130,20 @@ private:
 
     double rf_gain_rx1_;
     double rf_gain_rx2_;
+    double scale_dds_dbfs_;     // DDS configuration for LO generation for external mixer
+    double phase_dds_deg_;      // DDS configuration for LO generation for external mixer
+    double tx_attenuation_db_;  // DDS configuration for LO generation for external mixer
+    float Fpass_;
+    float Fstop_;
     uint64_t freq0_;  // frequency of local oscillator for ADRV9361-A 0
     uint64_t freq1_;  // frequency of local oscillator for ADRV9361-B (if present)
     uint64_t sample_rate_;
     uint64_t bandwidth_;
     uint64_t samples_to_skip_;
     int64_t samples_;
-    float Fpass_;
-    float Fstop_;
     uint32_t num_freq_bands_;
     uint32_t dma_buff_offset_pos_;
 
-    // DDS configuration for LO generation for external mixer
-    double scale_dds_dbfs_;
-    double phase_dds_deg_;
-    double tx_attenuation_db_;
     uint64_t freq_dds_tx_hz_;
     uint64_t freq_rf_tx_hz_;
     uint64_t tx_bandwidth_;

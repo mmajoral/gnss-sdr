@@ -85,7 +85,6 @@ GpsL5DllPllTrackingFpga::GpsL5DllPllTrackingFpga(
     num_prev_assigned_ch_ = num_prev_assigned_ch_1C + num_prev_assigned_ch_2S;
 
     // ################# PRE-COMPUTE ALL THE CODES #################
-    uint32_t code_samples_per_chip = 1;
     auto code_length_chips = static_cast<uint32_t>(GPS_L5I_CODE_LENGTH_CHIPS);
 
     volk_gnsssdr::vector<float> data_code;
@@ -150,8 +149,6 @@ GpsL5DllPllTrackingFpga::GpsL5DllPllTrackingFpga(
 
     trk_params_fpga.ca_codes = prn_codes_ptr_;
     trk_params_fpga.data_codes = data_codes_ptr_;
-    trk_params_fpga.code_length_chips = code_length_chips;
-    trk_params_fpga.code_samples_per_chip = code_samples_per_chip;  // 2 sample per chip
 
     trk_params_fpga.extended_correlation_in_fpga = false;  // by default
     trk_params_fpga.extend_fpga_integration_periods = 1;   // (number of FPGA integrations that are combined in the SW)

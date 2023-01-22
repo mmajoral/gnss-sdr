@@ -173,6 +173,7 @@ private:
     uint64_t d_acq_sample_stamp;
     GnssTime d_last_timetag{};
     uint64_t d_last_timetag_samplecounter;
+    int64_t d_samples_to_consume;
     bool d_timetag_waiting;
 
     float *d_prompt_data_shift;
@@ -212,7 +213,6 @@ private:
     // high sensitivity mode
     bool d_enable_hs;
     bool d_skip_samples;
-    int64_t d_samples_to_consume;
     bool d_narrow_pll_dll_set;
 };
 

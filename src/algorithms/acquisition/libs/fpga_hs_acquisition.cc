@@ -227,7 +227,7 @@ void Fpga_HS_Acquisition::configure_acquisition()
 {
     d_map_base[select_queue_reg_addr] = d_select_queue;
     d_map_base[nsamples_reg_addr] = d_nsamples;
-    d_map_base[nsamples_first_block_reg_addr] = d_nsamples;  //d_nsamples_first_block;
+    d_map_base[nsamples_first_block_reg_addr] = d_nsamples_first_block;
     uint32_t fpga_pl_ddr4_ram_addr_LSW = (FPGA_PL_DDR4_RAM_ADDR & SELECT_LSW);
     uint32_t fpga_pl_ddr4_ram_addr_MSW = (FPGA_PL_DDR4_RAM_ADDR & SELECT_MSW) >> SHIFT_32_BITS;
     d_map_base[write_address_LSW_reg_addr] = fpga_pl_ddr4_ram_addr_LSW;

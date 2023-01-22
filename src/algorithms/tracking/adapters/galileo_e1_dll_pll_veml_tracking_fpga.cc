@@ -159,8 +159,6 @@ GalileoE1DllPllVemlTrackingFpga::GalileoE1DllPllVemlTrackingFpga(
 
     trk_params_fpga.ca_codes = prn_codes_ptr_;
     trk_params_fpga.data_codes = data_codes_ptr_;
-    trk_params_fpga.code_length_chips = GALILEO_E1_B_CODE_LENGTH_CHIPS;
-    trk_params_fpga.code_samples_per_chip = code_samples_per_chip;  // 2 sample per chip
     trk_params_fpga.extended_correlation_in_fpga = false;
     trk_params_fpga.extend_fpga_integration_periods = 1;  // (number of FPGA integrations that are combined in the SW)
     trk_params_fpga.fpga_integration_period = 1;          // (number of symbols that are effectively integrated in the FPGA)

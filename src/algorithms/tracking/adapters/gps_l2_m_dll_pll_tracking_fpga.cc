@@ -89,8 +89,6 @@ GpsL2MDllPllTrackingFpga::GpsL2MDllPllTrackingFpga(
         }
 
     trk_params_fpga.ca_codes = prn_codes_ptr_;
-    trk_params_fpga.code_length_chips = GPS_L2_M_CODE_LENGTH_CHIPS;
-    trk_params_fpga.code_samples_per_chip = 1;  // 1 sample per chip
 
     // ################# MAKE TRACKING GNU Radio object ###################
     DLOG(INFO) << "role " << role_;
