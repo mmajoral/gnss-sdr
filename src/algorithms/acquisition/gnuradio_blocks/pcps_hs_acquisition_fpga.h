@@ -100,7 +100,7 @@ public:
     /*!
      * \brief Sets local code for PCPS acquisition algorithm.
      */
-    void set_local_code(std::complex<float> *code);
+    void set_local_code(volk_gnsssdr::vector<std::complex<float>> &code);
 
     /*!
      * \brief If set to 1, ensures that acquisition starts at the

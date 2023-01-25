@@ -257,7 +257,7 @@ void GalileoE1PcpsHSAmbiguousAcquisitionFpga::set_local_code()
     volk_32fc_conjugate_32fc(code_.data(), fft_if_->get_outbuf(), fft_size_);
 
 
-    acquisition_fpga_->set_local_code(code_.data());
+    acquisition_fpga_->set_local_code(code_);
 }
 
 

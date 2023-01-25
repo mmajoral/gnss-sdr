@@ -234,7 +234,7 @@ void Fpga_HS_Acquisition::configure_acquisition()
     d_map_base[write_address_MSW_reg_addr] = fpga_pl_ddr4_ram_addr_MSW;
 }
 
-void Fpga_HS_Acquisition::set_local_code(volk_gnsssdr::vector<std::complex<float>> fft_code)
+void Fpga_HS_Acquisition::set_local_code(volk_gnsssdr::vector<std::complex<float>> &fft_code)
 {
     // find maximum value
     float max_val = 0;

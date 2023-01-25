@@ -122,6 +122,9 @@ void Acq_Conf_Fpga::SetFromHSConfiguration(const ConfigurationInterface *configu
             use_CFAR_algorithm_flag = false;
         }
 
+    // repeat satellite
+    repeat_satellite = configuration->property(role + ".repeat_satellite", false);
+
     // FPGA buffer number
     select_queue_Fpga = configuration->property(role + ".select_queue_Fpga", sel_queue_fpga);
 

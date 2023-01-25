@@ -87,10 +87,6 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
                 }
         }
 
-    d_fft_codes = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
-    d_fft_if = gnss_fft_fwd_make_unique(d_fft_size);
-    d_ifft = gnss_fft_rev_make_unique(d_fft_size);
-
     d_grid = arma::fmat();
     d_narrow_grid = arma::fmat();
 
@@ -111,6 +107,12 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
                     d_fpga_coh_integr_wr_buff_select = 0;  // select the buffer where the FPGA writes the result of the coherent integration
                     d_ncoh_integr_rd_buff_select = 0;      // select the buffer where the SW reads the result of the coherent integration coming from the FPGA
                 }
+        }
+
+    if (!d_enable_fpga_acceleration)
+        {
+            d_fft_if = gnss_fft_fwd_make_unique(d_fft_size);
+            d_ifft = gnss_fft_rev_make_unique(d_fft_size);
         }
 
     d_acquisition_fpga = std::make_unique<Fpga_HS_Acquisition>(d_acq_parameters.device_name, d_acq_parameters.fs_in, d_buffer_size, d_consumed_samples, d_acq_parameters.select_queue_Fpga, d_fft_size, d_acq_parameters.max_dwells, sort_ifft_output);
@@ -149,12 +151,9 @@ pcps_hs_acquisition_fpga::pcps_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
 }
 
 
-void pcps_hs_acquisition_fpga::set_local_code(std::complex<float> *code)
+void pcps_hs_acquisition_fpga::set_local_code(volk_gnsssdr::vector<std::complex<float>> &code)
 {
-    for (uint k = 0; k < d_fft_size; k++)
-        {
-            d_fft_codes[k] = code[k];
-        }
+    d_fft_codes = code;
 }
 
 void pcps_hs_acquisition_fpga::update_local_carrier(own::span<gr_complex> carrier_vector, float freq) const
@@ -593,7 +592,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
     uint32_t indext = 0U;
     const int32_t effective_fft_size = (d_acq_parameters.bit_transition_flag ? d_fft_size / 2 : d_fft_size);
 
-    if (!(d_step_two and d_enable_fpga_acceleration))
+    if (!d_enable_fpga_acceleration)
         {
             if (d_fft_size > d_consumed_samples)
                 {
@@ -1088,7 +1087,7 @@ void pcps_hs_acquisition_fpga::run_acquisition(
         {
             //coh_shift_samples_dec = static_cast<int32_t>(round(coh_shift_samples * static_cast<double>(d_num_noncoherent_integrations_counter)));
             // temporary, this will be optimized
-            if (!(d_step_two and d_enable_fpga_acceleration))
+            if (!d_enable_fpga_acceleration)
                 {
                     for (uint32_t k = 0; k < d_consumed_samples; k++)
                         {

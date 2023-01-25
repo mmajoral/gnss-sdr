@@ -198,7 +198,7 @@ void GalileoE5aPcpsHSAcquisitionFpga::init()
 
 void GalileoE5aPcpsHSAcquisitionFpga::set_local_code()
 {
-    acquisition_fpga_->set_local_code(codes_[(gnss_synchro_->PRN) - 1].data());
+    acquisition_fpga_->set_local_code(codes_[(gnss_synchro_->PRN) - 1]);
 }
 
 

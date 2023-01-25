@@ -79,7 +79,7 @@ public:
     /*!
      * \brief write the local code to a memory region used by the FPGA
      */
-    void set_local_code(volk_gnsssdr::vector<std::complex<float>> fft_code);
+    void set_local_code(volk_gnsssdr::vector<std::complex<float>> &fft_code);
 
     /*!
      * \brief capture samples
