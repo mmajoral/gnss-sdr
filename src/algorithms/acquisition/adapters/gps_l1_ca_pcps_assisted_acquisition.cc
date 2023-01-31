@@ -177,8 +177,3 @@ gr::basic_block_sptr GpsL1CaPcpsAssistedAcquisition::get_right_block()
 {
     return acquisition_cc_;
 }
-
-uint64_t GpsL1CaPcpsAssistedAcquisition::get_sample_counter()
-{
-    return 0;
-}

@@ -310,8 +310,3 @@ gr::basic_block_sptr GpsL1CaPcpsQuickSyncAcquisition::get_right_block()
 {
     return acquisition_cc_;
 }
-
-uint64_t GpsL1CaPcpsQuickSyncAcquisition::get_sample_counter()
-{
-    return 0;
-}

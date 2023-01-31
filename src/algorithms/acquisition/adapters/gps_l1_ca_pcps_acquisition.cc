@@ -248,8 +248,3 @@ void GpsL1CaPcpsAcquisition::set_resampler_latency(uint32_t latency_samples)
 {
     acquisition_->set_resampler_latency(latency_samples);
 }
-
-uint64_t GpsL1CaPcpsAcquisition::get_sample_counter()
-{
-    return acquisition_->get_sample_counter();
-}

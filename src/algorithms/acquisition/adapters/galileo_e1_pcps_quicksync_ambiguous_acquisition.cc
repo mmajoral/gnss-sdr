@@ -325,8 +325,3 @@ gr::basic_block_sptr GalileoE1PcpsQuickSyncAmbiguousAcquisition::get_right_block
 {
     return acquisition_cc_;
 }
-
-uint64_t GalileoE1PcpsQuickSyncAmbiguousAcquisition::get_sample_counter()
-{
-    return 0;
-}

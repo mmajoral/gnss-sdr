@@ -227,8 +227,3 @@ gr::basic_block_sptr GlonassL1CaPcpsAcquisition::get_right_block()
 {
     return acquisition_;
 }
-
-uint64_t GlonassL1CaPcpsAcquisition::get_sample_counter()
-{
-    return 0;
-}

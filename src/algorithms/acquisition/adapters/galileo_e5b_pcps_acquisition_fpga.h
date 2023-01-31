@@ -186,11 +186,6 @@ public:
      */
     void set_resampler_latency(uint32_t latency_samples __attribute__((unused))) override{};
 
-    /*!
-     * \brief Get the value of the sample counter
-     */
-    uint64_t get_sample_counter();
-
 private:
     static const uint32_t fpga_downsampling_factor = 1;  // downampling factor in the FPGA
     static const uint32_t fpga_buff_num = 1;             // E5b band

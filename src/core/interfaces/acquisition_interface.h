@@ -67,7 +67,7 @@ public:
     virtual void reset() = 0;
     virtual void stop_acquisition() = 0;
     virtual void set_resampler_latency(uint32_t latency_samples) = 0;
-    virtual uint64_t get_sample_counter() = 0;
+    virtual uint64_t get_sample_counter() { return 0.0; };
 };
 
 

@@ -271,8 +271,3 @@ gr::basic_block_sptr GpsL1CaPcpsTongAcquisition::get_right_block()
 {
     return acquisition_cc_;
 }
-
-uint64_t GpsL1CaPcpsTongAcquisition::get_sample_counter()
-{
-    return 0;
-}

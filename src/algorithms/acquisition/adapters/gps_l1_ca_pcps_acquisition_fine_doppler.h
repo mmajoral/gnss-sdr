@@ -143,11 +143,6 @@ public:
 
     void set_resampler_latency(uint32_t latency_samples __attribute__((unused))) override{};
 
-    /*!
-     * \brief Get the value of the sample counter
-     */
-    uint64_t get_sample_counter();
-
 private:
     pcps_acquisition_fine_doppler_cc_sptr acquisition_cc_;
     std::weak_ptr<ChannelFsm> channel_fsm_;

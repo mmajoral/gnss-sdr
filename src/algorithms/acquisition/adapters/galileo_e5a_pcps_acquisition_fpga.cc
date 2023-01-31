@@ -251,8 +251,3 @@ gr::basic_block_sptr GalileoE5aPcpsAcquisitionFpga::get_right_block()
 {
     return nullptr;
 }
-
-uint64_t GalileoE5aPcpsAcquisitionFpga::get_sample_counter()
-{
-    return acquisition_fpga_->get_sample_counter();
-}

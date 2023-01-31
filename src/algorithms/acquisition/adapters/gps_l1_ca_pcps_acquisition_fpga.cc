@@ -232,8 +232,3 @@ gr::basic_block_sptr GpsL1CaPcpsAcquisitionFpga::get_right_block()
 {
     return nullptr;
 }
-
-uint64_t GpsL1CaPcpsAcquisitionFpga::get_sample_counter()
-{
-    return acquisition_fpga_->get_sample_counter();
-}
