@@ -70,26 +70,31 @@ public:
     gr::basic_block_sptr get_right_block() override;
 
 private:
+    int64_t read_cfo_correction(std::string cfo_correction_filename);
     const std::string switch_device_name = std::string("AXIS_Switch_v1_0_0");          // Switch UIO device name
     const std::string dyn_bit_sel_device_name = std::string("dynamic_bits_selector");  // Switch dhnamic bit selector device name
     const std::string buffer_monitor_device_name = std::string("buffer_monitor");      // buffer monitor device name
     const std::string default_dump_filename = std::string("FPGA_buffer_monitor_dump.dat");
     const std::string default_rf_port_select = std::string("A_BALANCED");
     const std::string default_gain_mode = std::string("slow_attack");
+    const std::string default_cfo_correction_filename = std::string("CFO_correction.txt");
     const std::string empty_string;
     const double default_tx_attenuation_db = -10.0;
     const double default_manual_gain_rx1 = 64.0;
     const double default_manual_gain_rx2 = 64.0;
-    const uint64_t default_bandwidth = 12500000;
+    static const uint64_t default_bandwidth = 12500000;
+
 
     // perform dynamic bit selection every 500 ms by default
-    const uint32_t Gain_control_period_ms = 500;
+    static const uint32_t Gain_control_period_ms = 500;
     // check buffer overflow and perform buffer monitoring every 1s by default
-    const uint32_t buffer_monitor_period_ms = 1000;
+    static const uint32_t buffer_monitor_period_ms = 1000;
     // buffer overflow and buffer monitoring initial delay
-    const uint32_t buffer_monitoring_initial_delay_ms = 2000;
+    static const uint32_t buffer_monitoring_initial_delay_ms = 2000;
     // sample block size when running in post-processing mode
-    const int sample_block_size = 16384;
+    static const int sample_block_size = 16384;
+    // CFO correction
+    static const bool enable_CFO_correction_default = false;
 
     void run_DMA_process(const std::string &filename0,
         const std::string &filename1,

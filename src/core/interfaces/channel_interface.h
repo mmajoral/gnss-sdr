@@ -53,6 +53,7 @@ public:
     virtual void start_acquisition() = 0;
     virtual void assist_acquisition_doppler(double Carrier_Doppler_hz) = 0;
     virtual uint64_t get_elapsed_samples() = 0;
+    virtual double get_carrier_doppler_hz() = 0;
     virtual void stop_channel() = 0;
     virtual void set_signal(const Gnss_Signal&) = 0;
 };

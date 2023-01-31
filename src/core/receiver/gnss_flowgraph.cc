@@ -310,6 +310,11 @@ void GNSSFlowgraph::start()
 
 void GNSSFlowgraph::stop()
 {
+    if (configuration_->property("GNSS-SDR.enable_CFO_estimation", false))
+        {
+            estimate_cfo();
+        }
+
     for (const auto& chan : channels_)
         {
             chan->stop_channel();  // stop the acquisition or tracking operation
@@ -2897,7 +2902,7 @@ Gnss_Signal GNSSFlowgraph::search_next_signal(const std::string& searched_signal
     return result;
 }
 
-void GNSSFlowgraph::set_eph_data_for_Doppler_freq_assist(Gnss_Sdr_Supl_Client& supl_client_ephemeris_)
+void GNSSFlowgraph::set_eph_data_for_doppler_freq_assist(Gnss_Sdr_Supl_Client& supl_client_ephemeris_)
 {
     // Get ephemeris data for Doppler frequency assistance from the control thread
     gps_ephemeris_map_ = supl_client_ephemeris_.gps_ephemeris_map;
@@ -2906,12 +2911,12 @@ void GNSSFlowgraph::set_eph_data_for_Doppler_freq_assist(Gnss_Sdr_Supl_Client& s
     glonass_gnav_ephemeris_map_ = supl_client_ephemeris_.glonass_gnav_ephemeris_map;
 }
 
-void GNSSFlowgraph::set_ref_location_for_Doppler_freq_assist(Agnss_Ref_Location agnss_ref_location)
+void GNSSFlowgraph::set_ref_location(Agnss_Ref_Location agnss_ref_location)
 {
     agnss_ref_location_ = agnss_ref_location;
 }
 
-void GNSSFlowgraph::set_ref_time_for_Doppler_freq_assist(Agnss_Ref_Time agnss_ref_time)
+void GNSSFlowgraph::set_ref_time(Agnss_Ref_Time agnss_ref_time)
 {
     agnss_ref_time_ = agnss_ref_time;
 }
@@ -2925,7 +2930,7 @@ void GNSSFlowgraph::set_signal(int num_channel, const Gnss_Signal& gnss_signal)
                     std::string str_aux = gnss_signal.get_signal_str();
                     if (str_aux == "1B")
                         {
-                            Doppler_freq_assist(num_channel, gnss_signal);
+                            doppler_freq_assist(num_channel, gnss_signal);
                         }
                 }
         }
@@ -2964,7 +2969,26 @@ void GNSSFlowgraph::set_eph_available_sats()
         }
 }
 
-void GNSSFlowgraph::Doppler_freq_assist(int num_channel, const Gnss_Signal& gnss_signal)
+double GNSSFlowgraph::predict_doppler(int num_channel, Gnss_Ephemeris eph)
+{
+    time_t ref_rx_utc_time = static_cast<time_t>(agnss_ref_time_.seconds);
+    gtime_t utc_gtime;
+    utc_gtime.time = ref_rx_utc_time;
+    utc_gtime.sec = 0.0;
+    // compute ellapsed time since the receiver was started
+    const int64_t fs_in_deprecated = configuration_->property("GNSS-SDR.internal_fs_hz", 4000000);
+    int64_t fs_in = configuration_->property("GNSS-SDR.internal_fs_sps", fs_in_deprecated);
+    int* week = 0;
+    double TOW = time2gst(utc_gtime, week);
+
+    // check the current TOW. The current TOW is determined using the current value of the sample counter
+    uint64_t current_sample_counter = channels_[num_channel]->get_elapsed_samples();
+    double elapsed_TOW = static_cast<double>(current_sample_counter) / static_cast<double>(fs_in);
+    TOW = TOW + elapsed_TOW;
+    return eph.predicted_doppler(TOW, agnss_ref_location_.lat, agnss_ref_location_.lon, 0.0, 0.0, 0.0, 0.0, 1);
+}
+
+void GNSSFlowgraph::doppler_freq_assist(int num_channel, const Gnss_Signal& gnss_signal)
 {
     uint32_t PRN = gnss_signal.get_satellite().get_PRN();
     std::string str_aux = gnss_signal.get_signal_str();
@@ -2977,24 +3001,7 @@ void GNSSFlowgraph::Doppler_freq_assist(int num_channel, const Gnss_Signal& gnss
                 {
                     if (PRN == it->second.PRN)
                         {
-                            time_t ref_rx_utc_time = static_cast<time_t>(agnss_ref_time_.seconds);
-                            gtime_t utc_gtime;
-                            utc_gtime.time = ref_rx_utc_time;
-                            utc_gtime.sec = 0.0;
-                            // compute ellapsed time since the receiver was started
-                            const int64_t fs_in_deprecated = configuration_->property("GNSS-SDR.internal_fs_hz", 4000000);
-                            int64_t fs_in = configuration_->property("GNSS-SDR.internal_fs_sps", fs_in_deprecated);
-                            int* week = 0;
-                            double TOW = time2gst(utc_gtime, week);
-
-                            // check the current TOW. The current TOW is determined using the current value of the sample counter
-                            uint64_t current_sample_counter = channels_[num_channel]->get_elapsed_samples();
-                            double elapsed_TOW = static_cast<double>(current_sample_counter) / static_cast<double>(fs_in);
-                            TOW = TOW + elapsed_TOW;
-
-                            // Galileo E1 uses frequency band 1. Height and velocity are not part of the assistance parameters so height 0 and velocity 0 is assumed
-                            double predicted_doppler = it->second.predicted_doppler(TOW, agnss_ref_location_.lat, agnss_ref_location_.lon, 0.0, 0.0, 0.0, 0.0, 1);
-                            //channels_.at(num_channel)->assist_acquisition_doppler(predicted_doppler);
+                            double predicted_doppler = predict_doppler(num_channel, it->second);
                             if (agnss_xml_estimated_doppler_map_.find(PRN) == agnss_xml_estimated_doppler_map_.end())
                                 {
                                     agnss_xml_estimated_doppler_map_.insert(std::make_pair(PRN, static_cast<int>(predicted_doppler)));
@@ -3008,6 +3015,73 @@ void GNSSFlowgraph::Doppler_freq_assist(int num_channel, const Gnss_Signal& gnss
                                         }
                                 }
                         }
+                }
+        }
+}
+
+void GNSSFlowgraph::estimate_cfo(void)
+{
+    if ((agnss_ref_time_.valid) && (agnss_ref_location_.valid))
+        {
+            // estimated the CFO using all the Galileo ephemeris data available
+            double accum_Doppl = 0;
+            uint32_t num_ch_valid_measurement = 0;
+
+            // get eph data
+            std::shared_ptr<PvtInterface> pvt_ptr = std::dynamic_pointer_cast<PvtInterface>(pvt_);
+            std::map<int, Galileo_Ephemeris> gal_eph = pvt_ptr->get_galileo_ephemeris();
+
+            for (int32_t num_ch = 0; num_ch < channels_count_; num_ch++)
+                {
+                    Gnss_Signal gnss_signal = channels_.at(num_ch)->get_signal();
+                    std::string str_aux = gnss_signal.get_signal_str();
+                    if (str_aux == "1B")
+                        {
+                            uint32_t PRN = gnss_signal.get_satellite().get_PRN();
+                            auto it = gal_eph.find(PRN);
+                            if (it != gal_eph.end())
+                                {
+                                    double predicted_doppler = predict_doppler(num_ch, it->second);
+                                    double carrier_doppler = channels_.at(num_ch)->get_carrier_doppler_hz();
+                                    double doppler_error = predicted_doppler - carrier_doppler;
+                                    if (carrier_doppler != 0.0)
+                                        {
+                                            accum_Doppl += doppler_error;
+                                            num_ch_valid_measurement++;
+                                        }
+                                }
+                        }
+                }
+            if (num_ch_valid_measurement > 0)
+                {
+                    double estimated_cfo = accum_Doppl / num_ch_valid_measurement;
+                    // store the results into a file
+                    std::string cfo_correction_filename = configuration_->property("GNSS-SDR.cfo_correction_filename", std::string("CFO_correction.txt"));
+                    std::ofstream cfo_file;
+                    cfo_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+                    // open the CFO file
+                    try
+                        {
+                            cfo_file.open(cfo_correction_filename, std::ios::out);
+                        }
+                    catch (const std::ofstream::failure& e)
+                        {
+                            LOG(ERROR) << "Exception opening file " << cfo_correction_filename << " " << e.what();
+                        }
+                    // write the estimated CFO
+                    try
+                        {
+                            cfo_file << static_cast<int64_t>(estimated_cfo);
+                        }
+                    catch (const std::ofstream::failure& e)
+                        {
+                            LOG(WARNING) << "Exception writing file " << cfo_correction_filename << " " << e.what();
+                        }
+                    cfo_file.close();
+                }
+            else
+                {
+                    DLOG(INFO) << "No data available for the CFO measurement: ";
                 }
         }
 }

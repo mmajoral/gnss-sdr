@@ -258,15 +258,15 @@ void ControlThread::init()
             flowgraph_ = nullptr;
         }
 
-    if (configuration_->property("GNSS-SDR.enable_hs", false))
+    if ((configuration_->property("GNSS-SDR.enable_hs", false)) || (configuration_->property("GNSS-SDR.enable_CFO_estimation", false)))
         {
             if (agnss_ref_location_.valid)
                 {
-                    flowgraph_->set_ref_location_for_Doppler_freq_assist(agnss_ref_location_);
+                    flowgraph_->set_ref_location(agnss_ref_location_);
                 }
             if (agnss_ref_time_.valid)
                 {
-                    flowgraph_->set_ref_time_for_Doppler_freq_assist(agnss_ref_time_);
+                    flowgraph_->set_ref_time(agnss_ref_time_);
                 }
         }
 
@@ -720,7 +720,7 @@ bool ControlThread::read_assistance_from_XML()
         }
     if (configuration_->property("GNSS-SDR.enable_hs", false))
         {
-            flowgraph_->set_eph_data_for_Doppler_freq_assist(supl_client_ephemeris_);
+            flowgraph_->set_eph_data_for_doppler_freq_assist(supl_client_ephemeris_);
             flowgraph_->set_eph_available_sats();
         }
     return ret;

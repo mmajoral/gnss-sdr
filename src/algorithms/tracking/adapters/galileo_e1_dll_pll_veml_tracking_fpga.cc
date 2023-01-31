@@ -234,6 +234,10 @@ void GalileoE1DllPllVemlTrackingFpga::connect(gr::top_block_sptr top_block)
     // nothing to connect, now the tracking uses gr_sync_decimator
 }
 
+double GalileoE1DllPllVemlTrackingFpga::get_carrier_doppler_hz()
+{
+    return tracking_fpga_sc_sptr_->get_carrier_doppler_hz();
+}
 
 void GalileoE1DllPllVemlTrackingFpga::disconnect(gr::top_block_sptr top_block)
 {

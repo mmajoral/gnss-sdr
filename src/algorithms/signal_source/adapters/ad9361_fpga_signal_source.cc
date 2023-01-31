@@ -348,6 +348,16 @@ Ad9361FpgaSignalSource::Ad9361FpgaSignalSource(const ConfigurationInterface *con
                 }
 
             std::cout << "LO frequency : " << freq0_ << " Hz\n";
+
+            // CFO Correction
+            if (configuration->property(role + ".enable_cfo_correction", enable_CFO_correction_default))
+                {
+                    std::string cfo_correction_filename = configuration->property(role + ".cfo_correction_filename", default_cfo_correction_filename);
+                    int64_t cfo = read_cfo_correction(cfo_correction_filename);
+                    freq0_ -= cfo;
+                    freq1_ -= cfo;
+                }
+
             try
                 {
                     config_ad9361_rx_local(bandwidth_,
@@ -853,6 +863,37 @@ void Ad9361FpgaSignalSource::run_buffer_monitor_process()
                 }
             lock.unlock();
         }
+}
+
+int64_t Ad9361FpgaSignalSource::read_cfo_correction(std::string cfo_correction_filename)
+{
+    std::ifstream cfo_file;
+
+    cfo_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+    // open the CFO file
+    try
+        {
+            cfo_file.open(cfo_correction_filename, std::ios::in);
+        }
+    catch (const std::ifstream::failure &e)
+        {
+            std::cerr << "Exception opening file " << cfo_correction_filename << '\n';
+            return 0;
+        }
+
+    int64_t cfo;
+    try
+        {
+            cfo_file >> cfo;
+        }
+    catch (const std::ifstream::failure &e)
+        {
+            std::cerr << "Exception reading file " << cfo_correction_filename << '\n';
+            return 0;
+        }
+    cfo_file.close();
+    return cfo;
 }
 
 

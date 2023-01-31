@@ -166,17 +166,17 @@ public:
     /*!
      * \brief Set ephemeris data for Doppler frequency assistance
      */
-    void set_eph_data_for_Doppler_freq_assist(Gnss_Sdr_Supl_Client& supl_client_ephemeris_);
+    void set_eph_data_for_doppler_freq_assist(Gnss_Sdr_Supl_Client& supl_client_ephemeris_);
 
     /*!
-     * \brief Set ref location for Doppler frequency assistance
+     * \brief Set ref location
      */
-    void set_ref_location_for_Doppler_freq_assist(Agnss_Ref_Location agnss_ref_location);
+    void set_ref_location(Agnss_Ref_Location agnss_ref_location);
 
     /*!
-     * \brief Set ref time for Doppler frequency assistance
+     * \brief Set ref time
      */
-    void set_ref_time_for_Doppler_freq_assist(Agnss_Ref_Time agnss_ref_time);
+    void set_ref_time(Agnss_Ref_Time agnss_ref_time);
 
     /*!
      * \set the satellites for which we have assistance ephemeris data only
@@ -233,7 +233,9 @@ private:
 
     std::vector<std::string> split_string(const std::string& s, char delim);
     void set_signal(int num_channel, const Gnss_Signal& gnss_signal);
-    void Doppler_freq_assist(int num_channel, const Gnss_Signal& gnss_signal);
+    double predict_doppler(int num_channel, Gnss_Ephemeris eph);
+    void doppler_freq_assist(int num_channel, const Gnss_Signal& gnss_signal);
+    void estimate_cfo(void);
 
     std::vector<bool> signal_conditioner_connected_;
 

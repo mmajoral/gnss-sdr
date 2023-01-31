@@ -254,6 +254,11 @@ uint64_t Channel::get_elapsed_samples()
     return acq_->get_sample_counter();
 }
 
+double Channel::get_carrier_doppler_hz()
+{
+    return trk_->get_carrier_doppler_hz();
+}
+
 void Channel::start_acquisition()
 {
     std::lock_guard<std::mutex> lk(mx_);

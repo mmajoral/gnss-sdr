@@ -36,6 +36,9 @@ public:
 
     std::string dump_filename;
     std::string dump_crc_stats_filename;
+    uint32_t navdata_assist_Tow_ms;
+    uint64_t navdata_assist_samplestamp;
+    uint32_t navdata_assist_GNSS_UTC_leap_s;
     bool dump{false};
     bool dump_mat{false};
     bool remove_dat{false};
@@ -45,9 +48,6 @@ public:
     bool there_are_e6_channels{false};
     bool enable_navdata_assist{false};
     bool navdata_assist_real_time{false};
-    uint32_t navdata_assist_Tow_ms;
-    uint64_t navdata_assist_samplestamp;
-    uint32_t navdata_assist_GNSS_UTC_leap_s;
 };
 
 

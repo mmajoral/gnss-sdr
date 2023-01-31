@@ -99,6 +99,11 @@ public:
      */
     void reset();
 
+    /*!
+     * \brief get the current carrier Doppler frequency
+     */
+    double get_carrier_doppler_hz(void);
+
 private:
     friend dll_pll_veml_tracking_fpga_sptr dll_pll_veml_make_tracking_fpga(const Dll_Pll_Conf_Fpga &conf_);
     explicit dll_pll_veml_tracking_fpga(const Dll_Pll_Conf_Fpga &conf_);

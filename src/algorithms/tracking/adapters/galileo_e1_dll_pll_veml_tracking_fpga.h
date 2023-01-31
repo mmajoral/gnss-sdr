@@ -122,6 +122,11 @@ public:
      */
     void stop_tracking() override;
 
+    /*!
+     * \brief get the current carrier Doppler frequency
+     */
+    double get_carrier_doppler_hz(void) override;
+
 private:
     const std::string default_device_name_Galileo_E1 = "multicorrelator_resampler_5_1_AXI";  // UIO device name
     const std::string default_device_name_GPS_L1 = "multicorrelator_resampler_S00_AXI";      // UIO device name

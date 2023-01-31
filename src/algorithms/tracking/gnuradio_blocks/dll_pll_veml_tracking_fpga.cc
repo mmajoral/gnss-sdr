@@ -1528,6 +1528,15 @@ void dll_pll_veml_tracking_fpga::reset()
     d_multicorrelator_fpga->unlock_channel();
 }
 
+double dll_pll_veml_tracking_fpga::get_carrier_doppler_hz()
+{
+    if (d_state > 2)
+        {
+            return d_carrier_doppler_hz;
+        }
+    return 0.0;
+}
+
 
 int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((unused)),
     gr_vector_int &ninput_items __attribute__((unused)),
