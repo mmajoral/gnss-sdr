@@ -250,8 +250,6 @@ private:
 
     std::shared_ptr<Fpga_HS_Acquisition> d_acquisition_fpga;
 
-    int16_t *captured_samples;
-
     int64_t d_dump_number;
     uint64_t d_sample_counter;
 
