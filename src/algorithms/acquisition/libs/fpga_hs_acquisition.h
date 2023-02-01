@@ -87,6 +87,11 @@ public:
     void capture_samples();
 
     /*!
+     * \brief get captured samples
+     */
+    void read_samples(uint32_t ncoh_integr_counter, volk_gnsssdr::vector<std::complex<float>> &input_signal);
+
+    /*!
      * \brief Perform the non-coherent integration in the FPGA
      */
     void run_coherent_integration(float doppler_freq,
@@ -112,12 +117,12 @@ public:
     /*!
      * \brief Open the PL DDR4 RAM memory device driver
      */
-    int16_t *open_PL_DDR4_RAM_device();
+    //void open_PL_DDR4_RAM_device();
 
     /*!
      * \brief Close the PL DDR4 RAM memory device driver
      */
-    void close_PL_DDR4_RAM_device();
+    //void close_PL_DDR4_RAM_device();
 
     /*!
      * \brief read the sample counter corresponding to the last sample capture
@@ -213,7 +218,9 @@ private:
     void configure_iFFT(uint32_t offset_rd_addr, uint32_t offset_wr_addr);
     void run_iFFT(float &scaling_factor_ifft);
     void apply_scaling_correction_factor(lv_32fc_t *input_buff, float scaling_factor, uint32_t offset_rd_addr);
-    int16_t *open_PL_DDR4_RAM_LC_device();
+    void open_PL_DDR4_RAM_device();
+    void close_PL_DDR4_RAM_device();
+    void open_PL_DDR4_RAM_LC_device();
     void close_PL_DDR4_RAM_LC_device();
 
     volk_gnsssdr::vector<std::complex<float>> d_buffer_data;  // buffer to store intermediate results

@@ -189,23 +189,26 @@ void pcps_hs_acquisition_fpga::init()
 
     d_num_doppler_bins = static_cast<uint32_t>(std::ceil(static_cast<double>(static_cast<int32_t>(d_doppler_max) - static_cast<int32_t>(-d_doppler_max)) / static_cast<double>(d_doppler_step)));
 
-    // Create the carrier Doppler wipeoff signals
-    if (d_grid_doppler_wipeoffs.empty())
+    if (!d_enable_fpga_acceleration)
         {
-            d_grid_doppler_wipeoffs = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
-        }
-    if (d_acq_parameters.make_2_steps && (d_grid_doppler_wipeoffs_step_two.empty()))
-        {
-            d_grid_doppler_wipeoffs_step_two = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins_step2, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
-        }
+            // Create the carrier Doppler wipeoff signals
+            if (d_grid_doppler_wipeoffs.empty())
+                {
+                    d_grid_doppler_wipeoffs = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
+                }
+            if (d_acq_parameters.make_2_steps && (d_grid_doppler_wipeoffs_step_two.empty()))
+                {
+                    d_grid_doppler_wipeoffs_step_two = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins_step2, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
+                }
 
-    update_grid_doppler_wipeoffs();
+            update_grid_doppler_wipeoffs();
 
-    if (d_dump)
-        {
-            const uint32_t effective_fft_size = (d_acq_parameters.bit_transition_flag ? (d_fft_size / 2) : d_fft_size);
-            d_grid = arma::fmat(effective_fft_size, d_num_doppler_bins, arma::fill::zeros);
-            d_narrow_grid = arma::fmat(effective_fft_size, d_num_doppler_bins_step2, arma::fill::zeros);
+            if (d_dump)
+                {
+                    const uint32_t effective_fft_size = (d_acq_parameters.bit_transition_flag ? (d_fft_size / 2) : d_fft_size);
+                    d_grid = arma::fmat(effective_fft_size, d_num_doppler_bins, arma::fill::zeros);
+                    d_narrow_grid = arma::fmat(effective_fft_size, d_num_doppler_bins_step2, arma::fill::zeros);
+                }
         }
 }
 
@@ -1048,16 +1051,9 @@ void pcps_hs_acquisition_fpga::run_acquisition(
 {
     // open FPGA acquisition device
     d_acquisition_fpga->open_device();
-    // open PL DDR4 memory device
-    int16_t *vect_samples = d_acquisition_fpga->open_PL_DDR4_RAM_device();
     // configure the acquisition
     d_acquisition_fpga->configure_acquisition();
 
-    if (d_enable_fpga_acceleration)
-        {
-            // copy local code to PL DDR4 memory before starting the acquisition process
-            d_acquisition_fpga->set_local_code(d_fft_codes);
-        }
     // block the acquisition if blocking mode is enabled
     if (d_acq_parameters.blocking)
         {
@@ -1069,19 +1065,6 @@ void pcps_hs_acquisition_fpga::run_acquisition(
     // read the sample counter corresponding to the sample capture
     d_sample_counter = d_acquisition_fpga->read_sample_counter();
 
-    //    double doppler_corr;
-    //    if (!d_step_two)
-    //        {
-    //            doppler_corr = d_doppler_center;
-    //        }
-    //    else
-    //        {
-    //            doppler_corr = d_doppler_center_step_two;
-    //        }
-    //    double coh_shift_chips = ((static_cast<double>(doppler_corr)) / 1575420000.0) * static_cast<double>(1.023e6) * (static_cast<double>(d_acq_parameters.sampled_ms) / 1000.0);
-    //    double samples_per_chip = static_cast<double>(d_acq_parameters.fs_in) / static_cast<double>(1.023e6);
-    //    double coh_shift_samples = coh_shift_chips * samples_per_chip;
-
     // perform the acquisition
     while (d_active)
         {
@@ -1089,10 +1072,7 @@ void pcps_hs_acquisition_fpga::run_acquisition(
             // temporary, this will be optimized
             if (!d_enable_fpga_acceleration)
                 {
-                    for (uint32_t k = 0; k < d_consumed_samples; k++)
-                        {
-                            input_signal[k] = std::complex<float>(vect_samples[2 * k + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)], vect_samples[(2 * k) + 1 + (d_num_noncoherent_integrations_counter * d_consumed_samples * 2)]);
-                        }
+                    d_acquisition_fpga->read_samples(d_num_noncoherent_integrations_counter, input_signal);
                 }
             // run the acquisition core
             acquisition_core(d_sample_counter,
@@ -1113,33 +1093,32 @@ void pcps_hs_acquisition_fpga::run_acquisition(
         }
     // close FPGA acquisition device
     d_acquisition_fpga->close_device();
-    // close PL DDR4 memory device
-    d_acquisition_fpga->close_PL_DDR4_RAM_device();
 }
 
 void pcps_hs_acquisition_fpga::set_active(bool active)
 {
+    //std::cout << "acq start d_doppler_center = " << d_doppler_center << " PRN = " << d_gnss_synchro->PRN << std::endl;
     // allocate the acquisition buffers and vectors when running the acquisition
     // to reduce memory occupation when using multiple channels,
     // and before fetching the samples in order to minimize the acquisition latency
-    volk_gnsssdr::vector<float> d_tmp_buffer = volk_gnsssdr::vector<float>(d_fft_size);
-    volk_gnsssdr::vector<std::complex<float>> d_input_signal = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
-    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> d_magnitude_grid = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
+    volk_gnsssdr::vector<float> tmp_buffer = volk_gnsssdr::vector<float>(d_fft_size);
+    volk_gnsssdr::vector<std::complex<float>> input_signal;
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> magnitude_grid = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
     for (uint32_t doppler_index = 0; doppler_index < d_num_doppler_bins; doppler_index++)
         {
-            std::fill(d_magnitude_grid[doppler_index].begin(), d_magnitude_grid[doppler_index].end(), 0.0);
+            std::fill(magnitude_grid[doppler_index].begin(), magnitude_grid[doppler_index].end(), 0.0);
         }
-    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_prev_ifft;
-    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_DPDI_term;
-    volk_gnsssdr::vector<std::complex<float>> d_DPDI_term_buffer;
-    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> d_NPDI_term;
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> prev_ifft;
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> DPDI_term;
+    volk_gnsssdr::vector<std::complex<float>> DPDI_term_buffer;
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> NPDI_term;
 
     if (d_enable_hs)
         {
-            d_prev_ifft = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
-            d_DPDI_term = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
-            d_DPDI_term_buffer = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
-            d_NPDI_term = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
+            prev_ifft = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
+            DPDI_term = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
+            DPDI_term_buffer = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
+            NPDI_term = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
         }
 
     calculate_threshold();
@@ -1154,26 +1133,35 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
 
     if (d_enable_fpga_acceleration)
         {
+            // copy local code to PL DDR4 memory before starting the acquisition process
+            d_acquisition_fpga->set_local_code(d_fft_codes);
             // the coherent integration in the FPGA is overlapped with the non-coherent combinations in the SW
             // a double buffer is used for exchanging data
             d_fpga_ifft_pcps_buffer_data = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(2, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
             d_fpga_coh_integr_wr_buff_select = 0;
             d_ncoh_integr_rd_buff_select = 0;
         }
+    else
+        {
+            input_signal = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
+        }
 
-    run_acquisition(d_tmp_buffer,
-        d_input_signal,
-        d_magnitude_grid,
-        d_prev_ifft,
-        d_DPDI_term,
-        d_DPDI_term_buffer,
-        d_NPDI_term,
+    run_acquisition(tmp_buffer,
+        input_signal,
+        magnitude_grid,
+        prev_ifft,
+        DPDI_term,
+        DPDI_term_buffer,
+        NPDI_term,
         positive_acquisition);
 
     if (d_step_two)
         {
             d_doppler_center_step_two = static_cast<float>(d_gnss_synchro->Acq_doppler_hz);
-            update_grid_doppler_wipeoffs_step2();
+            if (!d_enable_fpga_acceleration)
+                {
+                    update_grid_doppler_wipeoffs_step2();
+                }
             d_num_acq = 1;
             while (d_num_acq < d_max_num_acqs)
                 {
@@ -1185,13 +1173,13 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
                         }
 
                     d_active = active;
-                    run_acquisition(d_tmp_buffer,
-                        d_input_signal,
-                        d_magnitude_grid,
-                        d_prev_ifft,
-                        d_DPDI_term,
-                        d_DPDI_term_buffer,
-                        d_NPDI_term,
+                    run_acquisition(tmp_buffer,
+                        input_signal,
+                        magnitude_grid,
+                        prev_ifft,
+                        DPDI_term,
+                        DPDI_term_buffer,
+                        NPDI_term,
                         positive_acquisition);
                     if (positive_acquisition)
                         {
@@ -1209,6 +1197,7 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
     if (positive_acquisition)
         {
             send_positive_acquisition();
+            //std::cout << "pos acq detected doppler = " << d_gnss_synchro->Acq_doppler_hz << " doppler inaccuracy = " << d_doppler_center - d_gnss_synchro->Acq_doppler_hz << std::endl;
         }
     else
         {

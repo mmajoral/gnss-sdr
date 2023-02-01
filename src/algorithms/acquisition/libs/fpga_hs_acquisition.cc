@@ -100,9 +100,12 @@ void Fpga_HS_Acquisition::open_device()
             LOG(WARNING) << "Cannot map the FPGA acquisition module into user memory";
             std::cout << "Acq: cannot map deviceio" << d_device_name << '\n';
         }
+
+    // open the PL DDR4 RAM memory device as well as it is used in all cases
+    Fpga_HS_Acquisition::open_PL_DDR4_RAM_device();
 }
 
-int16_t *Fpga_HS_Acquisition::open_PL_DDR4_RAM_device()
+void Fpga_HS_Acquisition::open_PL_DDR4_RAM_device()
 {
     // open communication with HW accelerator
     if ((d_fd_PL_DDR4_RAM = open("/dev/mem", O_RDWR)) == -1)
@@ -119,10 +122,9 @@ int16_t *Fpga_HS_Acquisition::open_PL_DDR4_RAM_device()
             LOG(WARNING) << "Cannot map the FPGA acquisition module into user memory";
             std::cout << "Acq: cannot map the FPGA acquisition module into user memory" << '\n';
         }
-    return d_PL_DDR4_RAM_map_base;
 }
 
-int16_t *Fpga_HS_Acquisition::open_PL_DDR4_RAM_LC_device()
+void Fpga_HS_Acquisition::open_PL_DDR4_RAM_LC_device()
 {
     // open communication with HW accelerator
     if ((d_fd_PL_DDR4_RAM_LC = open("/dev/mem", O_RDWR)) == -1)
@@ -139,7 +141,6 @@ int16_t *Fpga_HS_Acquisition::open_PL_DDR4_RAM_LC_device()
             LOG(WARNING) << "Cannot map the FPGA acquisition module into user memory";
             std::cout << "Acq: cannot map the FPGA acquisition module into user memory" << '\n';
         }
-    return d_PL_DDR4_RAM_LC_map_base;
 }
 
 void Fpga_HS_Acquisition::fpga_acquisition_test_register()
@@ -211,6 +212,15 @@ void Fpga_HS_Acquisition::capture_samples()
         }
 }
 
+void Fpga_HS_Acquisition::read_samples(uint32_t ncoh_integr_counter, volk_gnsssdr::vector<std::complex<float>> &input_signal)
+{
+    volatile int16_t *vect_samples = static_cast<int16_t *>(d_PL_DDR4_RAM_map_base);
+    for (uint32_t k = 0; k < d_nsamples_first_block; k++)
+        {
+            input_signal[k] = std::complex<float>(vect_samples[2 * k + (ncoh_integr_counter * d_nsamples_first_block * 2)], vect_samples[(2 * k) + 1 + (ncoh_integr_counter * d_nsamples_first_block * 2)]);
+        }
+}
+
 uint64_t Fpga_HS_Acquisition::read_sample_counter()
 {
     uint32_t readval = d_map_base[sample_counter_LSW_reg_addr];  // read sample counter (LSW)
@@ -251,9 +261,8 @@ void Fpga_HS_Acquisition::set_local_code(volk_gnsssdr::vector<std::complex<float
         }
 
     // a separate memory region is used for the local code. The local code memory region is not catched.
-    volatile int16_t *vect_samples = open_PL_DDR4_RAM_LC_device();
-
-    uint32_t vect_addr = 0;
+    // the local code DDR4 RAM memory addresses are only used when FPGA HW acceleration is enabled
+    open_PL_DDR4_RAM_LC_device();
 
     uint32_t k = 0;
     for (uint32_t index1 = 0; index1 < FPGA_xFFT_SIZE; index1++)
@@ -264,8 +273,8 @@ void Fpga_HS_Acquisition::set_local_code(volk_gnsssdr::vector<std::complex<float
                     float real_part = round(fft_code[index2 * FPGA_xFFT_SIZE + index1].real() * (MAX_POS_VALUE_16BIT) / max_val);
                     float imag_part = round(fft_code[index2 * FPGA_xFFT_SIZE + index1].imag() * (MAX_POS_VALUE_16BIT) / max_val);
                     // write local code to DDR4 RAM memory
-                    vect_samples[vect_addr + 2 * k] = static_cast<int16_t>(real_part);
-                    vect_samples[vect_addr + 2 * k + 1] = static_cast<int16_t>(imag_part);
+                    d_PL_DDR4_RAM_LC_map_base[2 * k] = static_cast<int16_t>(real_part);
+                    d_PL_DDR4_RAM_LC_map_base[2 * k + 1] = static_cast<int16_t>(imag_part);
                     k++;
                 }
         }
@@ -281,6 +290,8 @@ void Fpga_HS_Acquisition::close_device()
             std::cout << "Failed to unmap memory uio\n";
         }
     close(d_fd);
+    // close the PL DDR4 RAM memory device as well as it is used in all cases
+    Fpga_HS_Acquisition::close_PL_DDR4_RAM_device();
 }
 
 void Fpga_HS_Acquisition::close_PL_DDR4_RAM_device()

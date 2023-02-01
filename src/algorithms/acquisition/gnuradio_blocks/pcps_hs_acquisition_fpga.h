@@ -172,7 +172,10 @@ public:
             {
                 DLOG(INFO) << " Doppler assistance for Channel: " << d_channel << " => Doppler: " << doppler_center << "[Hz]";
                 d_doppler_center = doppler_center;
-                update_grid_doppler_wipeoffs();
+                if (!d_enable_fpga_acceleration)
+                    {
+                        update_grid_doppler_wipeoffs();
+                    }
             }
     }
 
