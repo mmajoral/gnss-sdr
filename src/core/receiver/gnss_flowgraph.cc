@@ -1992,6 +1992,18 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
                     DLOG(INFO) << "Channel " << who << " Starting acquisition " << gs.get_satellite() << ", Signal " << gs.get_signal_str();
                     set_signal(who, channels_[who]->get_signal());
 
+                    if (configuration_->property("GNSS-SDR.enable_hs", false))
+                        {
+                            int doppler_center = 0;
+                            uint32_t PRN = channels_[who]->get_signal().get_satellite().get_PRN();
+                            std::map<int, int>::iterator it = agnss_xml_estimated_doppler_map_.find(PRN);
+                            if (it != agnss_xml_estimated_doppler_map_.end())
+                                {
+                                    doppler_center = it->second;
+                                }
+                            channels_[who]->assist_acquisition_doppler(doppler_center);
+                        }
+
 #if ENABLE_FPGA
                     if (enable_fpga_offloading_)
                         {
