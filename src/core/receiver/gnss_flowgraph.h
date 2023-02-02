@@ -232,10 +232,8 @@ private:
     bool is_multiband() const;
 
     std::vector<std::string> split_string(const std::string& s, char delim);
-    void set_signal(int num_channel, const Gnss_Signal& gnss_signal);
     double predict_doppler(int num_channel, Gnss_Ephemeris eph);
-    void doppler_freq_assist(int num_channel, const Gnss_Signal& gnss_signal);
-    int get_Doppler_prediction(uint32_t PRN);
+    double channel_doppler(int num_channel, uint32_t PRN);
     void estimate_cfo(void);
 
     std::vector<bool> signal_conditioner_connected_;
@@ -258,9 +256,8 @@ private:
     std::map<int, Gps_CNAV_Ephemeris> gps_cnav_ephemeris_map_;          // for AGNSS XML Doppler frequency assistance
     std::map<int, Glonass_Gnav_Ephemeris> glonass_gnav_ephemeris_map_;  // for AGNSS XML Doppler frequency assistance
 
-    Agnss_Ref_Location agnss_ref_location_;               // for AGNSS XML Doppler frequency assistance
-    Agnss_Ref_Time agnss_ref_time_;                       // for AGNSS XML Doppler frequency assistance
-    std::map<int, int> agnss_xml_estimated_doppler_map_;  // for AGNSS XML Doppler frequency assistance
+    Agnss_Ref_Location agnss_ref_location_;  // for AGNSS XML Doppler frequency assistance
+    Agnss_Ref_Time agnss_ref_time_;          // for AGNSS XML Doppler frequency assistance
 
     std::vector<gr::blocks::null_sink::sptr> null_sinks_;
 

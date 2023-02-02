@@ -1528,7 +1528,7 @@ int GNSSFlowgraph::assign_channels()
                     float estimated_doppler;
                     double RX_time;
                     bool is_primary_freq;
-                    set_signal(i, search_next_signal(gnss_signal_str, is_primary_freq, assistance_available, estimated_doppler, RX_time));
+                    channels_.at(i)->set_signal(search_next_signal(gnss_signal_str, is_primary_freq, assistance_available, estimated_doppler, RX_time));
                 }
             else
                 {
@@ -1610,7 +1610,7 @@ int GNSSFlowgraph::assign_channels()
                             break;
                         }
 
-                    set_signal(i, gnss_signal);
+                    channels_.at(i)->set_signal(gnss_signal);
                 }
         }
     return 0;
@@ -1831,12 +1831,12 @@ void GNSSFlowgraph::acquisition_manager(unsigned int who)
                                 assistance_available,
                                 estimated_doppler,
                                 RX_time);
-                            set_signal(current_channel, gnss_signal);
+                            channels_[current_channel]->set_signal(gnss_signal);
                             start_acquisition = is_primary_freq or assistance_available or !configuration_->property("GNSS-SDR.assist_dual_frequency_acq", multiband_);
                         }
                     else
                         {
-                            set_signal(current_channel, channels_[current_channel]->get_signal());
+                            channels_[current_channel]->set_signal(channels_[current_channel]->get_signal());
                             start_acquisition = true;
                         }
 
@@ -1867,9 +1867,19 @@ void GNSSFlowgraph::acquisition_manager(unsigned int who)
                                                         {
                                                             PRN = channels_[current_channel]->get_signal().get_satellite().get_PRN();
                                                         }
-                                                    int doppler_center = get_Doppler_prediction(PRN);
+                                                    int doppler_center = channel_doppler(current_channel, PRN);
                                                     channels_[current_channel]->assist_acquisition_doppler(doppler_center);
                                                 }
+                                            else
+                                                {
+                                                    // set Doppler center to 0 Hz
+                                                    channels_[current_channel]->assist_acquisition_doppler(0);
+                                                }
+                                        }
+                                    else
+                                        {
+                                            // set Doppler center to 0 Hz
+                                            channels_[current_channel]->assist_acquisition_doppler(0);
                                         }
                                 }
 #if ENABLE_FPGA
@@ -1983,7 +1993,7 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
                     channels_state_[who] = 1;
                     acq_channels_count_++;
                     DLOG(INFO) << "Channel " << who << " Starting acquisition " << gs.get_satellite() << ", Signal " << gs.get_signal_str();
-                    set_signal(who, channels_[who]->get_signal());
+                    channels_[who]->set_signal(channels_[who]->get_signal());
 
                     if (configuration_->property("GNSS-SDR.enable_hs", false))
                         {
@@ -1991,7 +2001,7 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
                                 {
                                     uint32_t PRN = channels_[who]->get_signal().get_satellite().get_PRN();
 
-                                    int doppler_center = get_Doppler_prediction(PRN);
+                                    int doppler_center = channel_doppler(who, PRN);
                                     channels_[who]->assist_acquisition_doppler(doppler_center);
                                 }
                         }
@@ -2000,14 +2010,6 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
 #if ENABLE_FPGA
                     if (enable_fpga_offloading_)
                         {
-                            if (configuration_->property("GNSS-SDR.enable_hs", false))
-                                {
-                                    if (sat == 0)
-                                        {
-                                            // put the signal back in the list of available satellites
-                                            push_back_signal(channels_[who]->get_signal());
-                                        }
-                                }
                             // create a task for the FPGA such that it doesn't stop the flow
                             std::thread tmp_thread(&ChannelInterface::start_acquisition, channels_[who]);
                             tmp_thread.detach();
@@ -2926,22 +2928,6 @@ void GNSSFlowgraph::set_ref_time(Agnss_Ref_Time agnss_ref_time)
     agnss_ref_time_ = agnss_ref_time;
 }
 
-void GNSSFlowgraph::set_signal(int num_channel, const Gnss_Signal& gnss_signal)
-{
-    if (configuration_->property("GNSS-SDR.enable_hs", false))
-        {
-            if ((agnss_ref_location_.valid) && (agnss_ref_time_.valid))
-                {
-                    std::string str_aux = gnss_signal.get_signal_str();
-                    if (str_aux == "1B")
-                        {
-                            doppler_freq_assist(num_channel, gnss_signal);
-                        }
-                }
-        }
-    channels_.at(num_channel)->set_signal(gnss_signal);
-}
-
 void GNSSFlowgraph::set_eph_available_sats()
 {
     // Do not try to acquire the satellites that are not lin the pre-loaded ephemeris data
@@ -2993,46 +2979,21 @@ double GNSSFlowgraph::predict_doppler(int num_channel, Gnss_Ephemeris eph)
     return eph.predicted_doppler(TOW, agnss_ref_location_.lat, agnss_ref_location_.lon, 0.0, 0.0, 0.0, 0.0, 1);
 }
 
-void GNSSFlowgraph::doppler_freq_assist(int num_channel, const Gnss_Signal& gnss_signal)
+double GNSSFlowgraph::channel_doppler(int num_channel, uint32_t PRN)
 {
-    uint32_t PRN = gnss_signal.get_satellite().get_PRN();
-    std::string str_aux = gnss_signal.get_signal_str();
-
-    if (str_aux == "1B")
+    // Doppler prediction for Galileo E1b+c
+    if (mapStringValues_[channels_[num_channel]->get_signal().get_signal_str()] == evGAL_1B)
         {
-            // doppler assistance for Galileo
             std::map<int, Galileo_Ephemeris>::iterator it;
             for (it = gal_ephemeris_map_.begin(); it != gal_ephemeris_map_.end(); it++)
                 {
                     if (PRN == it->second.PRN)
                         {
-                            double predicted_doppler = predict_doppler(num_channel, it->second);
-                            if (agnss_xml_estimated_doppler_map_.find(PRN) == agnss_xml_estimated_doppler_map_.end())
-                                {
-                                    agnss_xml_estimated_doppler_map_.insert(std::make_pair(PRN, static_cast<int>(predicted_doppler)));
-                                }
-                            else
-                                {
-                                    std::map<int, int>::iterator it = agnss_xml_estimated_doppler_map_.find(PRN);
-                                    if (it != agnss_xml_estimated_doppler_map_.end())
-                                        {
-                                            it->second = static_cast<int>(predicted_doppler);
-                                        }
-                                }
+                            return predict_doppler(num_channel, it->second);
                         }
                 }
         }
-}
-
-int GNSSFlowgraph::get_Doppler_prediction(uint32_t PRN)
-{
-    // check if assistance is available from the XML files
-    std::map<int, int>::iterator it = agnss_xml_estimated_doppler_map_.find(PRN);
-    if (it != agnss_xml_estimated_doppler_map_.end())
-        {
-            return it->second;
-        }
-    return 0;
+    return 0.0;
 }
 
 void GNSSFlowgraph::estimate_cfo(void)
