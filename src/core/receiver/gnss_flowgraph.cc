@@ -1855,28 +1855,21 @@ void GNSSFlowgraph::acquisition_manager(unsigned int who)
                                 {
                                     if (configuration_->property("GNSS-SDR.enable_hs", false))
                                         {
-                                            // check if assistance is available from the XML files
-                                            uint32_t PRN;
-                                            if (sat_ == 0)
+                                            if (mapStringValues_[channels_[current_channel]->get_signal().get_signal_str()] == evGAL_1B)
                                                 {
-                                                    PRN = gnss_signal.get_satellite().get_PRN();  // THIS GIVES 0 IF SATELLITE IS MANUALLY SET !
+                                                    // check if assistance is available from the XML files
+                                                    uint32_t PRN;
+                                                    if (sat_ == 0)
+                                                        {
+                                                            PRN = gnss_signal.get_satellite().get_PRN();
+                                                        }
+                                                    else
+                                                        {
+                                                            PRN = channels_[current_channel]->get_signal().get_satellite().get_PRN();
+                                                        }
+                                                    int doppler_center = get_Doppler_prediction(PRN);
+                                                    channels_[current_channel]->assist_acquisition_doppler(doppler_center);
                                                 }
-                                            else
-                                                {
-                                                    PRN = channels_[current_channel]->get_signal().get_satellite().get_PRN();
-                                                }
-                                            int doppler_center = 0;
-                                            std::map<int, int>::iterator it = agnss_xml_estimated_doppler_map_.find(PRN);
-                                            if (it != agnss_xml_estimated_doppler_map_.end())
-                                                {
-                                                    doppler_center = it->second;
-                                                }
-                                            channels_[current_channel]->assist_acquisition_doppler(doppler_center);
-                                        }
-                                    else
-                                        {
-                                            // set Doppler center to 0 Hz
-                                            channels_[current_channel]->assist_acquisition_doppler(0);
                                         }
                                 }
 #if ENABLE_FPGA
@@ -1994,15 +1987,15 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
 
                     if (configuration_->property("GNSS-SDR.enable_hs", false))
                         {
-                            int doppler_center = 0;
-                            uint32_t PRN = channels_[who]->get_signal().get_satellite().get_PRN();
-                            std::map<int, int>::iterator it = agnss_xml_estimated_doppler_map_.find(PRN);
-                            if (it != agnss_xml_estimated_doppler_map_.end())
+                            if (mapStringValues_[channels_[who]->get_signal().get_signal_str()] == evGAL_1B)
                                 {
-                                    doppler_center = it->second;
+                                    uint32_t PRN = channels_[who]->get_signal().get_satellite().get_PRN();
+
+                                    int doppler_center = get_Doppler_prediction(PRN);
+                                    channels_[who]->assist_acquisition_doppler(doppler_center);
                                 }
-                            channels_[who]->assist_acquisition_doppler(doppler_center);
                         }
+
 
 #if ENABLE_FPGA
                     if (enable_fpga_offloading_)
@@ -3029,6 +3022,17 @@ void GNSSFlowgraph::doppler_freq_assist(int num_channel, const Gnss_Signal& gnss
                         }
                 }
         }
+}
+
+int GNSSFlowgraph::get_Doppler_prediction(uint32_t PRN)
+{
+    // check if assistance is available from the XML files
+    std::map<int, int>::iterator it = agnss_xml_estimated_doppler_map_.find(PRN);
+    if (it != agnss_xml_estimated_doppler_map_.end())
+        {
+            return it->second;
+        }
+    return 0;
 }
 
 void GNSSFlowgraph::estimate_cfo(void)

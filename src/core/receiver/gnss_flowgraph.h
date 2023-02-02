@@ -235,6 +235,7 @@ private:
     void set_signal(int num_channel, const Gnss_Signal& gnss_signal);
     double predict_doppler(int num_channel, Gnss_Ephemeris eph);
     void doppler_freq_assist(int num_channel, const Gnss_Signal& gnss_signal);
+    int get_Doppler_prediction(uint32_t PRN);
     void estimate_cfo(void);
 
     std::vector<bool> signal_conditioner_connected_;
