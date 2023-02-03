@@ -239,6 +239,11 @@ double GalileoE1DllPllVemlTrackingFpga::get_carrier_doppler_hz()
     return tracking_fpga_sc_sptr_->get_carrier_doppler_hz();
 }
 
+void GalileoE1DllPllVemlTrackingFpga::get_trk_frame_sync_parameters(uint64_t& sample_counter_frame_sync, double& carrier_doppler_hz)
+{
+    tracking_fpga_sc_sptr_->get_trk_frame_sync_parameters(sample_counter_frame_sync, carrier_doppler_hz);
+}
+
 void GalileoE1DllPllVemlTrackingFpga::disconnect(gr::top_block_sptr top_block)
 {
     if (top_block)

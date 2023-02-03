@@ -234,6 +234,7 @@ private:
     std::vector<std::string> split_string(const std::string& s, char delim);
     double predict_doppler(int num_channel, Gnss_Ephemeris eph);
     double channel_doppler(int num_channel, uint32_t PRN);
+    void get_GAL_1B_trk_frame_sync_parameters(uint32_t PRN, uint64_t& sample_counter_frame_sync, double& carrier_doppler_hz);
     void estimate_cfo(void);
 
     std::vector<bool> signal_conditioner_connected_;
@@ -255,6 +256,7 @@ private:
     std::map<int, Galileo_Ephemeris> gal_ephemeris_map_;                // for AGNSS XML Doppler frequency assistance
     std::map<int, Gps_CNAV_Ephemeris> gps_cnav_ephemeris_map_;          // for AGNSS XML Doppler frequency assistance
     std::map<int, Glonass_Gnav_Ephemeris> glonass_gnav_ephemeris_map_;  // for AGNSS XML Doppler frequency assistance
+    std::map<int, int> GAL_1B_channel_sat_assignment_;                  // for AGNSS XML Doppler frequency assistance
 
     Agnss_Ref_Location agnss_ref_location_;  // for AGNSS XML Doppler frequency assistance
     Agnss_Ref_Time agnss_ref_time_;          // for AGNSS XML Doppler frequency assistance

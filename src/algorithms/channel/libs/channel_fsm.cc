@@ -64,7 +64,7 @@ bool ChannelFsm::Event_stop_channel()
 }
 
 
-bool ChannelFsm::Event_start_acquisition_fpga()
+bool ChannelFsm::Event_set_state_acquisition()
 {
     std::lock_guard<std::mutex> lk(mx_);
     if ((state_ == 1) || (state_ == 2))
@@ -72,7 +72,7 @@ bool ChannelFsm::Event_start_acquisition_fpga()
             return false;
         }
     state_ = 1;
-    DLOG(INFO) << "CH = " << channel_ << ". Ev start acquisition FPGA";
+    DLOG(INFO) << "CH = " << channel_ << ". Ev Set FSM state to acquisition";
     return true;
 }
 

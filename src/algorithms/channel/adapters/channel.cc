@@ -254,10 +254,42 @@ uint64_t Channel::get_elapsed_samples()
     return acq_->get_sample_counter();
 }
 
+void Channel::get_trk_frame_sync_parameters(uint64_t& sample_counter_frame_sync, double& carrier_doppler_hz)
+{
+    trk_->get_trk_frame_sync_parameters(sample_counter_frame_sync, carrier_doppler_hz);
+}
+
 double Channel::get_carrier_doppler_hz()
 {
     return trk_->get_carrier_doppler_hz();
 }
+
+void Channel::start_tracking_without_acquisition(uint64_t sample_counter_frame_sync, double carrier_doppler_hz)
+{
+    std::lock_guard<std::mutex> lk(mx_);
+    bool result = false;
+    // set acquisition state in channel FSM
+    result = channel_fsm_->Event_set_state_acquisition();
+    if (!result)
+        {
+            LOG(WARNING) << "Invalid channel event";
+            return;
+        }
+
+    // set gnss_synchro in the same way as in a successful acquisition
+    gnss_synchro_.Flag_valid_acquisition = false;
+    gnss_synchro_.Flag_valid_symbol_output = false;
+    gnss_synchro_.Flag_valid_pseudorange = false;
+    gnss_synchro_.Flag_valid_word = false;
+    gnss_synchro_.Acq_doppler_step = 0U;
+    gnss_synchro_.Acq_delay_samples = 0;
+    gnss_synchro_.Acq_samplestamp_samples = sample_counter_frame_sync;
+    gnss_synchro_.Acq_doppler_hz = carrier_doppler_hz;
+
+    channel_fsm_->Event_valid_acquisition();
+    nav_->reset();
+}
+
 
 void Channel::start_acquisition()
 {
@@ -269,7 +301,7 @@ void Channel::start_acquisition()
         }
     else
         {
-            result = channel_fsm_->Event_start_acquisition_fpga();
+            result = channel_fsm_->Event_set_state_acquisition();
             channel_fsm_->start_acquisition();
         }
     if (!result)

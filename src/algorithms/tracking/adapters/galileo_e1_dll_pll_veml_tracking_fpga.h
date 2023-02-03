@@ -127,6 +127,11 @@ public:
      */
     double get_carrier_doppler_hz(void) override;
 
+    /*!
+     * \brief get the current tracking status
+     */
+    void get_trk_frame_sync_parameters(uint64_t& sample_counter_frame_sync, double& carrier_doppler_hz) override;
+
 private:
     const std::string default_device_name_Galileo_E1 = "multicorrelator_resampler_5_1_AXI";  // UIO device name
     const std::string default_device_name_GPS_L1 = "multicorrelator_resampler_S00_AXI";      // UIO device name

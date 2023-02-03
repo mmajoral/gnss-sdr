@@ -49,9 +49,14 @@ class TrackingInterface : public GNSSBlockInterface
 public:
     virtual void start_tracking() = 0;
     virtual void stop_tracking() = 0;
-    virtual void set_gnss_synchro(Gnss_Synchro* gnss_synchro) = 0;
+    virtual void set_gnss_synchro(Gnss_Synchro *gnss_synchro) = 0;
     virtual void set_channel(unsigned int channel) = 0;
     virtual double get_carrier_doppler_hz() { return 0.0; };
+    virtual void get_trk_frame_sync_parameters(uint64_t &sample_counter_frame_sync, double &carrier_doppler_hz)
+    {
+        sample_counter_frame_sync = 0;
+        carrier_doppler_hz = 0.0;
+    };
 };
 
 

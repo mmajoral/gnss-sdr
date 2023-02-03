@@ -271,14 +271,6 @@ void pcps_hs_acquisition_fpga::send_positive_acquisition()
     d_positive_acq = 1;
 
     d_channel_fsm.lock()->Event_valid_acquisition();
-
-    // Copy and push current Gnss_Synchro to monitor queue
-    if (d_acq_parameters.enable_monitor_output)
-        {
-            Gnss_Synchro current_synchro_data = Gnss_Synchro();
-            current_synchro_data = *d_gnss_synchro;
-            d_monitor_queue.push(current_synchro_data);
-        }
 }
 
 

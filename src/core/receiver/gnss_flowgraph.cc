@@ -273,6 +273,11 @@ void GNSSFlowgraph::init()
             udp_addr_vec.erase(std::unique(udp_addr_vec.begin(), udp_addr_vec.end()), udp_addr_vec.end());
             NavDataMonitor_ = nav_message_monitor_make(udp_addr_vec, configuration_->property("NavDataMonitor.port", 1237));
         }
+
+    if (configuration_->property("GNSS-SDR.enable_hs", false))
+        {
+            GAL_1B_channel_sat_assignment_.clear();
+        }
 }
 
 
@@ -302,6 +307,11 @@ void GNSSFlowgraph::start()
                 {
                     sig_source_.at(0)->start();
                 }
+        }
+
+    if (configuration_->property("GNSS-SDR.enable_hs", false))
+        {
+            GAL_1B_channel_sat_assignment_.clear();
         }
 
     running_ = true;
@@ -1847,34 +1857,27 @@ void GNSSFlowgraph::acquisition_manager(unsigned int who)
                             DLOG(INFO) << "Channel " << current_channel
                                        << " Starting acquisition " << channels_[current_channel]->get_signal().get_satellite()
                                        << ", Signal " << channels_[current_channel]->get_signal().get_signal_str();
+
+                            bool track_Galileo_E5a_using_E1_information = false;
                             if (assistance_available == true and configuration_->property("GNSS-SDR.assist_dual_frequency_acq", multiband_))
                                 {
-                                    channels_[current_channel]->assist_acquisition_doppler(project_doppler(channels_[current_channel]->get_signal().get_signal_str(), estimated_doppler));
+                                    if ((configuration_->property("GNSS-SDR.enable_hs", false)) && (mapStringValues_[channels_[current_channel]->get_signal().get_signal_str()] == evGAL_5X))
+                                        {
+                                            track_Galileo_E5a_using_E1_information = true;
+                                        }
+                                    else
+                                        {
+                                            channels_[current_channel]->assist_acquisition_doppler(project_doppler(channels_[current_channel]->get_signal().get_signal_str(), estimated_doppler));
+                                        }
                                 }
                             else
                                 {
-                                    if (configuration_->property("GNSS-SDR.enable_hs", false))
+                                    if ((configuration_->property("GNSS-SDR.enable_hs", false)) && (mapStringValues_[channels_[current_channel]->get_signal().get_signal_str()] == evGAL_1B))
                                         {
-                                            if (mapStringValues_[channels_[current_channel]->get_signal().get_signal_str()] == evGAL_1B)
-                                                {
-                                                    // check if assistance is available from the XML files
-                                                    uint32_t PRN;
-                                                    if (sat_ == 0)
-                                                        {
-                                                            PRN = gnss_signal.get_satellite().get_PRN();
-                                                        }
-                                                    else
-                                                        {
-                                                            PRN = channels_[current_channel]->get_signal().get_satellite().get_PRN();
-                                                        }
-                                                    int doppler_center = channel_doppler(current_channel, PRN);
-                                                    channels_[current_channel]->assist_acquisition_doppler(doppler_center);
-                                                }
-                                            else
-                                                {
-                                                    // set Doppler center to 0 Hz
-                                                    channels_[current_channel]->assist_acquisition_doppler(0);
-                                                }
+                                            // check if assistance is available from the XML files
+                                            uint32_t PRN = (sat_ == 0) ? gnss_signal.get_satellite().get_PRN() : channels_[current_channel]->get_signal().get_satellite().get_PRN();
+                                            int doppler_center = channel_doppler(current_channel, PRN);
+                                            channels_[current_channel]->assist_acquisition_doppler(doppler_center);
                                         }
                                     else
                                         {
@@ -1882,20 +1885,34 @@ void GNSSFlowgraph::acquisition_manager(unsigned int who)
                                             channels_[current_channel]->assist_acquisition_doppler(0);
                                         }
                                 }
-#if ENABLE_FPGA
-                            if (enable_fpga_offloading_)
+
+                            if (track_Galileo_E5a_using_E1_information)
                                 {
-                                    // create a task for the FPGA such that it doesn't stop the flow
-                                    std::thread tmp_thread(&ChannelInterface::start_acquisition, channels_[current_channel]);
-                                    tmp_thread.detach();
+                                    uint32_t PRN = (sat_ == 0) ? gnss_signal.get_satellite().get_PRN() : channels_[current_channel]->get_signal().get_satellite().get_PRN();
+                                    uint64_t sample_counter_frame_sync;
+                                    double carrier_doppler_hz;
+                                    get_GAL_1B_trk_frame_sync_parameters(PRN, sample_counter_frame_sync, carrier_doppler_hz);
+                                    carrier_doppler_hz = carrier_doppler_hz * GALILEO_E5A_FREQ_HZ / GALILEO_E1_FREQ_HZ;
+                                    // no need to create a task for the FPGA as this function does not stop the flow
+                                    channels_[current_channel]->start_tracking_without_acquisition(sample_counter_frame_sync, carrier_doppler_hz);
                                 }
                             else
                                 {
-                                    channels_[current_channel]->start_acquisition();
-                                }
+#if ENABLE_FPGA
+                                    if (enable_fpga_offloading_)
+                                        {
+                                            // create a task for the FPGA such that it doesn't stop the flow
+                                            std::thread tmp_thread(&ChannelInterface::start_acquisition, channels_[current_channel]);
+                                            tmp_thread.detach();
+                                        }
+                                    else
+                                        {
+                                            channels_[current_channel]->start_acquisition();
+                                        }
 #else
-                            channels_[current_channel]->start_acquisition();
+                                    channels_[current_channel]->start_acquisition();
 #endif
+                                }
                         }
                     else
                         {
@@ -1980,6 +1997,25 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
                 {
                     acq_channels_count_--;
                 }
+
+            if (configuration_->property("GNSS-SDR.enable_hs", false))
+                {
+                    if (mapStringValues_[channels_[who]->get_signal().get_signal_str()] == evGAL_1B)
+                        {
+                            // keep a table of assigned satellites for the high-sensitivity acquisition
+                            uint32_t PRN = channels_[who]->get_signal().get_satellite().get_PRN();
+                            std::map<int, int>::iterator it;
+                            it = GAL_1B_channel_sat_assignment_.find(PRN);
+                            if (it != GAL_1B_channel_sat_assignment_.end())
+                                {
+                                    it->second = who;
+                                }
+                            else
+                                {
+                                    GAL_1B_channel_sat_assignment_.insert(std::pair<int, int>(PRN, who));
+                                }
+                        }
+                }
             // call the acquisition manager to assign new satellite and start next acquisition (if required)
             acquisition_manager(who);
             break;
@@ -1995,6 +2031,8 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
                     DLOG(INFO) << "Channel " << who << " Starting acquisition " << gs.get_satellite() << ", Signal " << gs.get_signal_str();
                     channels_[who]->set_signal(channels_[who]->get_signal());
 
+                    bool track_Galileo_E5a_using_E1_information = false;
+
                     if (configuration_->property("GNSS-SDR.enable_hs", false))
                         {
                             if (mapStringValues_[channels_[who]->get_signal().get_signal_str()] == evGAL_1B)
@@ -2004,23 +2042,39 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
                                     int doppler_center = channel_doppler(who, PRN);
                                     channels_[who]->assist_acquisition_doppler(doppler_center);
                                 }
+                            else if (mapStringValues_[channels_[who]->get_signal().get_signal_str()] == evGAL_5X)
+                                {
+                                    track_Galileo_E5a_using_E1_information = true;
+                                }
                         }
 
-
-#if ENABLE_FPGA
-                    if (enable_fpga_offloading_)
+                    if (track_Galileo_E5a_using_E1_information)
                         {
-                            // create a task for the FPGA such that it doesn't stop the flow
-                            std::thread tmp_thread(&ChannelInterface::start_acquisition, channels_[who]);
-                            tmp_thread.detach();
+                            uint32_t PRN = channels_[who]->get_signal().get_satellite().get_PRN();
+                            uint64_t sample_counter_frame_sync;
+                            double carrier_doppler_hz;
+                            get_GAL_1B_trk_frame_sync_parameters(PRN, sample_counter_frame_sync, carrier_doppler_hz);
+                            carrier_doppler_hz = carrier_doppler_hz * GALILEO_E5A_FREQ_HZ / GALILEO_E1_FREQ_HZ;
+                            // no need to create a task for the FPGA as this function does not stop the flow
+                            channels_[who]->start_tracking_without_acquisition(sample_counter_frame_sync, carrier_doppler_hz);
                         }
                     else
                         {
-                            channels_[who]->start_acquisition();
-                        }
+#if ENABLE_FPGA
+                            if (enable_fpga_offloading_)
+                                {
+                                    // create a task for the FPGA such that it doesn't stop the flow
+                                    std::thread tmp_thread(&ChannelInterface::start_acquisition, channels_[who]);
+                                    tmp_thread.detach();
+                                }
+                            else
+                                {
+                                    channels_[who]->start_acquisition();
+                                }
 #else
-                    channels_[who]->start_acquisition();
+                            channels_[who]->start_acquisition();
 #endif
+                        }
                 }
             else
                 {
@@ -2981,19 +3035,30 @@ double GNSSFlowgraph::predict_doppler(int num_channel, Gnss_Ephemeris eph)
 
 double GNSSFlowgraph::channel_doppler(int num_channel, uint32_t PRN)
 {
-    // Doppler prediction for Galileo E1b+c
-    if (mapStringValues_[channels_[num_channel]->get_signal().get_signal_str()] == evGAL_1B)
+    // Obtain Doppler Prediction given the channel number and the PRN code
+    std::map<int, Galileo_Ephemeris>::iterator it;
+    for (it = gal_ephemeris_map_.begin(); it != gal_ephemeris_map_.end(); it++)
         {
-            std::map<int, Galileo_Ephemeris>::iterator it;
-            for (it = gal_ephemeris_map_.begin(); it != gal_ephemeris_map_.end(); it++)
+            if (PRN == it->second.PRN)
                 {
-                    if (PRN == it->second.PRN)
-                        {
-                            return predict_doppler(num_channel, it->second);
-                        }
+                    return predict_doppler(num_channel, it->second);
                 }
         }
     return 0.0;
+}
+
+void GNSSFlowgraph::get_GAL_1B_trk_frame_sync_parameters(uint32_t PRN, uint64_t& sample_counter_frame_sync, double& carrier_doppler_hz)
+{
+    // Obtain L1/E1 frequency band tracking parameters to assist tracking in the L5/E5a band
+    std::map<int, int>::iterator it;
+    it = GAL_1B_channel_sat_assignment_.find(PRN);
+    if (it != GAL_1B_channel_sat_assignment_.end())
+        {
+            // obtain channel number corresponding to sat PRN in the E1 frequency band
+            int num_channel_GAL_1B = it->second;
+            // obtain the tracking parameters
+            channels_[num_channel_GAL_1B]->get_trk_frame_sync_parameters(sample_counter_frame_sync, carrier_doppler_hz);
+        }
 }
 
 void GNSSFlowgraph::estimate_cfo(void)

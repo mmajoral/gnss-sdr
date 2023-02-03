@@ -245,7 +245,6 @@ private:
     arma::fmat d_grid;
     arma::fmat d_narrow_grid;
 
-    std::queue<Gnss_Synchro> d_monitor_queue;
     std::string d_dump_filename;
 
     std::shared_ptr<Fpga_HS_Acquisition> d_acquisition_fpga;

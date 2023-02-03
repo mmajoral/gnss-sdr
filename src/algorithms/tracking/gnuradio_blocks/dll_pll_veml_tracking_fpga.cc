@@ -494,6 +494,10 @@ dll_pll_veml_tracking_fpga::dll_pll_veml_tracking_fpga(const Dll_Pll_Conf_Fpga &
             d_skip_samples = false;
             d_narrow_pll_dll_set = false;
         }
+
+    // init frame sync status parameters
+    d_sample_counter_frame_sync = 0.0;
+    d_carrier_doppler_hz_frame_sync = 0.0;
 }
 
 
@@ -1509,6 +1513,10 @@ void dll_pll_veml_tracking_fpga::set_gnss_synchro(Gnss_Synchro *p_gnss_synchro)
 
             d_cn0_smoother.reset();
             d_carrier_lock_test_smoother.reset();
+
+            // init frame sync status parameters
+            d_sample_counter_frame_sync = 0.0;
+            d_carrier_doppler_hz_frame_sync = 0.0;
         }
 }
 
@@ -1537,6 +1545,11 @@ double dll_pll_veml_tracking_fpga::get_carrier_doppler_hz()
     return 0.0;
 }
 
+void dll_pll_veml_tracking_fpga::get_trk_frame_sync_parameters(uint64_t &sample_counter_frame_sync, double &carrier_doppler_hz)
+{
+    sample_counter_frame_sync = d_sample_counter_frame_sync;
+    carrier_doppler_hz = d_carrier_doppler_hz_frame_sync;
+}
 
 int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((unused)),
     gr_vector_int &ninput_items __attribute__((unused)),
@@ -1836,6 +1849,9 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                                 d_state = 4;
                                             }
                                     }
+                                // update frame sync status parameters
+                                d_sample_counter_frame_sync = d_sample_counter_next;
+                                d_carrier_doppler_hz_frame_sync = d_carrier_doppler_hz;
                             }
                         break;
                     }
@@ -1956,6 +1972,9 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                     {
                                         d_state = 3;  // new coherent integration (correlation time extension) cycle
                                     }
+                                // update frame sync status parameters
+                                d_sample_counter_frame_sync = d_sample_counter_next;
+                                d_carrier_doppler_hz_frame_sync = d_carrier_doppler_hz;
                             }
                         break;
                     }
@@ -2097,6 +2116,9 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                     {
                                         d_state = 5;
                                     }
+                                // update frame sync status parameters
+                                d_sample_counter_frame_sync = d_sample_counter_next;
+                                d_carrier_doppler_hz_frame_sync = d_carrier_doppler_hz;
                             }
                         break;
                     }

@@ -104,6 +104,12 @@ public:
      */
     double get_carrier_doppler_hz(void);
 
+    /*!
+     * \brief get the sample counter and the carrier Doppler corresponding to the frame synchronization
+     * (secondary code sync or PRN code sync depending on the tracking parameters)
+     */
+    void get_trk_frame_sync_parameters(uint64_t &sample_counter_frame_sync, double &carrier_doppler_hz);
+
 private:
     friend dll_pll_veml_tracking_fpga_sptr dll_pll_veml_make_tracking_fpga(const Dll_Pll_Conf_Fpga &conf_);
     explicit dll_pll_veml_tracking_fpga(const Dll_Pll_Conf_Fpga &conf_);
@@ -167,6 +173,7 @@ private:
     double d_code_error_filt_chips;
     double d_code_freq_chips;
     double d_carrier_doppler_hz;
+    double d_carrier_doppler_hz_frame_sync;
     double d_acc_carrier_phase_rad;
     double d_rem_code_phase_chips;
     double d_T_chip_seconds;
@@ -205,6 +212,7 @@ private:
 
     std::ofstream d_dump_file;
     uint64_t d_sample_counter;
+    uint64_t d_sample_counter_frame_sync;
     uint64_t d_acq_sample_stamp;
     uint64_t d_sample_counter_next;
 
