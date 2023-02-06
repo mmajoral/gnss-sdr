@@ -1611,16 +1611,13 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                 const double T_prn_mod_seconds = T_chip_mod_seconds * static_cast<double>(d_code_length_chips);
                                 const double T_prn_mod_samples = T_prn_mod_seconds * d_trk_parameters.fs_in;
 
-                                uint32_t align_length;
                                 if (d_enable_hs)
                                     {
-                                        align_length = GALILEO_E1_C_SECONDARY_CODE_LENGTH;
-                                        d_acq_code_phase_samples = (T_prn_mod_samples * align_length) - std::fmod(delta_trk_to_acq_prn_start_samples, T_prn_mod_samples * align_length);
+                                        d_acq_code_phase_samples = (T_prn_mod_samples * d_secondary_code_length) - std::fmod(delta_trk_to_acq_prn_start_samples, T_prn_mod_samples * d_secondary_code_length);
                                     }
                                 else
                                     {
-                                        align_length = 1;
-                                        d_acq_code_phase_samples = (T_prn_mod_samples * align_length) - std::fmod(delta_trk_to_acq_prn_start_samples, T_prn_mod_samples * align_length);
+                                        d_acq_code_phase_samples = (T_prn_mod_samples)-std::fmod(delta_trk_to_acq_prn_start_samples, T_prn_mod_samples);
                                     }
 
                                 d_current_integration_length_samples = round(T_prn_mod_samples);
