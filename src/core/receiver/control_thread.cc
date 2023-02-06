@@ -232,6 +232,14 @@ void ControlThread::init()
                                     std::cout << "Setting the number of Galileo E1 channels to " << Channels_1B_assist_count
                                               << " as this is the number of satellites available in the Galileo assistance ephemeris data file " << std::endl;
                                     configuration_->set_property("Channels_1B.count", std::to_string(Channels_1B_assist_count));
+
+                                    uint32_t Channels_5X_count_tmp = configuration_->property("Channels_5X.count", 0);
+                                    if (Channels_5X_count_tmp > Channels_1B_assist_count)
+                                        {
+                                            std::cout << "Setting the number of Galileo E5a channels to " << Channels_1B_assist_count
+                                                      << " as this is the number of satellites available in the Galileo assistance ephemeris data file " << std::endl;
+                                            configuration_->set_property("Channels_5X.count", std::to_string(Channels_1B_assist_count));
+                                        }
                                 }
                             else
                                 {
