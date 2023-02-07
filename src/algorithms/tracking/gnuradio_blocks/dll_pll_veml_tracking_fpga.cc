@@ -148,9 +148,9 @@ dll_pll_veml_tracking_fpga::dll_pll_veml_tracking_fpga(const Dll_Pll_Conf_Fpga &
         boost::bind(&dll_pll_veml_tracking_fpga::msg_handler_telemetry_to_trk, this, _1));
 #endif
 #endif
-
     // initialize internal vars
     d_dll_filt_history.set_capacity(1000);
+
     d_signal_type = std::string(d_trk_parameters.signal);
 
     std::map<std::string, std::string> map_signal_pretty_name;
@@ -497,7 +497,6 @@ dll_pll_veml_tracking_fpga::dll_pll_veml_tracking_fpga(const Dll_Pll_Conf_Fpga &
 
     // init frame sync status parameters
     d_sample_counter_frame_sync = 0.0;
-    d_carrier_doppler_hz_frame_sync = 0.0;
 }
 
 
@@ -652,7 +651,6 @@ bool dll_pll_veml_tracking_fpga::cn0_and_tracking_lock_status(double coh_integra
             d_cn0_estimation_counter++;
             return true;
         }
-
     d_Prompt_buffer[d_cn0_estimation_counter % d_trk_parameters.cn0_samples] = d_P_accu;
     d_cn0_estimation_counter++;
     // Code lock indicator
@@ -687,7 +685,6 @@ bool dll_pll_veml_tracking_fpga::cn0_and_tracking_lock_status(double coh_integra
                         }
                 }
         }
-
     if (d_carrier_lock_fail_counter > d_trk_parameters.max_carrier_lock_fail or d_code_lock_fail_counter > d_trk_parameters.max_code_lock_fail)
         {
             std::cout << "Loss of lock in channel " << d_channel << "!\n";
@@ -1516,7 +1513,6 @@ void dll_pll_veml_tracking_fpga::set_gnss_synchro(Gnss_Synchro *p_gnss_synchro)
 
             // init frame sync status parameters
             d_sample_counter_frame_sync = 0.0;
-            d_carrier_doppler_hz_frame_sync = 0.0;
         }
 }
 
@@ -1536,19 +1532,18 @@ void dll_pll_veml_tracking_fpga::reset()
     d_multicorrelator_fpga->unlock_channel();
 }
 
-double dll_pll_veml_tracking_fpga::get_carrier_doppler_hz()
-{
-    if (d_state > 2)
-        {
-            return d_carrier_doppler_hz;
-        }
-    return 0.0;
-}
-
 void dll_pll_veml_tracking_fpga::get_trk_frame_sync_parameters(uint64_t &sample_counter_frame_sync, double &carrier_doppler_hz)
 {
     sample_counter_frame_sync = d_sample_counter_frame_sync;
-    carrier_doppler_hz = d_carrier_doppler_hz_frame_sync;
+    // when this method is used for the CFO estimation, the carrier_doppler_hz is not reliable when the tracking process is in the initial states
+    if (d_state > 2)
+        {
+            carrier_doppler_hz = d_carrier_doppler_hz;
+        }
+    else
+        {
+            carrier_doppler_hz = 0.0;
+        }
 }
 
 int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((unused)),
@@ -1845,9 +1840,8 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                                 d_state = 4;
                                             }
                                     }
-                                // update frame sync status parameters
+                                // update frame sync sample counter
                                 d_sample_counter_frame_sync = d_sample_counter_next;
-                                d_carrier_doppler_hz_frame_sync = d_carrier_doppler_hz;
                             }
                         break;
                     }
@@ -1968,9 +1962,8 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                     {
                                         d_state = 3;  // new coherent integration (correlation time extension) cycle
                                     }
-                                // update frame sync status parameters
+                                // update frame sync sample counter
                                 d_sample_counter_frame_sync = d_sample_counter_next;
-                                d_carrier_doppler_hz_frame_sync = d_carrier_doppler_hz;
                             }
                         break;
                     }
@@ -2112,9 +2105,8 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                     {
                                         d_state = 5;
                                     }
-                                // update frame sync status parameters
+                                // update frame sync sample counter
                                 d_sample_counter_frame_sync = d_sample_counter_next;
-                                d_carrier_doppler_hz_frame_sync = d_carrier_doppler_hz;
                             }
                         break;
                     }

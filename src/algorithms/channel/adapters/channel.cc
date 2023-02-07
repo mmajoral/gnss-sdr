@@ -259,11 +259,6 @@ void Channel::get_trk_frame_sync_parameters(uint64_t& sample_counter_frame_sync,
     trk_->get_trk_frame_sync_parameters(sample_counter_frame_sync, carrier_doppler_hz);
 }
 
-double Channel::get_carrier_doppler_hz()
-{
-    return trk_->get_carrier_doppler_hz();
-}
-
 void Channel::start_tracking_without_acquisition(uint64_t sample_counter_frame_sync, double carrier_doppler_hz)
 {
     std::lock_guard<std::mutex> lk(mx_);

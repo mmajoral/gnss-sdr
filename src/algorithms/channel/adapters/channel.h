@@ -92,7 +92,6 @@ public:
     void assist_acquisition_doppler(double Carrier_Doppler_hz) override;
     uint64_t get_elapsed_samples() override;  //!< Get the value of the sample counter
     void get_trk_frame_sync_parameters(uint64_t& sample_counter_frame_sync, double& carrier_doppler_hz) override;
-    double get_carrier_doppler_hz() override;  //!< Get the value of the carrier Doppler frequency
     void start_tracking_without_acquisition(uint64_t sample_counter_frame_sync, double carrier_doppler_hz) override;
     inline std::shared_ptr<AcquisitionInterface> acquisition() const { return acq_; }
     inline std::shared_ptr<TrackingInterface> tracking() const { return trk_; }

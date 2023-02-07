@@ -3084,7 +3084,9 @@ void GNSSFlowgraph::estimate_cfo(void)
                             if (it != gal_eph.end())
                                 {
                                     double predicted_doppler = predict_doppler(num_ch, it->second);
-                                    double carrier_doppler = channels_.at(num_ch)->get_carrier_doppler_hz();
+                                    uint64_t sample_counter_frame_sync;
+                                    double carrier_doppler;
+                                    channels_.at(num_ch)->get_trk_frame_sync_parameters(sample_counter_frame_sync, carrier_doppler);
                                     double doppler_error = predicted_doppler - carrier_doppler;
                                     if (carrier_doppler != 0.0)
                                         {

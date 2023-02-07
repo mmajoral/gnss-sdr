@@ -54,7 +54,6 @@ public:
     virtual void assist_acquisition_doppler(double Carrier_Doppler_hz) = 0;
     virtual uint64_t get_elapsed_samples() = 0;
     virtual void get_trk_frame_sync_parameters(uint64_t &sample_counter_frame_sync, double &carrier_doppler_hz) = 0;
-    virtual double get_carrier_doppler_hz() = 0;
     virtual void start_tracking_without_acquisition(uint64_t sample_counter_frame_sync, double carrier_doppler_hz) = 0;
     virtual void stop_channel() = 0;
     virtual void set_signal(const Gnss_Signal &) = 0;

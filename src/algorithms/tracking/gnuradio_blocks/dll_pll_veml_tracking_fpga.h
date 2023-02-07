@@ -100,11 +100,6 @@ public:
     void reset();
 
     /*!
-     * \brief get the current carrier Doppler frequency
-     */
-    double get_carrier_doppler_hz(void);
-
-    /*!
      * \brief get the sample counter and the carrier Doppler corresponding to the frame synchronization
      * (secondary code sync or PRN code sync depending on the tracking parameters)
      */
@@ -173,7 +168,6 @@ private:
     double d_code_error_filt_chips;
     double d_code_freq_chips;
     double d_carrier_doppler_hz;
-    double d_carrier_doppler_hz_frame_sync;
     double d_acc_carrier_phase_rad;
     double d_rem_code_phase_chips;
     double d_T_chip_seconds;
