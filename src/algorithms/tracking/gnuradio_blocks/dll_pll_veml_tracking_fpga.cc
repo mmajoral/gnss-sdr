@@ -1623,8 +1623,7 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                 d_current_integration_length_samples = round(T_prn_mod_samples);
 
                                 double nsamples_acq_to_trk_pnt = d_acq_code_phase_samples + delta_trk_to_acq_prn_start_samples;
-
-                                double nsamples_code_doppler_correction_in_1_s = static_cast<float>(d_acq_carrier_doppler_hz) * static_cast<float>(d_trk_parameters.fs_in) / GALILEO_E1_FREQ_HZ;
+                                double nsamples_code_doppler_correction_in_1_s = static_cast<float>(d_acq_carrier_doppler_hz) * static_cast<float>(d_trk_parameters.fs_in) / d_signal_carrier_freq;
                                 double nsamples_code_doppler_correction_per_sample = nsamples_code_doppler_correction_in_1_s / static_cast<float>(d_trk_parameters.fs_in);
                                 double nsamples_code_doppler_correction = round(nsamples_code_doppler_correction_per_sample * (nsamples_acq_to_trk_pnt));
 
@@ -2164,21 +2163,23 @@ void dll_pll_veml_tracking_fpga::set_long_integration_hs(void)
                         {
                             d_multicorrelator_fpga->enable_secondary_codes();
                         }
+                    d_T_chip_seconds = 1.0 / d_code_freq_chips;
+                    d_T_prn_seconds = d_T_chip_seconds * static_cast<double>(d_code_length_chips);
+                    d_T_prn_samples = d_T_prn_seconds * d_trk_parameters.fs_in;
 
                     if (d_extend_fpga_integration_periods > 1)
                         {
                             // correction on already computed parameters
-                            d_K_blk_samples = d_T_prn_samples * (d_fpga_integration_period) + d_rem_code_phase_samples_prev;
-                            d_next_integration_length_samples = static_cast<int32_t>(std::floor(d_K_blk_samples));
+                            d_K_blk_samples = d_T_prn_samples * (d_fpga_integration_period);  // + d_rem_code_phase_samples_prev;
                             d_state = 5;
                         }
                     else
                         {
                             // correction on already computed parameters
-                            d_K_blk_samples = d_T_prn_samples * d_trk_parameters.extend_correlation_symbols + d_rem_code_phase_samples_prev;
-                            d_next_integration_length_samples = static_cast<int32_t>(std::floor(d_K_blk_samples));
+                            d_K_blk_samples = d_T_prn_samples * d_trk_parameters.extend_correlation_symbols;  // + d_rem_code_phase_samples_prev;
                             d_state = 6;
                         }
+                    d_next_integration_length_samples = static_cast<int32_t>(std::floor(d_K_blk_samples));
                 }
             else
                 {
