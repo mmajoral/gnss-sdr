@@ -1893,8 +1893,16 @@ void GNSSFlowgraph::acquisition_manager(unsigned int who)
                                     double carrier_doppler_hz;
                                     get_GAL_1B_trk_frame_sync_parameters(PRN, sample_counter_frame_sync, carrier_doppler_hz);
                                     carrier_doppler_hz = carrier_doppler_hz * GALILEO_E5A_FREQ_HZ / GALILEO_E1_FREQ_HZ;
-                                    // no need to create a task for the FPGA as this function does not stop the flow
-                                    channels_[current_channel]->start_tracking_without_acquisition(sample_counter_frame_sync, carrier_doppler_hz);
+                                    if (enable_fpga_offloading_)
+                                        {
+                                            // create a task for the FPGA such that it doesn't stop the flow
+                                            std::thread tmp_thread(&ChannelInterface::start_tracking_without_acquisition, channels_[current_channel], sample_counter_frame_sync, carrier_doppler_hz);
+                                            tmp_thread.detach();
+                                        }
+                                    else
+                                        {
+                                            channels_[current_channel]->start_tracking_without_acquisition(sample_counter_frame_sync, carrier_doppler_hz);
+                                        }
                                 }
                             else
                                 {
@@ -2055,8 +2063,16 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
                             double carrier_doppler_hz;
                             get_GAL_1B_trk_frame_sync_parameters(PRN, sample_counter_frame_sync, carrier_doppler_hz);
                             carrier_doppler_hz = carrier_doppler_hz * GALILEO_E5A_FREQ_HZ / GALILEO_E1_FREQ_HZ;
-                            // no need to create a task for the FPGA as this function does not stop the flow
-                            channels_[who]->start_tracking_without_acquisition(sample_counter_frame_sync, carrier_doppler_hz);
+                            if (enable_fpga_offloading_)
+                                {
+                                    // create a task for the FPGA such that it doesn't stop the flow
+                                    std::thread tmp_thread(&ChannelInterface::start_tracking_without_acquisition, channels_[who], sample_counter_frame_sync, carrier_doppler_hz);
+                                    tmp_thread.detach();
+                                }
+                            else
+                                {
+                                    channels_[who]->start_tracking_without_acquisition(sample_counter_frame_sync, carrier_doppler_hz);
+                                }
                         }
                     else
                         {
