@@ -3096,7 +3096,7 @@ void GNSSFlowgraph::estimate_cfo(void)
                 }
             if (num_ch_valid_measurement > 0)
                 {
-                    double estimated_cfo = accum_Doppl / num_ch_valid_measurement;
+                    int64_t estimated_cfo = static_cast<int64_t>(accum_Doppl / num_ch_valid_measurement);
                     // store the results into a file
                     std::string cfo_correction_filename = configuration_->property("GNSS-SDR.cfo_correction_filename", std::string("CFO_correction.txt"));
                     std::ofstream cfo_file;
@@ -3104,7 +3104,7 @@ void GNSSFlowgraph::estimate_cfo(void)
                     // open the CFO file
                     try
                         {
-                            cfo_file.open(cfo_correction_filename, std::ios::out);
+                            cfo_file.open(cfo_correction_filename, std::ofstream::trunc);
                         }
                     catch (const std::ofstream::failure& e)
                         {
@@ -3113,7 +3113,7 @@ void GNSSFlowgraph::estimate_cfo(void)
                     // write the estimated CFO
                     try
                         {
-                            cfo_file << static_cast<int64_t>(estimated_cfo);
+                            cfo_file << estimated_cfo;
                         }
                     catch (const std::ofstream::failure& e)
                         {
