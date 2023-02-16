@@ -280,6 +280,8 @@ galileo_telemetry_decoder_gs::galileo_telemetry_decoder_gs(
             d_Tlm_navdata_assist = std::make_unique<Tlm_navdata_assist>(conf);
             d_navdata_assist_TOW_set = false;
         }
+
+    hs_sync_preamble = false;
 }
 
 
@@ -841,7 +843,8 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
     switch (d_stat)
         {
         case 0:  // no preamble information
-            // correlate with preamble
+                 // correlate with preamble
+            hs_sync_preamble = false;
             if (d_symbol_history.size() > d_required_symbols)
                 {
                     // ******* preamble correlation ********
@@ -1016,6 +1019,13 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                         {
                             if (((num_preambles_not_detected + num_preambles_detected) > CHECK_s) && (num_preambles_detected < MIN_PREAMBLE_DETECTION_SUCCESS_RATE * (num_preambles_not_detected + num_preambles_detected)))
                                 {
+                                    if (hs_sync_preamble)
+                                        {
+                                            std::cout << "tlm loss of sync channel " << d_channel
+                                                      << " satellite " << current_symbol.System
+                                                      << current_symbol.PRN << std::endl;
+                                            hs_sync_preamble = false;
+                                        }
                                     DLOG(INFO) << "Lost of frame sync SAT " << this->d_satellite;
                                     gr::thread::scoped_lock lock(d_setlock);
                                     d_flag_frame_sync = false;
@@ -1029,6 +1039,13 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                                 {
                                     if ((num_preambles_not_detected + num_preambles_detected) > CHECK_s)
                                         {
+                                            if (!hs_sync_preamble)
+                                                {
+                                                    std::cout << "tlm sync channel " << d_channel
+                                                              << " satellite " << current_symbol.System
+                                                              << current_symbol.PRN << std::endl;
+                                                    hs_sync_preamble = true;
+                                                }
                                             d_flag_preamble = true;  // valid preamble indicator (initialized to false every work())
                                         }
                                     gr::thread::scoped_lock lock(d_setlock);

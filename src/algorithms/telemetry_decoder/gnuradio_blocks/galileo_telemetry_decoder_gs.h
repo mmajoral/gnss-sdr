@@ -165,6 +165,9 @@ private:
     uint32_t num_preambles_detected;
     uint32_t num_preambles_not_detected;
     boost::circular_buffer<uint64_t> d_preamble_samplestamps;
+
+    bool hs_sync_preamble;  // indicate whether the telemetry decoder is sincronized
+                            // with the telemetry preambles when working in high-sensitivity mode
 };
 
 
