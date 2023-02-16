@@ -208,7 +208,13 @@ private:
     void send_positive_acquisition();
     void dump_results(int32_t effective_fft_size);
     void wait_for_coherent_integration_in_fpga(void);
-    void run_coherent_integration_in_fpga(uint32_t doppler_index, uint32_t num_doppler_bins, float doppler_step, float doppler_center, uint32_t num_noncoherent_integrations_counter);
+    void run_coherent_integration_in_fpga(
+        uint32_t doppler_index,
+        uint32_t num_doppler_bins,
+        float doppler_step,
+        float doppler_center,
+        uint32_t num_noncoherent_integrations_counter,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &fpga_ifft_pcps_buffer_data);
     void run_acquisition(
         volk_gnsssdr::vector<float> &tmp_buffer,
         volk_gnsssdr::vector<std::complex<float>> &input_signal,
@@ -217,6 +223,7 @@ private:
         volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &DPDI_term,
         volk_gnsssdr::vector<std::complex<float>> &DPDI_term_buffer,
         volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &NPDI_term,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &fpga_ifft_pcps_buffer_data,
         bool &positive_acquisition);
     void acquisition_core(uint64_t samp_count,
         volk_gnsssdr::vector<float> &tmp_buffer,
@@ -226,6 +233,7 @@ private:
         volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &DPDI_term,
         volk_gnsssdr::vector<std::complex<float>> &DPDI_term_buffer,
         volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &NPDI_term,
+        volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &fpga_ifft_pcps_buffer_data,
         bool &positive_acquisition);
     void calculate_threshold(void);
     float first_vs_second_peak_statistic(uint32_t &indext, int32_t &doppler, uint32_t num_doppler_bins, int32_t doppler_max, int32_t doppler_step, volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &d_magnitude_grid, volk_gnsssdr::vector<float> &d_tmp_buffer);
@@ -234,7 +242,6 @@ private:
 
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_grid_doppler_wipeoffs;
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_grid_doppler_wipeoffs_step_two;
-    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> d_fpga_ifft_pcps_buffer_data;
     volk_gnsssdr::vector<std::complex<float>> d_fft_codes;
     std::unique_ptr<gnss_fft_complex_fwd> d_fft_if;
     std::unique_ptr<gnss_fft_complex_rev> d_ifft;

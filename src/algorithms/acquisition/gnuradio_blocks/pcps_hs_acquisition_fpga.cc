@@ -515,7 +515,7 @@ void pcps_hs_acquisition_fpga::wait_for_coherent_integration_in_fpga(void)
 }
 
 // run the coherent integration in the FPGA
-void pcps_hs_acquisition_fpga::run_coherent_integration_in_fpga(uint32_t doppler_index, uint32_t num_doppler_bins, float doppler_step, float doppler_center, uint32_t num_noncoherent_integrations_counter)
+void pcps_hs_acquisition_fpga::run_coherent_integration_in_fpga(uint32_t doppler_index, uint32_t num_doppler_bins, float doppler_step, float doppler_center, uint32_t num_noncoherent_integrations_counter, volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &fpga_ifft_pcps_buffer_data)
 {
     // run the first coherent integration (first Doppler frequency and first iteration)
     if ((d_num_noncoherent_integrations_counter == 1) && (doppler_index == 0))
@@ -523,7 +523,7 @@ void pcps_hs_acquisition_fpga::run_coherent_integration_in_fpga(uint32_t doppler
             // coherent integration: first iteration, first doppler shift
             // Perform the FFT-based convolution  (parallel time search)
             float doppler_freq = (static_cast<float>(doppler_index) - static_cast<float>(floor(num_doppler_bins / 2.0))) * doppler_step + doppler_center;
-            thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_noncoherent_integrations_counter, doppler_index, d_fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
+            thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_noncoherent_integrations_counter, doppler_index, fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
             if (d_fpga_coh_integr_wr_buff_select == 0)
                 {
                     d_fpga_coh_integr_wr_buff_select = 1;
@@ -541,7 +541,7 @@ void pcps_hs_acquisition_fpga::run_coherent_integration_in_fpga(uint32_t doppler
         {
             // Perform the FFT-based convolution  (parallel time search)
             float doppler_freq = (static_cast<float>(doppler_index + 1) - static_cast<float>(floor(num_doppler_bins / 2.0))) * doppler_step + doppler_center;
-            thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_noncoherent_integrations_counter, doppler_index + 1, d_fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
+            thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_noncoherent_integrations_counter, doppler_index + 1, fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
             if (d_fpga_coh_integr_wr_buff_select == 0)
                 {
                     d_fpga_coh_integr_wr_buff_select = 1;
@@ -558,7 +558,7 @@ void pcps_hs_acquisition_fpga::run_coherent_integration_in_fpga(uint32_t doppler
                     // start executing speculatively the coherent integration corresponding to the first doppler index of the next iteration
                     // Perform the FFT-based convolution  (parallel time search)
                     float doppler_freq = -static_cast<float>(floor(num_doppler_bins / 2.0)) * doppler_step + doppler_center;
-                    thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_noncoherent_integrations_counter + 1, 0, d_fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
+                    thread_coherent_integration = std::thread(&Fpga_HS_Acquisition::run_coherent_integration, d_acquisition_fpga, doppler_freq, num_noncoherent_integrations_counter + 1, 0, fpga_ifft_pcps_buffer_data[d_fpga_coh_integr_wr_buff_select].data());
                     if (d_fpga_coh_integr_wr_buff_select == 0)
                         {
                             d_fpga_coh_integr_wr_buff_select = 1;
@@ -578,7 +578,9 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &prev_ifft,
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &DPDI_term,
     volk_gnsssdr::vector<std::complex<float>> &DPDI_term_buffer,
-    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &NPDI_term, bool &positive_acquisition)
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &NPDI_term,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &fpga_ifft_pcps_buffer_data,
+    bool &positive_acquisition)
 {
     d_num_noncoherent_integrations_counter++;
 
@@ -619,10 +621,10 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                     if (d_enable_fpga_acceleration)
                         {
                             // run the coherent integration in the FPGA while the SW runs the non-coherent combinations
-                            run_coherent_integration_in_fpga(doppler_index, d_num_doppler_bins, d_acq_parameters.doppler_step, d_doppler_center, d_num_noncoherent_integrations_counter);
+                            run_coherent_integration_in_fpga(doppler_index, d_num_doppler_bins, d_acq_parameters.doppler_step, d_doppler_center, d_num_noncoherent_integrations_counter, fpga_ifft_pcps_buffer_data);
 
                             // select the buffer where to read the results of the previous coherent integration in the FPGA
-                            buffer_pointer = d_fpga_ifft_pcps_buffer_data[d_ncoh_integr_rd_buff_select].data();
+                            buffer_pointer = fpga_ifft_pcps_buffer_data[d_ncoh_integr_rd_buff_select].data();
                             if (d_ncoh_integr_rd_buff_select == 0)
                                 {
                                     d_ncoh_integr_rd_buff_select = 1;
@@ -768,10 +770,10 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                     if (d_enable_fpga_acceleration)
                         {
                             // run the coherent integration in the FPGA while the SW runs the non-coherent combinations
-                            run_coherent_integration_in_fpga(doppler_index, d_num_doppler_bins_step2, d_acq_parameters.doppler_step2, d_doppler_center_step_two, d_num_noncoherent_integrations_counter);
+                            run_coherent_integration_in_fpga(doppler_index, d_num_doppler_bins_step2, d_acq_parameters.doppler_step2, d_doppler_center_step_two, d_num_noncoherent_integrations_counter, fpga_ifft_pcps_buffer_data);
 
                             // select the buffer where to read the results of the previous coherent integration in the FPGA
-                            buffer_pointer = d_fpga_ifft_pcps_buffer_data[d_ncoh_integr_rd_buff_select].data();
+                            buffer_pointer = fpga_ifft_pcps_buffer_data[d_ncoh_integr_rd_buff_select].data();
                             if (d_ncoh_integr_rd_buff_select == 0)
                                 {
                                     d_ncoh_integr_rd_buff_select = 1;
@@ -1039,7 +1041,9 @@ void pcps_hs_acquisition_fpga::run_acquisition(
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &prev_ifft,
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &DPDI_term,
     volk_gnsssdr::vector<std::complex<float>> &DPDI_term_buffer,
-    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &NPDI_term, bool &positive_acquisition)
+    volk_gnsssdr::vector<volk_gnsssdr::vector<float>> &NPDI_term,
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> &fpga_ifft_pcps_buffer_data,
+    bool &positive_acquisition)
 {
     // open FPGA acquisition device
     d_acquisition_fpga->open_device();
@@ -1074,7 +1078,9 @@ void pcps_hs_acquisition_fpga::run_acquisition(
                 prev_ifft,
                 DPDI_term,
                 DPDI_term_buffer,
-                NPDI_term, positive_acquisition);
+                NPDI_term,
+                fpga_ifft_pcps_buffer_data,
+                positive_acquisition);
             // update sample counter to the starting point of the latest coherent integration
             d_sample_counter += d_consumed_samples;
         }
@@ -1104,6 +1110,7 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
     volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> DPDI_term;
     volk_gnsssdr::vector<std::complex<float>> DPDI_term_buffer;
     volk_gnsssdr::vector<volk_gnsssdr::vector<float>> NPDI_term;
+    volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>> fpga_ifft_pcps_buffer_data;
 
     if (d_enable_hs)
         {
@@ -1111,6 +1118,7 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
             DPDI_term = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(d_num_doppler_bins, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
             DPDI_term_buffer = volk_gnsssdr::vector<std::complex<float>>(d_fft_size);
             NPDI_term = volk_gnsssdr::vector<volk_gnsssdr::vector<float>>(d_num_doppler_bins, volk_gnsssdr::vector<float>(d_fft_size));
+            fpga_ifft_pcps_buffer_data = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(2, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
         }
 
     calculate_threshold();
@@ -1129,7 +1137,6 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
             d_acquisition_fpga->set_local_code(d_fft_codes);
             // the coherent integration in the FPGA is overlapped with the non-coherent combinations in the SW
             // a double buffer is used for exchanging data
-            d_fpga_ifft_pcps_buffer_data = volk_gnsssdr::vector<volk_gnsssdr::vector<std::complex<float>>>(2, volk_gnsssdr::vector<std::complex<float>>(d_fft_size));
             d_fpga_coh_integr_wr_buff_select = 0;
             d_ncoh_integr_rd_buff_select = 0;
         }
@@ -1145,6 +1152,7 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
         DPDI_term,
         DPDI_term_buffer,
         NPDI_term,
+        fpga_ifft_pcps_buffer_data,
         positive_acquisition);
 
     if (d_step_two)
@@ -1172,6 +1180,7 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
                         DPDI_term,
                         DPDI_term_buffer,
                         NPDI_term,
+                        fpga_ifft_pcps_buffer_data,
                         positive_acquisition);
                     if (positive_acquisition)
                         {
