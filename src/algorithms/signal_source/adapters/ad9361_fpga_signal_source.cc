@@ -353,9 +353,10 @@ Ad9361FpgaSignalSource::Ad9361FpgaSignalSource(const ConfigurationInterface *con
             if (configuration->property(role + ".enable_cfo_correction", enable_CFO_correction_default))
                 {
                     std::string cfo_correction_filename = configuration->property(role + ".cfo_correction_filename", default_cfo_correction_filename);
-                    int64_t cfo = read_cfo_correction(cfo_correction_filename);
-                    freq0_ -= cfo;
-                    freq1_ -= cfo;
+                    float cfo_freq1 = read_cfo_correction(cfo_correction_filename);
+                    float cfo_freq2 = cfo_freq1 * static_cast<float>(static_cast<float>(freq1_) / static_cast<float>(freq0_));
+                    freq0_ -= static_cast<int64_t>(cfo_freq1);
+                    freq1_ -= static_cast<int64_t>(cfo_freq2);
                 }
 
             try
