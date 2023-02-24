@@ -899,6 +899,10 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                                             int32_t preamble_diff_hs = static_cast<int32_t>(d_symbol_counter - d_preamble_samplestamps[k]);
                                             if (preamble_diff_hs % d_preamble_period_symbols == 0)
                                                 {
+                                                    std::cout << TEXT_BOLD_BLUE << "tlm preamble found channel " << d_channel
+                                                              << " satellite " << current_symbol.Signal << " " << this->d_satellite << TEXT_RESET << std::endl;
+                                                    DLOG(INFO) << "tlm preamble found channel " << d_channel
+                                                               << " satellite " << current_symbol.Signal << " " << this->d_satellite;
                                                     sync_preamble_detected = true;
                                                     break;
                                                 }
@@ -1021,9 +1025,10 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                                 {
                                     if (hs_sync_preamble)
                                         {
-                                            std::cout << "tlm loss of sync channel " << d_channel
-                                                      << " satellite " << current_symbol.System
-                                                      << current_symbol.PRN << std::endl;
+                                            std::cout << TEXT_BOLD_BLUE << "tlm loss of sync channel " << d_channel
+                                                      << " satellite " << current_symbol.Signal << " " << this->d_satellite << TEXT_RESET << std::endl;
+                                            DLOG(INFO) << "tlm loss of sync channel " << d_channel
+                                                       << " satellite " << current_symbol.Signal << " " << this->d_satellite;
                                             hs_sync_preamble = false;
                                         }
                                     DLOG(INFO) << "Lost of frame sync SAT " << this->d_satellite;
@@ -1041,9 +1046,10 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                                         {
                                             if (!hs_sync_preamble)
                                                 {
-                                                    std::cout << "tlm sync channel " << d_channel
-                                                              << " satellite " << current_symbol.System
-                                                              << current_symbol.PRN << std::endl;
+                                                    std::cout << TEXT_BOLD_BLUE << "tlm sync channel " << d_channel
+                                                              << " satellite " << current_symbol.Signal << " " << this->d_satellite << TEXT_RESET << std::endl;
+                                                    DLOG(INFO) << "tlm sync channel " << d_channel
+                                                               << " satellite " << current_symbol.Signal << " " << this->d_satellite;
                                                     hs_sync_preamble = true;
                                                 }
                                             d_flag_preamble = true;  // valid preamble indicator (initialized to false every work())
