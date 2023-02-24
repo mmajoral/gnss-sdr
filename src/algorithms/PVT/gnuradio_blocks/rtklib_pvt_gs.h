@@ -289,6 +289,8 @@ private:
     bool d_an_printer_enabled;
     bool d_log_timetag;
     bool d_use_e6_for_pvt;
+    bool d_use_unhealthy_satellites;
+    bool d_use_GPS_CNAV_unhealthy_ephemeris;
 };
 
 

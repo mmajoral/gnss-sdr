@@ -71,4 +71,7 @@ Pvt_Conf::Pvt_Conf()
     show_local_time_zone = false;
 
     log_source_timetag = false;
+
+    use_unhealthy_satellites = false;
+    use_GPS_CNAV_unhealthy_ephemeris = false;
 }

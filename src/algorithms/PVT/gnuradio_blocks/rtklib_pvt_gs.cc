@@ -176,7 +176,9 @@ rtklib_pvt_gs::rtklib_pvt_gs(uint32_t nchannels,
       d_enable_rx_clock_correction(conf_.enable_rx_clock_correction),
       d_an_printer_enabled(conf_.an_output_enabled),
       d_log_timetag(conf_.log_source_timetag),
-      d_use_e6_for_pvt(conf_.use_e6_for_pvt)
+      d_use_e6_for_pvt(conf_.use_e6_for_pvt),
+      d_use_unhealthy_satellites(conf_.use_unhealthy_satellites),
+      d_use_GPS_CNAV_unhealthy_ephemeris(conf_.use_GPS_CNAV_unhealthy_ephemeris)
 {
     // Send feedback message to observables block with the receiver clock offset
     this->message_port_register_out(pmt::mp("pvt_to_observables"));
@@ -1206,8 +1208,18 @@ void rtklib_pvt_gs::msg_handler_telemetry(const pmt::pmt_t& msg)
                         }
                     if (gps_eph->SV_health != 0)
                         {
-                            std::cout << TEXT_RED << "Satellite " << Gnss_Satellite(std::string("GPS"), gps_eph->PRN)
-                                      << " is not healthy, not used for navigation" << TEXT_RESET << '\n';
+                            if (d_use_unhealthy_satellites)
+                                {
+                                    std::cout << "Satellite " << Gnss_Satellite(std::string("GPS"), gps_eph->PRN)
+                                              << " does not report a healthy status in the NAV message,"
+                                              << " use PVT solutions at your own risk.\n";
+                                }
+                            else
+                                {
+                                    std::cout << TEXT_RED << "Satellite " << Gnss_Satellite(std::string("GPS"), gps_eph->PRN)
+                                              << " does not report a healthy status in the NAV message,"
+                                              << " not used for navigation" << TEXT_RESET << '\n';
+                                }
                         }
                 }
             else if (msg_type_hash_code == d_gps_iono_sptr_type_hash_code)
@@ -1266,9 +1278,18 @@ void rtklib_pvt_gs::msg_handler_telemetry(const pmt::pmt_t& msg)
                         }
                     if (gps_cnav_ephemeris->signal_health != 0)
                         {
-                            std::cout << "Satellite " << Gnss_Satellite(std::string("GPS"), gps_cnav_ephemeris->PRN)
-                                      << " does not report a healthy status in the CNAV message,"
-                                      << " use PVT solutions at your own risk.\n";
+                            if (d_use_GPS_CNAV_unhealthy_ephemeris)
+                                {
+                                    std::cout << "Satellite " << Gnss_Satellite(std::string("GPS"), gps_cnav_ephemeris->PRN)
+                                              << " does not report a healthy status in the CNAV message,"
+                                              << " use PVT solutions at your own risk.\n";
+                                }
+                            else
+                                {
+                                    std::cout << TEXT_RED << "Satellite " << Gnss_Satellite(std::string("GPS"), gps_cnav_ephemeris->PRN)
+                                              << " does not report a healthy status in the CNAV message,"
+                                              << " not used for navigation" << TEXT_RESET << '\n';
+                                }
                         }
                     DLOG(INFO) << "New GPS CNAV ephemeris record has arrived";
                 }
@@ -1353,8 +1374,16 @@ void rtklib_pvt_gs::msg_handler_telemetry(const pmt::pmt_t& msg)
                         ((galileo_eph->E5a_HS != 0) || (galileo_eph->E5a_DVS == true)) ||
                         ((galileo_eph->E5b_HS != 0) || (galileo_eph->E5b_DVS == true)))
                         {
-                            std::cout << TEXT_RED << "Satellite " << Gnss_Satellite(std::string("Galileo"), galileo_eph->PRN)
-                                      << " is not healthy, not used for navigation" << TEXT_RESET << '\n';
+                            if (d_use_unhealthy_satellites)
+                                {
+                                    std::cout << "Satellite " << Gnss_Satellite(std::string("Galileo"), galileo_eph->PRN)
+                                              << " is not healthy, use PVT solutions at your own risk.\n";
+                                }
+                            else
+                                {
+                                    std::cout << TEXT_RED << "Satellite " << Gnss_Satellite(std::string("Galileo"), galileo_eph->PRN)
+                                              << " is not healthy, not used for navigation" << TEXT_RESET << '\n';
+                                }
                         }
                 }
             else if (msg_type_hash_code == d_galileo_iono_sptr_type_hash_code)
@@ -1529,8 +1558,16 @@ void rtklib_pvt_gs::msg_handler_telemetry(const pmt::pmt_t& msg)
                         }
                     if (bds_dnav_eph->SV_health != 0)
                         {
-                            std::cout << TEXT_RED << "Satellite " << Gnss_Satellite(std::string("Beidou"), bds_dnav_eph->PRN)
-                                      << " is not healthy, not used for navigation" << TEXT_RESET << '\n';
+                            if (d_use_unhealthy_satellites)
+                                {
+                                    std::cout << TEXT_RED << "Satellite " << Gnss_Satellite(std::string("Beidou"), bds_dnav_eph->PRN)
+                                              << " is not healthy, use PVT solutions at your own risk.\n";
+                                }
+                            else
+                                {
+                                    std::cout << TEXT_RED << "Satellite " << Gnss_Satellite(std::string("Beidou"), bds_dnav_eph->PRN)
+                                              << " is not healthy, not used for navigation" << TEXT_RESET << '\n';
+                                }
                         }
                 }
             else if (msg_type_hash_code == d_beidou_dnav_iono_sptr_type_hash_code)
@@ -2021,18 +2058,22 @@ int rtklib_pvt_gs::work(int noutput_items, gr_vector_const_void_star& input_item
                             if (tmp_eph_iter_gps != d_internal_pvt_solver->gps_ephemeris_map.cend())
                                 {
                                     const uint32_t prn_aux = tmp_eph_iter_gps->second.PRN;
-                                    if ((prn_aux == in[i][epoch].PRN) && (std::string(in[i][epoch].Signal) == std::string("1C")) && (tmp_eph_iter_gps->second.SV_health == 0))
+                                    if ((prn_aux == in[i][epoch].PRN) && (std::string(in[i][epoch].Signal) == std::string("1C")))
                                         {
-                                            store_valid_observable = true;
+                                            if ((tmp_eph_iter_gps->second.SV_health == 0) || (d_use_unhealthy_satellites))
+                                                {
+                                                    store_valid_observable = true;
+                                                }
                                         }
                                 }
                             if (tmp_eph_iter_gal != d_internal_pvt_solver->galileo_ephemeris_map.cend())
                                 {
                                     const uint32_t prn_aux = tmp_eph_iter_gal->second.PRN;
                                     if ((prn_aux == in[i][epoch].PRN) &&
-                                        (((std::string(in[i][epoch].Signal) == std::string("1B")) && (tmp_eph_iter_gal->second.E1B_DVS == false) && (tmp_eph_iter_gal->second.E1B_HS == 0)) ||
-                                            ((std::string(in[i][epoch].Signal) == std::string("5X")) && (tmp_eph_iter_gal->second.E5a_DVS == false) && (tmp_eph_iter_gal->second.E5a_HS == 0)) ||
-                                            ((std::string(in[i][epoch].Signal) == std::string("7X")) && (tmp_eph_iter_gal->second.E5b_DVS == false) && (tmp_eph_iter_gal->second.E5b_HS == 0))))
+                                        ((((std::string(in[i][epoch].Signal) == std::string("1B")) && (tmp_eph_iter_gal->second.E1B_DVS == false) && (tmp_eph_iter_gal->second.E1B_HS == 0)) ||
+                                             ((std::string(in[i][epoch].Signal) == std::string("5X")) && (tmp_eph_iter_gal->second.E5a_DVS == false) && (tmp_eph_iter_gal->second.E5a_HS == 0)) ||
+                                             ((std::string(in[i][epoch].Signal) == std::string("7X")) && (tmp_eph_iter_gal->second.E5b_DVS == false) && (tmp_eph_iter_gal->second.E5b_HS == 0))) ||
+                                            (d_use_unhealthy_satellites)))
                                         {
                                             store_valid_observable = true;
                                         }
@@ -2042,7 +2083,10 @@ int rtklib_pvt_gs::work(int noutput_items, gr_vector_const_void_star& input_item
                                     const uint32_t prn_aux = tmp_eph_iter_cnav->second.PRN;
                                     if ((prn_aux == in[i][epoch].PRN) && (((std::string(in[i][epoch].Signal) == std::string("2S")) || (std::string(in[i][epoch].Signal) == std::string("L5")))))
                                         {
-                                            store_valid_observable = true;
+                                            if ((tmp_eph_iter_cnav->second.signal_health == 0) || (d_use_GPS_CNAV_unhealthy_ephemeris))
+                                                {
+                                                    store_valid_observable = true;
+                                                }
                                         }
                                 }
                             if (tmp_eph_iter_glo_gnav != d_internal_pvt_solver->glonass_gnav_ephemeris_map.cend())
@@ -2056,9 +2100,12 @@ int rtklib_pvt_gs::work(int noutput_items, gr_vector_const_void_star& input_item
                             if (tmp_eph_iter_bds_dnav != d_internal_pvt_solver->beidou_dnav_ephemeris_map.cend())
                                 {
                                     const uint32_t prn_aux = tmp_eph_iter_bds_dnav->second.PRN;
-                                    if ((prn_aux == in[i][epoch].PRN) && (((std::string(in[i][epoch].Signal) == std::string("B1")) || (std::string(in[i][epoch].Signal) == std::string("B3"))) && (tmp_eph_iter_bds_dnav->second.SV_health == 0)))
+                                    if ((prn_aux == in[i][epoch].PRN) && (((std::string(in[i][epoch].Signal) == std::string("B1")) || (std::string(in[i][epoch].Signal) == std::string("B3")))))
                                         {
-                                            store_valid_observable = true;
+                                            if ((tmp_eph_iter_bds_dnav->second.SV_health == 0) || (d_use_unhealthy_satellites))
+                                                {
+                                                    store_valid_observable = true;
+                                                }
                                         }
                                 }
                             if (std::string(in[i][epoch].Signal) == std::string("E6"))
