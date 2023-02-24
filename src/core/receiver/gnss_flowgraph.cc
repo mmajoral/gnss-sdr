@@ -1885,7 +1885,13 @@ void GNSSFlowgraph::acquisition_manager(unsigned int who)
                                             channels_[current_channel]->assist_acquisition_doppler(0);
                                         }
                                 }
-
+#if ENABLE_FPGA
+                            if (enable_fpga_offloading_)
+                                {
+                                    // throttle the acquisition process
+                                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                                }
+#endif
                             if (track_Galileo_E5a_using_E1_information)
                                 {
                                     uint32_t PRN = (sat_ == 0) ? gnss_signal.get_satellite().get_PRN() : channels_[current_channel]->get_signal().get_satellite().get_PRN();
@@ -2055,7 +2061,13 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
                                     track_Galileo_E5a_using_E1_information = true;
                                 }
                         }
-
+#if ENABLE_FPGA
+                    if (enable_fpga_offloading_)
+                        {
+                            // throttle the acquisition process
+                            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                        }
+#endif
                     if (track_Galileo_E5a_using_E1_information)
                         {
                             uint32_t PRN = channels_[who]->get_signal().get_satellite().get_PRN();
