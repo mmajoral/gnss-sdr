@@ -74,6 +74,11 @@ public:
         gr_vector_const_void_star &input_items, gr_vector_void_star &output_items) override;
 
 private:
+    // navigation data assistance
+    static const uint32_t PREAMBLE_SAMPLESTAMP_BUFF_SIZE = 10;  // default preamble samplestamps buffer size
+    static const uint32_t CHECK_NUM_PREAMBLES = 20;             // number of seconds before checking the percentage of correctly detected preambles
+    const float MIN_PREAMBLE_DETECTION_SUCCESS_RATE = 0.05;     // minimum preamble detection success rate in state 2 when using
+
     friend galileo_telemetry_decoder_gs_sptr galileo_make_telemetry_decoder_gs(
         const Gnss_Satellite &satellite,
         const Tlm_Conf &conf,
@@ -95,6 +100,9 @@ private:
     std::ofstream d_dump_file;
 
     boost::circular_buffer<float> d_symbol_history;
+
+    // navigation data assistance
+    boost::circular_buffer<uint64_t> d_preamble_samplestamps;
 
     Gnss_Satellite d_satellite;
 
@@ -137,6 +145,11 @@ private:
     uint32_t d_max_symbols_without_valid_frame;
     uint32_t d_received_tow_ms;
 
+    // navigation data assistance
+    uint32_t d_num_preambles_detected;
+    uint32_t d_num_preambles_not_detected;
+
+
     char d_band;  // This variable will store which band we are dealing with (Galileo E1 or E5b)
 
     bool d_sent_tlm_failed_msg;
@@ -157,14 +170,8 @@ private:
     bool d_there_are_e6_channels;
 
     // navigation data assistance
-    static const uint32_t PREAMBLE_SAMPLESTAMP_BUFF_SIZE = 10;  // default preamble samplestamps buffer size
-    static const uint32_t CHECK_s = 20;                         // number of seconds before checking the percentage of correctly detected preambles
-    const float MIN_PREAMBLE_DETECTION_SUCCESS_RATE = 0.05;     // minimum preamble detection success rate in state 2 when using
     bool d_enable_navdata_assist;
     bool d_navdata_assist_TOW_set;
-    uint32_t num_preambles_detected;
-    uint32_t num_preambles_not_detected;
-    boost::circular_buffer<uint64_t> d_preamble_samplestamps;
 
     bool hs_sync_preamble;  // indicate whether the telemetry decoder is sincronized
                             // with the telemetry preambles when working in high-sensitivity mode

@@ -275,8 +275,8 @@ galileo_telemetry_decoder_gs::galileo_telemetry_decoder_gs(
     if (d_enable_navdata_assist)
         {
             d_preamble_samplestamps.set_capacity(PREAMBLE_SAMPLESTAMP_BUFF_SIZE);
-            num_preambles_detected = 0;
-            num_preambles_not_detected = 0;
+            d_num_preambles_detected = 0;
+            d_num_preambles_not_detected = 0;
             d_Tlm_navdata_assist = std::make_unique<Tlm_navdata_assist>(conf);
             d_navdata_assist_TOW_set = false;
         }
@@ -722,8 +722,8 @@ void galileo_telemetry_decoder_gs::reset()
     if (d_enable_navdata_assist)
         {
             d_preamble_samplestamps.set_capacity(PREAMBLE_SAMPLESTAMP_BUFF_SIZE);
-            num_preambles_detected = 0;
-            num_preambles_not_detected = 0;
+            d_num_preambles_detected = 0;
+            d_num_preambles_not_detected = 0;
             d_navdata_assist_TOW_set = false;
         }
 
@@ -934,8 +934,8 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                                         }
                                     if (d_enable_navdata_assist)
                                         {
-                                            num_preambles_detected = 0;
-                                            num_preambles_not_detected = 0;
+                                            d_num_preambles_detected = 0;
+                                            d_num_preambles_not_detected = 0;
                                         }
                                     d_stat = 2;
                                 }
@@ -972,11 +972,11 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                                 }
                             if (std::abs(corr_value) >= d_samples_per_preamble)
                                 {
-                                    num_preambles_detected++;
+                                    d_num_preambles_detected++;
                                 }
                             else
                                 {
-                                    num_preambles_not_detected++;
+                                    d_num_preambles_not_detected++;
                                 }
                         }
                     // call the decoder
@@ -1021,7 +1021,7 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                     d_preamble_index = d_symbol_counter;  // record the preamble sample stamp (t_P)
                     if (d_enable_navdata_assist)
                         {
-                            if (((num_preambles_not_detected + num_preambles_detected) > CHECK_s) && (num_preambles_detected < MIN_PREAMBLE_DETECTION_SUCCESS_RATE * (num_preambles_not_detected + num_preambles_detected)))
+                            if (((d_num_preambles_not_detected + d_num_preambles_detected) > CHECK_NUM_PREAMBLES) && (d_num_preambles_detected < MIN_PREAMBLE_DETECTION_SUCCESS_RATE * (d_num_preambles_not_detected + d_num_preambles_detected)))
                                 {
                                     if (hs_sync_preamble)
                                         {
@@ -1042,7 +1042,7 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                                 }
                             else
                                 {
-                                    if ((num_preambles_not_detected + num_preambles_detected) > CHECK_s)
+                                    if ((d_num_preambles_not_detected + d_num_preambles_detected) > CHECK_NUM_PREAMBLES)
                                         {
                                             if (!hs_sync_preamble)
                                                 {
@@ -1056,7 +1056,7 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                                         }
                                     gr::thread::scoped_lock lock(d_setlock);
                                     d_last_valid_preamble = d_symbol_counter;
-                                    if (num_preambles_not_detected > CHECK_s)
+                                    if (d_num_preambles_not_detected > CHECK_NUM_PREAMBLES)
                                         {
                                             if (!d_flag_frame_sync)
                                                 {
