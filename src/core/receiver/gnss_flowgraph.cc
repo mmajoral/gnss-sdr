@@ -81,6 +81,18 @@ GNSSFlowgraph::GNSSFlowgraph(std::shared_ptr<ConfigurationInterface> configurati
       enable_e6_has_rx_(false)
 {
     enable_fpga_offloading_ = configuration_->property("GNSS-SDR.enable_FPGA", false);
+
+#if ENABLE_FPGA
+    enable_fpga_offloading_ = configuration_->property("GNSS-SDR.enable_FPGA", false);
+    if (configuration_->property("GNSS-SDR.enable_hs", false))
+        {
+            throttle_fpga_acquisition_ms_ = THROTTLE_HIGH_SENS_FPGA_ACQUISITION_ms;
+        }
+    else
+        {
+            throttle_fpga_acquisition_ms_ = THROTTLE_NORMAL_SENS_FPGA_ACQUISITION_ms;
+        }
+#endif
     init();
 }
 
@@ -1889,7 +1901,7 @@ void GNSSFlowgraph::acquisition_manager(unsigned int who)
                             if (enable_fpga_offloading_)
                                 {
                                     // throttle the acquisition process
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                                    std::this_thread::sleep_for(std::chrono::milliseconds(throttle_fpga_acquisition_ms_));
                                 }
 #endif
                             if (track_Galileo_E5a_using_E1_information)
@@ -2065,7 +2077,7 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
                     if (enable_fpga_offloading_)
                         {
                             // throttle the acquisition process
-                            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                            std::this_thread::sleep_for(std::chrono::milliseconds(throttle_fpga_acquisition_ms_));
                         }
 #endif
                     if (track_Galileo_E5a_using_E1_information)
@@ -2121,7 +2133,27 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
                         {
                             // recover the satellite assigned
                             Gnss_Signal gs_assigned = channels_[n]->get_signal();
-                            push_back_signal(gs_assigned);
+                            if (configuration_->property("GNSS-SDR.enable_hs", false))
+                                {
+                                    // When using high-sensitivity mode, when program execution starts, do not assign Galileo E1B satellites
+                                    // that are not in the assistance ephemeris data to channels.
+                                    std::string str_aux = gs_assigned.get_signal_str();
+                                    if (str_aux == "1B")
+                                        {
+                                            std::map<int, Galileo_Ephemeris>::iterator eph_it;
+                                            for (eph_it = gal_ephemeris_map_.begin(); eph_it != gal_ephemeris_map_.end(); eph_it++)
+                                                {
+                                                    if (eph_it->second.PRN == gs_assigned.get_satellite().get_PRN())
+                                                        {
+                                                            push_back_signal(gs_assigned);
+                                                        }
+                                                }
+                                        }
+                                }
+                            else
+                                {
+                                    push_back_signal(gs_assigned);
+                                }
 
                             channels_[n]->stop_channel();  // stop the acquisition or tracking operation
                             channels_state_[n] = 0;

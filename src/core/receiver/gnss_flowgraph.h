@@ -184,6 +184,11 @@ public:
     void set_eph_available_sats();
 
 private:
+#if ENABLE_FPGA
+    static const uint32_t THROTTLE_HIGH_SENS_FPGA_ACQUISITION_ms = 1000;
+    static const uint32_t THROTTLE_NORMAL_SENS_FPGA_ACQUISITION_ms = 500;
+#endif
+
     void init();  // Populates the SV PRN list available for acquisition and tracking
     int connect_desktop_flowgraph();
 
@@ -317,6 +322,9 @@ private:
     int channels_count_;
     int acq_channels_count_;
     int max_acq_channels_;
+#if ENABLE_FPGA
+    uint32_t throttle_fpga_acquisition_ms_;
+#endif
 
     bool connected_;
     bool running_;
