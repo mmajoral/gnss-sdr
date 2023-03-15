@@ -1094,7 +1094,10 @@ std::vector<std::pair<int, Gnss_Satellite>> ControlThread::get_visible_sats(time
             const arma::vec dx = r_sat_eb_e - r_eb_e;
             topocent(&Az, &El, &dist_m, r_eb_e, dx);
             // push sat
-            if (El > 0)
+            // If high-sensitivity mode is enabled the number of Galileo channels has been previously set to the number
+            // of satellites in the assistance ephemeris data. If high-sensitivity mode is enabled, push the
+            // sats even if they are not visible to avoid having more channels than satellites.
+            if ((El > 0) || (configuration_->property("GNSS-SDR.enable_hs", false)))
                 {
                     std::cout << "Using Galileo Ephemeris: Sat " << it.second.PRN << " Az: " << Az << " El: " << El << '\n';
                     available_satellites.emplace_back(floor(El),
