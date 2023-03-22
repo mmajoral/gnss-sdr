@@ -456,12 +456,15 @@ void galileo_telemetry_decoder_gs::decode_INAV_word(float *page_part_symbols, in
         }
     else
         {
-            // If we still do not have ephemeris, check if we have a reduced CED
-            if ((d_band == '1') && !d_first_eph_sent && (d_inav_nav.have_new_reduced_ced() == true))
+            if (!d_enable_navdata_assist)
                 {
-                    const std::shared_ptr<Galileo_Ephemeris> tmp_obj = std::make_shared<Galileo_Ephemeris>(d_inav_nav.get_reduced_ced());
-                    std::cout << "New Galileo E1 I/NAV reduced CED message received in channel " << d_channel << " from satellite " << d_satellite << '\n';
-                    this->message_port_pub(pmt::mp("telemetry"), pmt::make_any(tmp_obj));
+                    // If we still do not have ephemeris, check if we have a reduced CED
+                    if ((d_band == '1') && !d_first_eph_sent && (d_inav_nav.have_new_reduced_ced() == true))
+                        {
+                            const std::shared_ptr<Galileo_Ephemeris> tmp_obj = std::make_shared<Galileo_Ephemeris>(d_inav_nav.get_reduced_ced());
+                            std::cout << "New Galileo E1 I/NAV reduced CED message received in channel " << d_channel << " from satellite " << d_satellite << '\n';
+                            this->message_port_pub(pmt::mp("telemetry"), pmt::make_any(tmp_obj));
+                        }
                 }
         }
 
