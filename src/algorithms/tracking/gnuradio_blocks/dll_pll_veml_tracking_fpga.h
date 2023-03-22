@@ -111,7 +111,6 @@ private:
 
     // high sensivity mode: set long integration and set narrow pll--dll
     void set_long_integration_hs(void);
-    void set_narrow_pll_dll_hs(void);
 
     void msg_handler_telemetry_to_trk(const pmt::pmt_t &msg);
     bool cn0_and_tracking_lock_status(double coh_integration_time_s);
@@ -255,7 +254,6 @@ private:
     // high sensitivity mode
     bool d_enable_hs;
     bool d_skip_samples;
-    bool d_narrow_pll_dll_set;
 };
 
 

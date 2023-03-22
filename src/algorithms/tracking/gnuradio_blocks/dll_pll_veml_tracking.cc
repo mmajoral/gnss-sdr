@@ -607,7 +607,6 @@ dll_pll_veml_tracking::dll_pll_veml_tracking(const Dll_Pll_Conf &conf_)
         {
             d_skip_samples = false;
             d_samples_to_consume = false;
-            d_narrow_pll_dll_set = false;
         }
 }
 
@@ -892,7 +891,6 @@ void dll_pll_veml_tracking::start_tracking()
     if (d_enable_hs)
         {
             d_skip_samples = false;
-            d_narrow_pll_dll_set = false;
         }
 }
 
@@ -2090,15 +2088,6 @@ int dll_pll_veml_tracking::general_work(int noutput_items __attribute__((unused)
                         d_L_accu = gr_complex(0.0, 0.0);
                         d_VL_accu = gr_complex(0.0, 0.0);
 
-                        if (d_enable_hs)
-                            {
-                                if ((!d_pull_in_transitory) and (!d_narrow_pll_dll_set))
-                                    {
-                                        d_narrow_pll_dll_set = true;
-                                        set_narrow_pll_dll_hs();
-                                    }
-                            }
-
                         if (d_enable_extended_integration)
                             {
                                 d_state = 3;  // new coherent integration (correlation time extension) cycle
@@ -2198,8 +2187,8 @@ void dll_pll_veml_tracking::set_long_integration_hs(void)
 
     // Set default PLL and DLL bandwidth and narrow taps delay values [chips]
     d_code_loop_filter.set_update_interval(static_cast<float>(d_current_correlation_time_s));
-    d_code_loop_filter.set_noise_bandwidth(d_trk_parameters.dll_bw_hz);
-    d_carrier_loop_filter.set_params(d_trk_parameters.fll_bw_hz, d_trk_parameters.pll_bw_hz, d_trk_parameters.pll_filter_order);
+    d_code_loop_filter.set_noise_bandwidth(d_trk_parameters.dll_bw_narrow_hz);
+    d_carrier_loop_filter.set_params(d_trk_parameters.fll_bw_hz, d_trk_parameters.pll_bw_narrow_hz, d_trk_parameters.pll_filter_order);
     if (d_veml)
         {
             d_local_code_shift_chips[0] = -d_trk_parameters.very_early_late_space_narrow_chips * static_cast<float>(d_code_samples_per_chip);
@@ -2219,11 +2208,4 @@ void dll_pll_veml_tracking::set_long_integration_hs(void)
             d_local_code_shift_chips[2] = d_trk_parameters.early_late_space_narrow_chips * static_cast<float>(d_code_samples_per_chip);
             d_trk_parameters.spc = d_trk_parameters.early_late_space_narrow_chips;
         }
-}
-
-void dll_pll_veml_tracking::set_narrow_pll_dll_hs(void)
-{
-    // Set narrow PLL and DLL bandwidth
-    d_code_loop_filter.set_noise_bandwidth(d_trk_parameters.dll_bw_narrow_hz);
-    d_carrier_loop_filter.set_params(d_trk_parameters.fll_bw_hz, d_trk_parameters.pll_bw_narrow_hz, d_trk_parameters.pll_filter_order);
 }

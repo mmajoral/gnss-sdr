@@ -492,7 +492,6 @@ dll_pll_veml_tracking_fpga::dll_pll_veml_tracking_fpga(const Dll_Pll_Conf_Fpga &
     if (d_enable_hs)
         {
             d_skip_samples = false;
-            d_narrow_pll_dll_set = false;
         }
 
     // init frame sync status parameters
@@ -554,7 +553,6 @@ void dll_pll_veml_tracking_fpga::start_tracking()
     if (d_enable_hs)
         {
             d_skip_samples = false;
-            d_narrow_pll_dll_set = false;
         }
 }
 
@@ -687,6 +685,7 @@ bool dll_pll_veml_tracking_fpga::cn0_and_tracking_lock_status(double coh_integra
         }
     if (d_carrier_lock_fail_counter > d_trk_parameters.max_carrier_lock_fail or d_code_lock_fail_counter > d_trk_parameters.max_code_lock_fail)
         {
+            d_multicorrelator_fpga->unlock_channel();
             std::cout << "Loss of lock in channel " << d_channel << "!\n";
             LOG(INFO) << "Loss of lock in channel " << d_channel
                       << " (carrier_lock_fail_counter:" << d_carrier_lock_fail_counter
@@ -694,7 +693,6 @@ bool dll_pll_veml_tracking_fpga::cn0_and_tracking_lock_status(double coh_integra
             this->message_port_pub(pmt::mp("events"), pmt::from_long(3));  // 3 -> loss of lock
             d_carrier_lock_fail_counter = 0;
             d_code_lock_fail_counter = 0;
-            d_multicorrelator_fpga->unlock_channel();
             return false;
         }
     return true;
@@ -1949,15 +1947,6 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                 d_L_accu = gr_complex(0.0, 0.0);
                                 d_VL_accu = gr_complex(0.0, 0.0);
 
-                                if (d_enable_hs)
-                                    {
-                                        if ((!d_pull_in_transitory) and (!d_narrow_pll_dll_set))
-                                            {
-                                                d_narrow_pll_dll_set = true;
-                                                set_narrow_pll_dll_hs();
-                                            }
-                                    }
-
                                 if (d_enable_extended_integration)
                                     {
                                         d_state = 3;  // new coherent integration (correlation time extension) cycle
@@ -2092,15 +2081,6 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                 d_L_accu = gr_complex(0.0, 0.0);
                                 d_VL_accu = gr_complex(0.0, 0.0);
 
-                                if (d_enable_hs)
-                                    {
-                                        if ((!d_pull_in_transitory) and (!d_narrow_pll_dll_set))
-                                            {
-                                                d_narrow_pll_dll_set = true;
-                                                set_narrow_pll_dll_hs();
-                                            }
-                                    }
-
                                 if (d_extend_fpga_integration_periods > 1)
                                     {
                                         d_state = 5;
@@ -2186,10 +2166,8 @@ void dll_pll_veml_tracking_fpga::set_long_integration_hs(void)
                       << " for satellite " << Gnss_Satellite(d_systemName, d_acquisition_gnss_synchro->PRN) << '\n';
             // Set narrow taps delay values [chips]
             d_code_loop_filter.set_update_interval(static_cast<float>(d_current_correlation_time_s));
-            //d_code_loop_filter.set_noise_bandwidth(d_trk_parameters.dll_bw_narrow_hz);
-            d_code_loop_filter.set_noise_bandwidth(d_trk_parameters.dll_bw_hz);
-            //d_carrier_loop_filter.set_params(d_trk_parameters.fll_bw_hz, d_trk_parameters.pll_bw_narrow_hz, d_trk_parameters.pll_filter_order);
-            d_carrier_loop_filter.set_params(d_trk_parameters.fll_bw_hz, d_trk_parameters.pll_bw_hz, d_trk_parameters.pll_filter_order);
+            d_code_loop_filter.set_noise_bandwidth(d_trk_parameters.dll_bw_narrow_hz);
+            d_carrier_loop_filter.set_params(d_trk_parameters.fll_bw_hz, d_trk_parameters.pll_bw_narrow_hz, d_trk_parameters.pll_filter_order);
             if (d_veml)
                 {
                     d_local_code_shift_chips[0] = -d_trk_parameters.very_early_late_space_narrow_chips * static_cast<float>(d_code_samples_per_chip);
@@ -2211,11 +2189,4 @@ void dll_pll_veml_tracking_fpga::set_long_integration_hs(void)
         {
             d_state = 4;
         }
-}
-
-void dll_pll_veml_tracking_fpga::set_narrow_pll_dll_hs(void)
-{
-    // Set narrow PLL and DLL bandwidth
-    d_code_loop_filter.set_noise_bandwidth(d_trk_parameters.dll_bw_narrow_hz);
-    d_carrier_loop_filter.set_params(d_trk_parameters.fll_bw_hz, d_trk_parameters.pll_bw_narrow_hz, d_trk_parameters.pll_filter_order);
 }
