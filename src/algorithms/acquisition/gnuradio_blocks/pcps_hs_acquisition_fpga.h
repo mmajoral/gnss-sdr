@@ -195,6 +195,7 @@ public:
     uint64_t get_sample_counter();
 
 private:
+    static const uint32_t THROTTLE_ACQUISITION_ms = 100;
     static const uint32_t RESAMPLER_LATENCY_SAMPLES = 44;  // Downsampling Filter latency in the FPGA
     const float SCALING_FACT_PREVENT_OVERFLOW = 1e-11;     // Scaling factor to prevent post-detection integration algorithm variables to overflow when processing the results of the
                                                            // SW coherent integration

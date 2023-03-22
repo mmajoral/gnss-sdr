@@ -26,8 +26,10 @@
 #include <matio.h>
 #include <volk/volk.h>
 #include <volk_gnsssdr/volk_gnsssdr.h>
+#include <chrono>
 #include <iostream>  // for operator<<
-#include <utility>   // for move
+#include <thread>
+#include <utility>  // for move
 
 pcps_hs_acquisition_fpga_sptr pcps_make_hs_acquisition_fpga(Acq_Conf_Fpga &conf_)
 {
@@ -1095,7 +1097,10 @@ void pcps_hs_acquisition_fpga::run_acquisition(
 
 void pcps_hs_acquisition_fpga::set_active(bool active)
 {
-    //std::cout << "acq start d_doppler_center = " << d_doppler_center << " PRN = " << d_gnss_synchro->PRN << std::endl;
+    //if (d_enable_hs)
+    //{
+    //	std::cout << "acq start d_doppler_center = " << d_doppler_center << " PRN = " << d_gnss_synchro->PRN << std::endl;
+    //}
     // allocate the acquisition buffers and vectors when running the acquisition
     // to reduce memory occupation when using multiple channels,
     // and before fetching the samples in order to minimize the acquisition latency
@@ -1168,6 +1173,8 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
                     // init FPGA double-buffer variables again
                     if (d_enable_fpga_acceleration)
                         {
+                            // throttle the acquisition process
+                            std::this_thread::sleep_for(std::chrono::milliseconds(THROTTLE_ACQUISITION_ms));
                             d_fpga_coh_integr_wr_buff_select = 0;
                             d_ncoh_integr_rd_buff_select = 0;
                         }
@@ -1198,7 +1205,10 @@ void pcps_hs_acquisition_fpga::set_active(bool active)
     if (positive_acquisition)
         {
             send_positive_acquisition();
-            //std::cout << "pos acq detected doppler = " << d_gnss_synchro->Acq_doppler_hz << " doppler inaccuracy = " << d_doppler_center - d_gnss_synchro->Acq_doppler_hz << std::endl;
+            //            if (d_enable_hs)
+            //            {
+            //            	std::cout << "pos acq detected doppler = " << d_gnss_synchro->Acq_doppler_hz << " doppler inaccuracy = " << d_doppler_center - d_gnss_synchro->Acq_doppler_hz << std::endl;
+            //            }
         }
     else
         {
