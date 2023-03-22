@@ -880,7 +880,7 @@ Rtklib_Pvt::Rtklib_Pvt(const ConfigurationInterface* configuration,
     pvt_output_parameters.use_e6_for_pvt = configuration->property(role + ".use_e6_for_pvt", pvt_output_parameters.use_e6_for_pvt);
 
     // use unhealthy satellites for PVT
-    pvt_output_parameters.use_unhealthy_satellites = configuration->property(role + ".use_unhealthy_satellites", false);
+    pvt_output_parameters.use_unhealthy_satellites = configuration->property(role + ".use_unhealthy_sats", false);
     pvt_output_parameters.use_GPS_CNAV_unhealthy_ephemeris = configuration->property(role + ".use_GPS_CNAV_unhealthy_ephemeris", false);
 
     // make PVT object
