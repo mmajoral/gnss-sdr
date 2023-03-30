@@ -92,7 +92,8 @@ public:
     bool dump_mat = true;
     bool log_source_timetag;
     bool use_e6_for_pvt = true;
-    bool use_unhealthy_satellites = false;
+    bool use_has_corrections = true;
+    bool use_unhealthy_sats = false;
     bool use_GPS_CNAV_unhealthy_ephemeris = false;
 };
 
