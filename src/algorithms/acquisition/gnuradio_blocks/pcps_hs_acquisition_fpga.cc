@@ -270,8 +270,6 @@ void pcps_hs_acquisition_fpga::send_positive_acquisition()
                << ", input signal power " << d_input_power
                << ", Assist doppler_center " << d_doppler_center;
 
-    d_positive_acq = 1;
-
     d_channel_fsm.lock()->Event_valid_acquisition();
 }
 
@@ -289,7 +287,6 @@ void pcps_hs_acquisition_fpga::send_negative_acquisition()
                << ", doppler " << d_gnss_synchro->Acq_doppler_hz
                << ", magnitude " << d_mag
                << ", input signal power " << d_input_power;
-    d_positive_acq = 0;
     if (d_acq_parameters.repeat_satellite == true)
         {
             d_channel_fsm.lock()->Event_failed_acquisition_repeat();
@@ -913,6 +910,8 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                 }
         }
 
+    d_positive_acq = 0;
+
     if (!d_acq_parameters.bit_transition_flag)
         {
             //std::cout << "d_num_noncoherent_integrations_counter = " << d_num_noncoherent_integrations_counter << " d_step_two = " << d_step_two << " d_test_statistics = " << d_test_statistics << "d_threshold = " << d_threshold << std::endl;
@@ -926,12 +925,12 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                                     positive_acquisition = true;
                                     d_step_two = false;
                                     d_state = 0;  // Positive acquisition
+                                    d_positive_acq = 1;
                                 }
                             else
                                 {
                                     d_step_two = true;  // Clear input buffer and make small grid acquisition
                                     d_num_noncoherent_integrations_counter = 0;
-                                    d_positive_acq = 0;
                                     d_state = 0;
                                 }
                             calculate_threshold();
@@ -940,6 +939,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                         {
                             positive_acquisition = true;
                             d_state = 0;  // Positive acquisition
+                            d_positive_acq = 1;
                         }
                 }
             else
@@ -976,6 +976,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                                     positive_acquisition = true;
                                     d_step_two = false;
                                     d_state = 0;  // Positive acquisition
+                                    d_positive_acq = 1;
                                 }
                             else
                                 {
@@ -989,6 +990,7 @@ void pcps_hs_acquisition_fpga::acquisition_core(uint64_t samp_count,
                         {
                             positive_acquisition = true;
                             d_state = 0;  // Positive acquisition
+                            d_positive_acq = 1;
                         }
                 }
             else
