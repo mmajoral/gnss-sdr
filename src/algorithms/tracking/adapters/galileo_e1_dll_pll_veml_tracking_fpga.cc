@@ -162,7 +162,7 @@ GalileoE1DllPllVemlTrackingFpga::GalileoE1DllPllVemlTrackingFpga(
     trk_params_fpga.extended_correlation_in_fpga = false;
     trk_params_fpga.extend_fpga_integration_periods = 1;  // (number of FPGA integrations that are combined in the SW)
     trk_params_fpga.fpga_integration_period = 1;          // (number of symbols that are effectively integrated in the FPGA)
-
+    trk_params_fpga.tiered_prn_code_num_symbols = 100;    // length of the tiered codes in symbols
     // ################# MAKE TRACKING GNU Radio object ###################
     DLOG(INFO) << "role " << role_;
     tracking_fpga_sc_sptr_ = dll_pll_veml_make_tracking_fpga(trk_params_fpga);

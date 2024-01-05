@@ -233,6 +233,8 @@ private:
     uint32_t d_data_secondary_code_length;
     uint32_t d_fpga_integration_period;
     uint32_t d_current_fpga_integration_period;
+    uint32_t d_tiered_prn_code_num_symbols;
+    uint32_t d_tiered_prn_code_symbols_count;
 
     bool d_pull_in_transitory;
     bool d_corrected_doppler;

@@ -94,6 +94,7 @@ dll_pll_veml_tracking_fpga::dll_pll_veml_tracking_fpga(const Dll_Pll_Conf_Fpga &
       d_code_phase_rate_step_chips(0.0),
       d_rem_code_phase_samples(0.0),  // Residual code phase (in chips)
       d_sample_counter(0ULL),
+      d_sample_counter_frame_sync(0ULL),
       d_acq_sample_stamp(0ULL),
       d_sample_counter_next(0ULL),
       d_rem_carr_phase_rad(0.0),  // Residual carrier phase
@@ -109,6 +110,8 @@ dll_pll_veml_tracking_fpga::dll_pll_veml_tracking_fpga(const Dll_Pll_Conf_Fpga &
       d_data_secondary_code_length(0U),
       d_fpga_integration_period(d_trk_parameters.fpga_integration_period),
       d_current_fpga_integration_period(1),
+      d_tiered_prn_code_num_symbols(d_trk_parameters.tiered_prn_code_num_symbols),
+      d_tiered_prn_code_symbols_count(0),
       d_pull_in_transitory(true),
       d_corrected_doppler(false),
       d_interchange_iq(false),
@@ -493,9 +496,6 @@ dll_pll_veml_tracking_fpga::dll_pll_veml_tracking_fpga(const Dll_Pll_Conf_Fpga &
         {
             d_skip_samples = false;
         }
-
-    // init frame sync status parameters
-    d_sample_counter_frame_sync = 0.0;
 }
 
 
@@ -1774,6 +1774,7 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                             {
                                                 // update integration time
                                                 d_extend_correlation_symbols_count = 0;
+                                                d_tiered_prn_code_symbols_count = 0;
                                                 d_current_correlation_time_s = static_cast<float>(d_trk_parameters.extend_correlation_symbols) * static_cast<float>(d_code_period);
 
                                                 if (d_extended_correlation_in_fpga)
@@ -1881,6 +1882,7 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                 d_P_data_accu = gr_complex(0.0, 0.0);
                             }
 
+                        d_tiered_prn_code_symbols_count++;
                         d_extend_correlation_symbols_count++;
                         if (d_extend_correlation_symbols_count == (d_trk_parameters.extend_correlation_symbols - 1))
                             {
@@ -1952,7 +1954,13 @@ int dll_pll_veml_tracking_fpga::general_work(int noutput_items __attribute__((un
                                         d_state = 3;  // new coherent integration (correlation time extension) cycle
                                     }
                                 // update frame sync sample counter
-                                d_sample_counter_frame_sync = d_sample_counter_next;
+
+                                d_tiered_prn_code_symbols_count++;
+                                if (d_tiered_prn_code_symbols_count == d_tiered_prn_code_num_symbols)
+                                    {
+                                        d_tiered_prn_code_symbols_count = 0;
+                                        d_sample_counter_frame_sync = d_sample_counter_next;
+                                    }
                             }
                         break;
                     }

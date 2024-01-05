@@ -64,6 +64,7 @@ public:
     uint32_t smoother_length{10U};
     uint32_t extend_fpga_integration_periods{1};
     uint32_t fpga_integration_period{0};
+    uint32_t tiered_prn_code_num_symbols{25};
 
     int32_t fll_filter_order{1};
     int32_t pll_filter_order{3};
