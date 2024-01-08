@@ -86,11 +86,12 @@ private:
 
     galileo_telemetry_decoder_gs(const Gnss_Satellite &satellite, const Tlm_Conf &conf, int frame_type);
 
+    void check_tlm_separation();
     void msg_handler_read_galileo_tow_map(const pmt::pmt_t &msg);
     void deinterleaver(int32_t rows, int32_t cols, const float *in, float *out);
-    void decode_INAV_word(float *page_part_symbols, int32_t frame_length);
-    void decode_FNAV_word(float *page_symbols, int32_t frame_length);
-    void decode_CNAV_word(uint64_t time_stamp, float *page_symbols, int32_t page_length);
+    void decode_INAV_word(float *page_part_symbols, int32_t frame_length, double cn0);
+    void decode_FNAV_word(float *page_symbols, int32_t frame_length, double cn0);
+    void decode_CNAV_word(uint64_t time_stamp, float *page_symbols, int32_t page_length, double cn0);
 
     std::unique_ptr<Viterbi_Decoder> d_viterbi;
     std::vector<int32_t> d_preamble_samples;
@@ -170,15 +171,13 @@ private:
     bool d_valid_timetag;
     bool d_E6_TOW_set;
     bool d_there_are_e6_channels;
-
     // navigation data assistance
     bool d_enable_navdata_assist;
     bool d_navdata_assist_TOW_set;
-
     bool hs_sync_preamble;  // indicate whether the telemetry decoder is sincronized
-                            // with the telemetry preambles when working in high-sensitivity mode
-
+                           // with the telemetry preambles when working in high-sensitivity mode
     bool d_debug;
+    bool d_use_ced;
 };
 
 

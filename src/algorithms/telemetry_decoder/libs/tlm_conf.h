@@ -48,6 +48,7 @@ public:
     bool there_are_e6_channels{false};
     bool enable_navdata_assist{false};
     bool navdata_assist_real_time{false};
+    bool use_ced{false};
 };
 
 
