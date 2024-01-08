@@ -282,6 +282,9 @@ galileo_telemetry_decoder_gs::galileo_telemetry_decoder_gs(
         }
 
     hs_sync_preamble = false;
+
+    d_TOW_at_Preamble_ms_navdata_assist = 0;
+    d_TOW_at_current_symbol_ms_assist = 0;
 }
 
 
@@ -731,6 +734,9 @@ void galileo_telemetry_decoder_gs::reset()
         }
 
     DLOG(INFO) << "Telemetry decoder reset for satellite " << d_satellite;
+
+    d_TOW_at_Preamble_ms_navdata_assist = 0;
+    d_TOW_at_current_symbol_ms_assist = 0;
 }
 
 
@@ -956,6 +962,23 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
                 }
             break;
         case 2:  // preamble acquired
+
+            if (d_enable_navdata_assist)
+                {
+                    if (d_symbol_counter == (d_preamble_index + static_cast<uint64_t>(d_preamble_period_symbols) - d_samples_per_preamble))
+                        {
+                            uint32_t current_estimated_Tow = d_Tlm_navdata_assist->get_TOW_at_current_symbol_ms(current_symbol.Tracking_sample_counter, current_symbol.fs);
+                            uint32_t estimated_TOW_at_Preamble = current_estimated_Tow + GALILEO_E1_CODE_PERIOD_MS;
+                            d_TOW_at_Preamble_ms_navdata_assist = estimated_TOW_at_Preamble;
+                            d_TOW_at_current_symbol_ms_assist = d_TOW_at_Preamble_ms_navdata_assist;
+                            d_navdata_assist_TOW_set = true;
+                        }
+                    else
+                        {
+                            d_TOW_at_current_symbol_ms_assist += 4;
+                        }
+                }
+
             if (d_symbol_counter == d_preamble_index + static_cast<uint64_t>(d_preamble_period_symbols))
                 {
                     if (d_enable_navdata_assist)
@@ -1116,15 +1139,7 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
     if (this->d_flag_preamble == true)
         // update TOW at the preamble instant
         {
-            if (d_enable_navdata_assist)
-                {
-                    uint32_t current_estimated_Tow = d_Tlm_navdata_assist->get_TOW_at_current_symbol_ms(current_symbol.Tracking_sample_counter, current_symbol.fs);
-                    uint32_t estimated_TOW_at_Preamble = current_estimated_Tow - static_cast<uint32_t>(GALILEO_INAV_PAGE_PART_MS + (d_required_symbols + 1) * d_PRN_code_period_ms);
-                    d_TOW_at_Preamble_ms = GALILEO_INAV_PAGE_PART_MS * static_cast<uint32_t>(roundf(static_cast<float>(estimated_TOW_at_Preamble) / static_cast<float>(GALILEO_INAV_PAGE_PART_MS)));
-                    d_TOW_at_current_symbol_ms = d_TOW_at_Preamble_ms + static_cast<uint32_t>(GALILEO_INAV_PAGE_PART_MS + (d_required_symbols + 1) * d_PRN_code_period_ms);
-                    d_navdata_assist_TOW_set = true;
-                }
-            else
+            if (!d_enable_navdata_assist)
                 {
                     switch (d_frame_type)
                         {
@@ -1331,14 +1346,7 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
         }
     else  // if there is not a new preamble, we define the TOW of the current symbol
         {
-            if (d_enable_navdata_assist)
-                {
-                    if (d_navdata_assist_TOW_set)
-                        {
-                            d_TOW_at_current_symbol_ms += d_PRN_code_period_ms;
-                        }
-                }
-            else
+            if (!d_enable_navdata_assist)
                 {
                     switch (d_frame_type)
                         {
@@ -1403,7 +1411,14 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
 
     if (current_symbol.Flag_valid_word == true)
         {
-            current_symbol.TOW_at_current_symbol_ms = d_TOW_at_current_symbol_ms;
+            if (d_enable_navdata_assist)
+                {
+                    current_symbol.TOW_at_current_symbol_ms = d_TOW_at_current_symbol_ms_assist;
+                }
+            else
+                {
+                    current_symbol.TOW_at_current_symbol_ms = d_TOW_at_current_symbol_ms;
+                }
             // todo: Galileo to GPS time conversion should be moved to observable block.
             // current_symbol.TOW_at_current_symbol_ms -= d_delta_t;  // Galileo to GPS TOW
 

@@ -141,7 +141,9 @@ private:
     uint32_t d_frame_length_symbols;
     uint32_t d_stat;
     uint32_t d_TOW_at_Preamble_ms;
+    uint32_t d_TOW_at_Preamble_ms_navdata_assist;
     uint32_t d_TOW_at_current_symbol_ms;
+    uint32_t d_TOW_at_current_symbol_ms_assist;
     uint32_t d_max_symbols_without_valid_frame;
     uint32_t d_received_tow_ms;
 
@@ -175,6 +177,8 @@ private:
 
     bool hs_sync_preamble;  // indicate whether the telemetry decoder is sincronized
                             // with the telemetry preambles when working in high-sensitivity mode
+
+    bool d_debug;
 };
 
 
