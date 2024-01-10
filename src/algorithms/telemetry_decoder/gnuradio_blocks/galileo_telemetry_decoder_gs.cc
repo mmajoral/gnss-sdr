@@ -109,7 +109,7 @@ galileo_telemetry_decoder_gs::galileo_telemetry_decoder_gs(
                       d_E6_TOW_set(false),
                       d_there_are_e6_channels(conf.there_are_e6_channels),
                       d_enable_navdata_assist(conf.enable_navdata_assist),
-                          d_use_ced(conf.use_ced)
+                      d_use_ced(conf.use_ced)
 {
     // prevent telemetry symbols accumulation in output buffers
     this->set_max_noutput_items(1);
@@ -1492,7 +1492,7 @@ int galileo_telemetry_decoder_gs::general_work(int noutput_items __attribute__((
 
     if (d_enable_navdata_assist)
         {
-            if (d_navdata_assist_TOW_set)
+            if (hs_sync_preamble)
                 {
                     current_symbol.Flag_valid_word = true;
                 }
