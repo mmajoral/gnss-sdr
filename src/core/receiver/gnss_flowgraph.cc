@@ -1871,12 +1871,12 @@ void GNSSFlowgraph::acquisition_manager(unsigned int who)
                                        << " Starting acquisition " << channels_[current_channel]->get_signal().get_satellite()
                                        << ", Signal " << channels_[current_channel]->get_signal().get_signal_str();
 
-                            bool track_Galileo_E5a_using_E1_information = false;
+                            bool acquire_Galileo_E5a_using_E1_information = false;
                             if (assistance_available == true and configuration_->property("GNSS-SDR.assist_dual_frequency_acq", multiband_))
                                 {
                                     if ((configuration_->property("GNSS-SDR.enable_hs", false)) && (mapStringValues_[channels_[current_channel]->get_signal().get_signal_str()] == evGAL_5X))
                                         {
-                                            track_Galileo_E5a_using_E1_information = true;
+                                            acquire_Galileo_E5a_using_E1_information = true;
                                         }
                                     else
                                         {
@@ -1905,7 +1905,7 @@ void GNSSFlowgraph::acquisition_manager(unsigned int who)
                                     std::this_thread::sleep_for(std::chrono::milliseconds(throttle_fpga_acquisition_ms_));
                                 }
 #endif
-                            if (track_Galileo_E5a_using_E1_information)
+                            if (acquire_Galileo_E5a_using_E1_information)
                                 {
                                     uint32_t PRN = (sat_ == 0) ? gnss_signal.get_satellite().get_PRN() : channels_[current_channel]->get_signal().get_satellite().get_PRN();
                                     uint64_t sample_counter_frame_sync;
@@ -2058,7 +2058,7 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
                     DLOG(INFO) << "Channel " << who << " Starting acquisition " << gs.get_satellite() << ", Signal " << gs.get_signal_str();
                     channels_[who]->set_signal(channels_[who]->get_signal());
 
-                    bool track_Galileo_E5a_using_E1_information = false;
+                    bool acquire_Galileo_E5a_using_E1_information = false;
 
                     if (configuration_->property("GNSS-SDR.enable_hs", false))
                         {
@@ -2071,7 +2071,7 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
                                 }
                             else if (mapStringValues_[channels_[who]->get_signal().get_signal_str()] == evGAL_5X)
                                 {
-                                    track_Galileo_E5a_using_E1_information = true;
+                                    acquire_Galileo_E5a_using_E1_information = true;
                                 }
                         }
 #if ENABLE_FPGA
@@ -2081,7 +2081,7 @@ void GNSSFlowgraph::apply_action(unsigned int who, unsigned int what)
                             std::this_thread::sleep_for(std::chrono::milliseconds(throttle_fpga_acquisition_ms_));
                         }
 #endif
-                    if (track_Galileo_E5a_using_E1_information)
+                    if (acquire_Galileo_E5a_using_E1_information)
                         {
                             uint32_t PRN = channels_[who]->get_signal().get_satellite().get_PRN();
                             uint64_t sample_counter_frame_sync;
