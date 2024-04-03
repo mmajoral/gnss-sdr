@@ -396,16 +396,16 @@ or manually as explained below, and then please follow instructions on how to
 
 ### Manual installation of other required dependencies
 
-#### Install [Armadillo](http://arma.sourceforge.net/ "Armadillo's Homepage"), a C++ linear algebra library
+#### Install [Armadillo](https://arma.sourceforge.net/ "Armadillo's Homepage"), a C++ linear algebra library
 
 ```
 $ sudo apt-get install libblas-dev liblapack-dev       # For Debian/Ubuntu/LinuxMint
 $ sudo yum install lapack-devel blas-devel             # For Fedora/CentOS/RHEL
 $ sudo zypper install lapack-devel blas-devel          # For OpenSUSE
 $ sudo pacman -S blas lapack                           # For Arch Linux
-$ wget https://sourceforge.net/projects/arma/files/armadillo-12.0.1.tar.xz
-$ tar xvfz armadillo-12.0.1.tar.xz
-$ cd armadillo-12.0.1
+$ wget https://sourceforge.net/projects/arma/files/armadillo-12.8.1.tar.xz
+$ tar xvfz armadillo-12.8.1.tar.xz
+$ cd armadillo-12.8.1
 $ cmake .
 $ make
 $ sudo make install
@@ -433,9 +433,9 @@ $ sudo ldconfig
 #### Install [Glog](https://github.com/google/glog "Glog's Homepage"), a library that implements application-level logging
 
 ```
-$ wget https://github.com/google/glog/archive/v0.6.0.tar.gz
-$ tar xvfz v0.6.0.tar.gz
-$ cd glog-0.6.0
+$ wget https://github.com/google/glog/archive/v0.7.0.tar.gz
+$ tar xvfz v0.7.0.tar.gz
+$ cd glog-0.7.0
 $ mkdir build && cd build
 $ cmake ..
 $ make
@@ -460,16 +460,16 @@ GNSS-SDR can also work well with
 #### Install [Matio](https://github.com/tbeu/matio "Matio's Homepage"), MATLAB MAT file I/O library
 
 ```
-$ wget https://github.com/tbeu/matio/releases/download/v1.5.23/matio-1.5.23.tar.gz
-$ tar xvfz matio-1.5.23.tar.gz
-$ cd matio-1.5.23
+$ wget https://github.com/tbeu/matio/releases/download/v1.5.26/matio-1.5.26.tar.gz
+$ tar xvfz matio-1.5.26.tar.gz
+$ cd matio-1.5.26
 $ ./configure
 $ make
 $ sudo make install
 $ sudo ldconfig
 ```
 
-#### Install [Protocol Buffers](https://developers.google.com/protocol-buffers/ "Protocol Buffers' Homepage"), a portable mechanism for serialization of structured data
+#### Install [Protocol Buffers](https://protobuf.dev/ "Protocol Buffers' Homepage"), a portable mechanism for serialization of structured data
 
 GNSS-SDR requires Protocol Buffers v3.0.0 or later. If the packages that come
 with your distribution are older than that (_e.g._, Ubuntu 16.04 Xenial came
@@ -489,9 +489,9 @@ For more options, please check the
 #### Install [Pugixml](https://pugixml.org/ "Pugixml's Homepage"), a light-weight C++ XML processing library
 
 ```
-$ wget https://github.com/zeux/pugixml/releases/download/v1.13/pugixml-1.13.tar.gz
-$ tar xvfz pugixml-1.13.tar.gz
-$ cd pugixml-1.13
+$ wget https://github.com/zeux/pugixml/releases/download/v1.14/pugixml-1.14.tar.gz
+$ tar xvfz pugixml-1.14.tar.gz
+$ cd pugixml-1.14
 $ mkdir build && cd build
 $ cmake ..
 $ make
@@ -502,8 +502,8 @@ $ sudo ldconfig
 #### Download [GoogleTest](https://github.com/google/googletest "Googletest Homepage")
 
 ```
-$ wget https://github.com/google/googletest/archive/refs/tags/v1.13.0.zip
-$ unzip v1.13.0.zip
+$ wget https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+$ unzip v1.14.0.zip
 ```
 
 Please **DO NOT build or install** Google Test. Every user needs to compile
@@ -527,10 +527,10 @@ downloaded resides. Just type in your terminal (or add it to your
 `$HOME/.bashrc` file for a permanent solution) the following line:
 
 ```
-export GTEST_DIR=/home/username/googletest-1.13.0
+export GTEST_DIR=/home/username/googletest-1.14.0
 ```
 
-changing `/home/username/googletest-1.13.0` by the actual path where you
+changing `/home/username/googletest-1.14.0` by the actual path where you
 unpacked Google Test. If the CMake script does not find that folder, or the
 environment variable is not defined, or the source code is not installed by a
 package, then it will download a fresh copy of the Google Test source code and
@@ -867,22 +867,15 @@ $ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/inst
 The script explains what it will do, and then it pauses before doing it. There
 are more installation options [here](https://docs.brew.sh/Installation.html).
 
-Install pip3:
-
-```
-$ curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-$ sudo python3 get-pip.py
-```
-
 Install the required dependencies:
 
 ```
 $ brew update && brew upgrade
 $ brew install armadillo cmake hdf5 gflags glog gnuradio libmatio log4cpp \
     openssl pkg-config protobuf pugixml
-$ pip3 install mako
 $ brew install --cask mactex  # when completed, restart Terminal
 $ brew install graphviz doxygen
+¢ pip3 install mako
 ```
 
 For macOS versions older than Sonoma, you will also need LAPACK:
@@ -894,7 +887,7 @@ $ brew install lapack
 ### Other package managers
 
 GNU Radio and other dependencies can also be installed using other package
-managers than Macports, such as [Fink](http://www.finkproject.org/ "Fink").
+managers than Macports, such as [Fink](https://www.finkproject.org/ "Fink").
 Since the version of Python that ships with OS X is great for learning but it is
 not good for development, you could have another Python executable in a
 non-standard location. If that is the case, you need to inform GNSS-SDR's
@@ -984,7 +977,7 @@ do so.
 </p>
 
 - **GNSS-SDR in embedded platforms**: we provide a Software Development Kit
-  (SDK) based on [OpenEmbedded](http://www.openembedded.org/wiki/Main_Page) for
+  (SDK) based on [OpenEmbedded](https://www.openembedded.org/wiki/Main_Page) for
   cross-compiling GNSS-SDR in your desktop computer and for producing
   executables that can run in embedded platforms, such as Xilinx's Zynq and
   ZynqMP architectures, Raspberry Pi, and many others. Please check
@@ -1999,11 +1992,11 @@ PVT.rtcm_MT1077_rate_ms=1000
   Notation (JSON) supported by numerous mapping and GIS software packages,
   including [OpenLayers](https://openlayers.org),
   [Leaflet](https://leafletjs.com), [MapServer](https://mapserver.org/),
-  [GeoServer](http://geoserver.org), [GeoDjango](https://www.djangoproject.com),
-  [GDAL](https://gdal.org/), and [CartoDB](https://cartodb.com). It is also
-  possible to use GeoJSON with [PostGIS](https://postgis.net/) and
-  [Mapnik](https://mapnik.org/), both of which handle the format via the GDAL
-  OGR conversion library. The
+  [GeoServer](https://geoserver.org/),
+  [GeoDjango](https://www.djangoproject.com), [GDAL](https://gdal.org/), and
+  [CartoDB](https://cartodb.com). It is also possible to use GeoJSON with
+  [PostGIS](https://postgis.net/) and [Mapnik](https://mapnik.org/), both of
+  which handle the format via the GDAL OGR conversion library. The
   [Google Maps Javascript API](https://developers.google.com/maps/documentation/javascript/)
   v3 directly supports the
   [integration of GeoJSON data layers](https://developers.google.com/maps/documentation/javascript/examples/layer-data-simple),
@@ -2016,8 +2009,9 @@ PVT.rtcm_MT1077_rate_ms=1000
   (OGC KML), and it is maintained by the Open Geospatial Consortium, Inc. (OGC).
   KML files can be displayed in geobrowsers such as
   [Google Earth](https://www.google.com/earth/),
-  [Marble](https://marble.kde.org), [osgEarth](http://osgearth.org), or used
-  with the [NASA World Wind SDK for Java](https://worldwind.arc.nasa.gov/java/).
+  [Marble](https://marble.kde.org),
+  [osgEarth](https://github.com/gwaldron/osgearth), or used with the
+  [NASA World Wind SDK for Java](https://worldwind.arc.nasa.gov/java/).
 
 - **GPX** (the GPS Exchange Format) is a lightweight XML data format for the
   interchange of GPS data (waypoints, routes, and tracks) between applications
@@ -2052,9 +2046,11 @@ PVT.rtcm_MT1077_rate_ms=1000
   (usually with other data unknown to the original receiver, such as better
   models of the atmospheric conditions at time of measurement). RINEX files can
   be used by software packages such as
-  [GNSSTK](https://github.com/SGL-UT/gnsstk), [RTKLIB](http://www.rtklib.com/),
-  and [gLAB](https://gage.upc.edu/gLAB/). GNSS-SDR by default generates RINEX
-  version [3.02](ftp://igs.org/pub/data/format/rinex302.pdf). If
+  [GNSSTK](https://github.com/SGL-UT/gnsstk), [RTKLIB](https://www.rtklib.com/),
+  and
+  [gLAB](https://gage.upc.edu/en/learning-materials/software-tools/glab-tool-suite).
+  GNSS-SDR by default generates RINEX version
+  [3.02](ftp://igs.org/pub/data/format/rinex302.pdf). If
   [2.11](ftp://igs.org/pub/data/format/rinex211.txt) is needed, it can be
   requested through the `rinex_version` parameter in the configuration file:
 

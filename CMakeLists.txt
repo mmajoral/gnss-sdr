@@ -178,9 +178,9 @@ endif()
 set(VERSION_INFO_MAJOR_VERSION 0)
 set(VERSION_INFO_API_COMPAT 0)
 if(${THIS_IS_A_RELEASE})
-    set(VERSION_INFO_MINOR_VERSION 18)
+    set(VERSION_INFO_MINOR_VERSION 19)
 else()
-    set(VERSION_INFO_MINOR_VERSION 18.git-${GIT_BRANCH}-${GIT_COMMIT_HASH})
+    set(VERSION_INFO_MINOR_VERSION 19.git-${GIT_BRANCH}-${GIT_COMMIT_HASH})
 endif()
 
 set(VERSION ${VERSION_INFO_MAJOR_VERSION}.${VERSION_INFO_API_COMPAT}.${VERSION_INFO_MINOR_VERSION})
@@ -335,19 +335,22 @@ set(GNSSSDR_PYTHON3_MIN_VERSION "3.4")
 ################################################################################
 # Versions to download and build (but not to install system-wide) if not found
 ################################################################################
-set(GNSSSDR_ARMADILLO_LOCAL_VERSION "12.6.x")
+set(GNSSSDR_ARMADILLO_LOCAL_VERSION "12.8.x")
 set(GNSSSDR_GFLAGS_LOCAL_VERSION "2.2.2")
-set(GNSSSDR_GLOG_LOCAL_VERSION "0.6.0")
+set(GNSSSDR_GLOG_LOCAL_VERSION "0.7.0")
 set(GNSSSDR_MATIO_LOCAL_VERSION "1.5.26")
-set(GNSSSDR_PROTOCOLBUFFERS_LOCAL_VERSION "25.0")
+set(GNSSSDR_PROTOCOLBUFFERS_LOCAL_VERSION "26.1")
 set(GNSSSDR_PUGIXML_LOCAL_VERSION "1.14")
-set(GNSSSDR_GTEST_LOCAL_VERSION "1.13.0")
+set(GNSSSDR_GTEST_LOCAL_VERSION "1.14.0")
 set(GNSSSDR_GNSS_SIM_LOCAL_VERSION "master")
-set(GNSSSDR_GNSSTK_LOCAL_VERSION "14.0.0")
+set(GNSSSDR_GNSSTK_LOCAL_VERSION "14.3.0")
 set(GNSSSDR_BENCHMARK_LOCAL_VERSION "1.8.3")
 set(GNSSSDR_MATHJAX_EXTERNAL_VERSION "2.7.7")
 
 # Downgrade versions if requirements are not met
+if(CMAKE_VERSION VERSION_LESS "3.22")
+    set(GNSSSDR_GLOG_LOCAL_VERSION "0.6.0")
+endif()
 if(CMAKE_VERSION VERSION_LESS "3.16")
     set(GNSSSDR_GLOG_LOCAL_VERSION "0.5.0")
 endif()
@@ -370,6 +373,12 @@ endif()
 
 if(CMAKE_CROSSCOMPILING OR CMAKE_VERSION VERSION_LESS "3.13")
     set(GNSSSDR_PROTOCOLBUFFERS_LOCAL_VERSION "21.12")
+endif()
+
+if(CMAKE_VERSION VERSION_LESS "3.13" OR
+  (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.3.1) OR
+  (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0.0))
+    set(GNSSSDR_GTEST_LOCAL_VERSION "1.13.0")
 endif()
 
 if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0) OR
@@ -1729,6 +1738,9 @@ ${GNSSSDR_BINARY_DIR}/thirdparty/glog/glog-${GNSSSDR_GLOG_LOCAL_VERSION}/configu
         if(GNSSSDR_GLOG_LOCAL_VERSION VERSION_GREATER 0.5.0)
             set(GLOG_GTEST -DWITH_GTEST=FALSE)
         endif()
+        if(NOT (CMAKE_VERSION VERSION_LESS "3.22"))
+            set(GNSSSDR_GLOG_LOCAL_GFLAGS -DCMAKE_REQUIRED_INCLUDES=${GFlags_INCLUDE_DIRS})
+        endif()
         ExternalProject_Add(glog-${GNSSSDR_GLOG_LOCAL_VERSION}
             DEPENDS ${TARGET_GFLAGS}
             PREFIX ${GNSSSDR_BINARY_DIR}/glog-${GNSSSDR_GLOG_LOCAL_VERSION}
@@ -1743,6 +1755,7 @@ ${GNSSSDR_BINARY_DIR}/thirdparty/glog/glog-${GNSSSDR_GLOG_LOCAL_VERSION}/configu
                 -DBUILD_SHARED_LIBS=OFF
                 ${GLOG_GTEST}
                 -DBUILD_TESTING=OFF
+                "${GNSSSDR_GLOG_LOCAL_GFLAGS}"
             BUILD_COMMAND "${GLOG_MAKE_PROGRAM} ${PARALLEL_BUILD}"
             BUILD_BYPRODUCTS ${GLOG_BUILD_BYPRODUCTS}
             UPDATE_COMMAND ""
@@ -1799,6 +1812,11 @@ ${GNSSSDR_BINARY_DIR}/thirdparty/glog/glog-${GNSSSDR_GLOG_LOCAL_VERSION}/configu
                 )
             endif()
         endif()
+    endif()
+    if(NOT (CMAKE_VERSION VERSION_LESS "3.22"))
+        set_target_properties(Glog::glog PROPERTIES
+            INTERFACE_COMPILE_DEFINITIONS "GLOG_USE_GLOG_EXPORT;GLOG_USE_GFLAGS"
+            INTERFACE_COMPILE_FEATURES "cxx_std_14")
     endif()
 
     if(LIBUNWIND_FOUND)
@@ -1909,7 +1927,7 @@ endif()
 
 
 ################################################################################
-# Armadillo - http://arma.sourceforge.net/
+# Armadillo - https://arma.sourceforge.net/
 ################################################################################
 if(ENABLE_OWN_ARMADILLO)
     unset(Armadillo::armadillo CACHE)
@@ -1921,7 +1939,7 @@ else()
 endif()
 
 set_package_properties(Armadillo PROPERTIES
-    URL "http://arma.sourceforge.net/"
+    URL "https://arma.sourceforge.net/"
     PURPOSE "Used for matrix computations."
     TYPE REQUIRED
 )
@@ -2061,7 +2079,7 @@ if(NOT ARMADILLO_FOUND OR ENABLE_OWN_ARMADILLO)
         IMPORTED_LOCATION_RELWITHDEBINFO ${ARMADILLO_STATIC_LIBRARY}
         IMPORTED_LOCATION_MINSIZEREL ${ARMADILLO_STATIC_LIBRARY}
         INTERFACE_INCLUDE_DIRECTORIES ${GNSSSDR_BINARY_DIR}/thirdparty/armadillo/armadillo-${armadillo_RELEASE}/include
-        INTERFACE_LINK_LIBRARIES "${BLAS_LIBRARIES}" "${LAPACK_LIBRARIES}" ${GFORTRAN} ${ARMADILLO_STATIC_LIBRARY}
+        INTERFACE_LINK_LIBRARIES "${BLAS_LIBRARIES};${LAPACK_LIBRARIES};${GFORTRAN};${ARMADILLO_STATIC_LIBRARY}"
     )
     if((CMAKE_GENERATOR STREQUAL Xcode) OR MSVC)
         set_target_properties(Armadillo::armadillo PROPERTIES
@@ -2069,7 +2087,7 @@ if(NOT ARMADILLO_FOUND OR ENABLE_OWN_ARMADILLO)
             IMPORTED_LOCATION_RELEASE ${binary_dir}/Release/${CMAKE_FIND_LIBRARY_PREFIXES}armadillo${CMAKE_STATIC_LIBRARY_SUFFIX}
             IMPORTED_LOCATION_RELWITHDEBINFO ${binary_dir}/RelWithDebInfo/${CMAKE_FIND_LIBRARY_PREFIXES}armadillo${CMAKE_STATIC_LIBRARY_SUFFIX}
             IMPORTED_LOCATION_MINSIZEREL ${binary_dir}/MinSizeRel/${CMAKE_FIND_LIBRARY_PREFIXES}armadillo${CMAKE_STATIC_LIBRARY_SUFFIX}
-            INTERFACE_LINK_LIBRARIES "${BLAS_LIBRARIES}" "${LAPACK_LIBRARIES}" ${GFORTRAN} ${binary_dir}/${CMAKE_FIND_LIBRARY_PREFIXES}armadillo${CMAKE_STATIC_LIBRARY_SUFFIX}/$<$<CONFIG:Debug>:Debug/>$<$<CONFIG:Release>:Release/>$<$<CONFIG:RelWithDebInfo>:RelWithDebInfo/>$<$<CONFIG:MinSizeRel>:MinSizeRel/>${CMAKE_FIND_LIBRARY_PREFIXES}armadillo${CMAKE_STATIC_LIBRARY_SUFFIX}
+            INTERFACE_LINK_LIBRARIES "${BLAS_LIBRARIES};${LAPACK_LIBRARIES};${GFORTRAN};${binary_dir}/$<$<CONFIG:Debug>:Debug/>$<$<CONFIG:Release>:Release/>$<$<CONFIG:RelWithDebInfo>:RelWithDebInfo/>$<$<CONFIG:MinSizeRel>:MinSizeRel/>${CMAKE_FIND_LIBRARY_PREFIXES}armadillo${CMAKE_STATIC_LIBRARY_SUFFIX}"
         )
     endif()
     set_package_properties(Armadillo PROPERTIES
@@ -2150,6 +2168,7 @@ find_library(GNUTLS_OPENSSL_LIBRARY
         /usr/lib/sparc64-linux-gnu
         /usr/lib/x86_64-linux-gnux32
         /usr/lib/sh4-linux-gnu
+        /usr/lib/loongarch64-linux-gnu
         /usr/local/lib
         /usr/local/lib64
         /opt/local/lib
@@ -2519,7 +2538,7 @@ endif()
 ################################################################################
 find_package(Protobuf)
 set_package_properties(Protobuf PROPERTIES
-    URL "https://developers.google.com/protocol-buffers/"
+    URL "https://protobuf.dev/"
     PURPOSE "Used to serialize output data in a way that can be read by other applications."
     TYPE REQUIRED
 )
@@ -3466,7 +3485,7 @@ message(STATUS "*           SUMMARY REPORT            *")
 message(STATUS "***************************************")
 message(STATUS "")
 if(CMAKE_CROSSCOMPILING)
-    message(STATUS "Cross-compiling on ${LINUX_DISTRIBUTION} ${LINUX_VER} (${CMAKE_HOST_SYSTEM_PROCESSOR}) for ${CMAKE_SYSTEM_PROCESSOR} ${ARCHITECTURE_STRING}")
+    message(STATUS "Cross-compiling on ${LINUX_DISTRIBUTION} ${LINUX_VER} (${CMAKE_HOST_SYSTEM_PROCESSOR}) for ${CMAKE_SYSTEM_PROCESSOR}")
 else()
     if(${CMAKE_SYSTEM_NAME} MATCHES "Linux|kFreeBSD|GNU")
         message(STATUS "Building on GNU/Linux ${LINUX_DISTRIBUTION} ${LINUX_VER} ${ARCHITECTURE_STRING}")
@@ -3489,7 +3508,7 @@ file(APPEND ${GNSSSDR_BINARY_DIR}/features.log "********************************
 file(APPEND ${GNSSSDR_BINARY_DIR}/features.log "GNSS-SDR version: ${VERSION}\n")
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux|kFreeBSD|GNU")
     if(CMAKE_CROSSCOMPILING)
-        file(APPEND ${GNSSSDR_BINARY_DIR}/features.log "Cross-compiling on ${LINUX_DISTRIBUTION} ${LINUX_VER} (${CMAKE_HOST_SYSTEM_PROCESSOR}) for ${CMAKE_SYSTEM_PROCESSOR} ${ARCHITECTURE_STRING}\n")
+        file(APPEND ${GNSSSDR_BINARY_DIR}/features.log "Cross-compiling on ${LINUX_DISTRIBUTION} ${LINUX_VER} (${CMAKE_HOST_SYSTEM_PROCESSOR}) for ${CMAKE_SYSTEM_PROCESSOR}\n")
     else()
         file(APPEND ${GNSSSDR_BINARY_DIR}/features.log "Building on GNU/Linux ${LINUX_DISTRIBUTION} ${LINUX_VER} ${ARCHITECTURE_STRING}\n")
     endif()

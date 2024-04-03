@@ -14,6 +14,28 @@ All notable changes to GNSS-SDR will be documented in this file.
 
 ## [Unreleased](https://github.com/gnss-sdr/gnss-sdr/tree/next)
 
+### Improvements in Portability:
+
+- Fix building against google-glog 0.7.0
+- Find dependencies in the loongarch64 architecture.
+
+### Improvements in Usability:
+
+- Tidy up the `conf/` folder.
+
+See the definitions of concepts and metrics at
+https://gnss-sdr.org/design-forces/
+
+&nbsp;
+
+## [GNSS-SDR v0.0.19.1](https://github.com/gnss-sdr/gnss-sdr/releases/tag/v0.0.19.1) - 2024-01-26
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10579595.svg)](https://doi.org/10.5281/zenodo.10579595)
+
+- Fix formatting of the `CITATION.cff` file.
+
+## [GNSS-SDR v0.0.19](https://github.com/gnss-sdr/gnss-sdr/releases/tag/v0.0.19) - 2024-01-23
+
 ### Improvements in Efficiency:
 
 - Fixed some performance inefficiencies detected by Coverity Scan.
@@ -61,8 +83,8 @@ All notable changes to GNSS-SDR will be documented in this file.
   covariances with the following optional parameters (here with their default
   values): `PVT.kf_measures_ecef_pos_sd_m=1.0`, in [m];
   `PVT.kf_measures_ecef_vel_sd_ms=0.1`, in [m/s];
-  `PVT.kf_system_ecef_pos_sd_m=0.01`, in [m]; and
-  `PVT.kf_system_ecef_vel_sd_ms=0.001`, in [m/s].
+  `PVT.kf_system_ecef_pos_sd_m=2.0`, in [m]; and
+  `PVT.kf_system_ecef_vel_sd_ms=0.5`, in [m/s].
 
 ### Improvements in Scalability:
 
@@ -90,7 +112,7 @@ All notable changes to GNSS-SDR will be documented in this file.
   overkilling nine (the ninth decimal place worths up to 110 microns).
   Similarly, height in meters is now reported with two decimal places instead of
   three, and velocity in m/s also with two decimal places instead of three.
-- Fixed the rate at which KLM, GPX, GeoJSON, and NMEA annotations are made. The
+- Fixed the rate at which KML, GPX, GeoJSON, and NMEA annotations are made. The
   rate is now set by `PVT.output_rate_ms` (`500` ms by default), and can be
   particularized by `PVT.kml_rate_ms`, `PVT.gpx_rate_ms`, `PVT.geojson_rate_ms`,
   and `PVT.nmea_rate_ms`. Those values should be multiples of
@@ -306,7 +328,7 @@ https://gnss-sdr.org/design-forces/
 - Fixed building against GNU Radio v3.10.X.Y, which does not support the C++20
   standard.
 - Fixed building against GNU Radio v3.10.X.Y, which replaced
-  [log4cpp](http://log4cpp.sourceforge.net/) by the
+  [log4cpp](https://log4cpp.sourceforge.net/) by the
   [spdlog](https://github.com/gabime/spdlog) and
   [fmt](https://github.com/fmtlib/fmt) libraries.
 - Updated `cpu_features` library for improved processor detection.
@@ -453,8 +475,7 @@ https://gnss-sdr.org/design-forces/
   inconsistencies in the configuration file.
 - Fix segmentation fault if the RINEX output was disabled.
 - Added a feature that optionally enables the remote monitoring of GPS and
-  Galileo ephemeris using UDP and
-  [Protocol Buffers](https://developers.google.com/protocol-buffers).
+  Galileo ephemeris using UDP and [Protocol Buffers](https://protobuf.dev/).
 - Now building the software passing the `-DENABLE_FPGA=ON` to CMake does not
   make the receiver unusable when running on non-FPGA-enabled platforms. On
   FPGA-enabled platforms, now it is possible to run non-FPGA-enabled
