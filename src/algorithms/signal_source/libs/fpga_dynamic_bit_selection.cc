@@ -20,6 +20,7 @@
  */
 
 #include "fpga_dynamic_bit_selection.h"
+#include "fpga_ip_core_versions.h"
 #include "uio_fpga.h"
 #include <fcntl.h>     // for open, O_RDWR, O_SYNC
 #include <iostream>    // for cout
@@ -135,7 +136,7 @@ void Fpga_dynamic_bit_selection::initialize_device(volatile unsigned *d_map_base
     // Read the IP core version
     uint32_t IP_core_version = d_map_base[FPGA_IP_CORE_VERSION_REG_ADDR];
 
-    if (IP_core_version == FPGA_DYN_BIT_SEL_IP_VERSION_1_2)
+    if (IP_core_version == FPGA_IP_VERSION_1_2)
         {
             // Read the maximum supported bit shift.
             // Previous versions of the IP core are initialized to SHIFT_OUT_BITS_MAX_DEFAULT
@@ -166,7 +167,6 @@ void Fpga_dynamic_bit_selection::bit_selection_per_rf_band(volatile unsigned *d_
                     shift_out_bits = shift_out_bits - 1;
                 }
         }
-
     // Update bit selection for the selected frequency band.
     d_map_base[SOBITS_REG_ADDR] = shift_out_bits;
 }

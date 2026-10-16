@@ -13,7 +13,7 @@
  * GNSS-SDR is a Global Navigation Satellite System software-defined receiver.
  * This file is part of GNSS-SDR.
  *
- * Copyright (C) 2010-2020  (see AUTHORS file for a list of contributors)
+ * Copyright (C) 2010-2026  (see AUTHORS file for a list of contributors)
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * -----------------------------------------------------------------------------
@@ -21,11 +21,12 @@
 
 #include "fpga_acquisition.h"
 #include "MATH_CONSTANTS.h"  // for TWO_PI
-#include <cmath>             // for log2
-#include <fcntl.h>           // libraries used by the GIPO
-#include <iostream>          // for operator<<
-#include <sys/mman.h>        // libraries used by the GIPO
-#include <unistd.h>          // for write, close, read, ssize_t
+#include "fpga_ip_core_versions.h"
+#include <cmath>       // for log2
+#include <fcntl.h>     // libraries used by the GIPO
+#include <iostream>    // for operator<<
+#include <sys/mman.h>  // libraries used by the GIPO
+#include <unistd.h>    // for write, close, read, ssize_t
 #include <utility>
 
 #if USE_GLOG_AND_GFLAGS
@@ -50,25 +51,25 @@
 Fpga_Acquisition::Fpga_Acquisition(std::string device_name,
     uint32_t select_queue,
     std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs,
-    uint32_t &max_FFT_size) : d_device_name(std::move(device_name)),
-                              d_resampled_fs(0),
-                              d_map_base(nullptr),  // driver memory map
-                              d_all_fft_codes(nullptr),
-                              d_fd(0),  // driver descriptor
-                              d_fft_size(0),
-                              d_excludelimit(0),
-                              d_nsamples(0),  // number of samples not including padding
-                              d_filter_num(0),
-                              d_downsampling_factor(1),
-                              d_downsampling_filter_delay(0),
-                              d_select_queue(select_queue),
-                              d_PRN(0),
-                              d_IP_core_version(0)
+    uint32_t &max_FFT_size,
+    uint32_t &IP_core_version) : d_device_name(std::move(device_name)),
+                                 d_resampled_fs(0),
+                                 d_map_base(nullptr),  // driver memory map
+                                 d_all_fft_codes(nullptr),
+                                 d_fd(0),  // driver descriptor
+                                 d_fft_size(0),
+                                 d_excludelimit(0),
+                                 d_nsamples(0),  // number of samples not including padding
+                                 d_filter_num(0),
+                                 d_downsampling_factor(1),
+                                 d_downsampling_filter_delay(0),
+                                 d_select_queue(select_queue),
+                                 d_PRN(0)
 {
     Fpga_Acquisition::open_device();
     Fpga_Acquisition::reset_acquisition();
     Fpga_Acquisition::fpga_acquisition_test_register();
-    Fpga_Acquisition::read_ipcore_info(downsampling_filter_specs, max_FFT_size);
+    Fpga_Acquisition::read_ipcore_info(downsampling_filter_specs, max_FFT_size, IP_core_version);
     Fpga_Acquisition::close_device();
     DLOG(INFO) << "Acquisition FPGA class created";
 }
@@ -147,12 +148,12 @@ void Fpga_Acquisition::fpga_acquisition_test_register()
 }
 
 
-void Fpga_Acquisition::read_ipcore_info(std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs, uint32_t &max_FFT_size)
+void Fpga_Acquisition::read_ipcore_info(std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs, uint32_t &max_FFT_size, uint32_t &IP_core_version)
 {
-    d_IP_core_version = d_map_base[FPGA_IP_CORE_VERSION_REG_ADDR];
-    if (d_IP_core_version >= FPGA_ACQ_IP_VERSION_1_1)
+    IP_core_version = d_map_base[FPGA_IP_CORE_VERSION_REG_ADDR];
+    if (IP_core_version >= FPGA_IP_VERSION_1_1)
         {
-            // FPGA acquisition IP core version FPGA_ACQ_IP_VERSION_1
+            // FPGA acquisition IP core version FPGA_IP_VERSION_1_1
             max_FFT_size = d_map_base[MAX_FFT_SIZE_REG_ADDR];
             if (d_select_queue == ACQ_BUFF_0)
                 {
@@ -180,7 +181,7 @@ void Fpga_Acquisition::read_ipcore_info(std::vector<std::pair<uint32_t, uint32_t
         }
     else
         {
-            // FPGA Acquisition IP core versions earlier than FPGA_ACQ_IP_VERSION_1
+            // FPGA Acquisition IP core versions earlier than FPGA_IP_VERSION_1_1
             max_FFT_size = DEFAULT_MAX_FFT_SIZE;
             if (d_select_queue == ACQ_BUFF_0)
                 {

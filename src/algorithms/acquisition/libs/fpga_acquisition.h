@@ -13,7 +13,7 @@
  * GNSS-SDR is a Global Navigation Satellite System software-defined receiver.
  * This file is part of GNSS-SDR.
  *
- * Copyright (C) 2010-2020  (see AUTHORS file for a list of contributors)
+ * Copyright (C) 2010-2060  (see AUTHORS file for a list of contributors)
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * -----------------------------------------------------------------------------
@@ -46,7 +46,8 @@ public:
         std::string device_name,
         uint32_t select_queue,
         std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs,
-        uint32_t &max_FFT_size);
+        uint32_t &max_FFT_size,
+        uint32_t &IP_core_version);
 
     /*!
      * \brief Destructor
@@ -123,9 +124,6 @@ public:
     void close_device();
 
 private:
-    // FPGA IP Core version
-    static const uint32_t FPGA_ACQ_IP_VERSION_1_1 = 0x0001;  // FPGA IP core version 1.1
-
     // FPGA register addresses
 
     // write-only registers
@@ -181,12 +179,12 @@ private:
     static const uint32_t BIT_MASK_8 = 0xFF;
 
     // Downsampling default constants
-    const uint32_t DEFAULT_DOWNSAMPLING_FILTER_DELAY = 40;  // default downsampling filter delay (for FPGA Acquisition IP core versions earlier than FPGA_ACQ_IP_VERSION_1)
-    const uint32_t DEFAULT_DOWNSAMPLING_FACTOR = 4;         // default downsampling factor (for FPGA Acquisition IP core versions earlier than FPGA_ACQ_IP_VERSION_1)
+    const uint32_t DEFAULT_DOWNSAMPLING_FILTER_DELAY = 40;  // default downsampling filter delay (for FPGA Acquisition IP core versions earlier than v1.1)
+    const uint32_t DEFAULT_DOWNSAMPLING_FACTOR = 4;         // default downsampling factor (for FPGA Acquisition IP core versions earlier than v1.1)
 
     // private methods
     void fpga_acquisition_test_register(void);
-    void read_ipcore_info(std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs, uint32_t &max_FFT_size);
+    void read_ipcore_info(std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs, uint32_t &max_FFT_size, uint32_t &IP_core_version);
 
     std::vector<std::pair<uint32_t, uint32_t>> d_downsampling_filter_specs;
     std::string d_device_name;      // HW device name
@@ -202,7 +200,6 @@ private:
     uint32_t d_downsampling_filter_delay;  // Impulse response delay of the downsampling filter
     uint32_t d_select_queue;               // queue selection
     uint32_t d_PRN;                        // PRN
-    uint32_t d_IP_core_version;            // FPGA acquisition IP core version
 };
 
 

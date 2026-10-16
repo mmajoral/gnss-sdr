@@ -23,6 +23,7 @@
 #include "Galileo_E5b.h"
 #include "Galileo_E6.h"
 #include "configuration_interface.h"
+#include "fpga_ip_core_versions.h"
 #include "galileo_e1_signal_replica.h"
 #include "galileo_e5_signal_replica.h"
 #include "galileo_e6_signal_replica.h"
@@ -176,6 +177,7 @@ void generate_code(signal_flag sig_flag,
                     }
                 galileo_e5_b_code_gen_complex_sampled(code, prn, signal, acq_parameters.fs_in, 0);
             }
+            break;
         case GAL_E6:
             {
                 galileo_e6_b_code_gen_complex_sampled(code, prn, acq_parameters.fs_in, 0);
@@ -212,7 +214,8 @@ PcpsAcquisitionAdapterFpga::PcpsAcquisitionAdapterFpga(
 
     std::vector<std::pair<uint32_t, uint32_t>> downsampling_filter_specs;
     uint32_t max_FFT_size;
-    acquisition_fpga_ = pcps_make_acquisition_fpga(&acq_parameters_, sig_info.acq_buff, downsampling_filter_specs, max_FFT_size);
+    uint32_t IP_core_version;
+    acquisition_fpga_ = pcps_make_acquisition_fpga(&acq_parameters_, sig_info.acq_buff, downsampling_filter_specs, max_FFT_size, IP_core_version);
 
     if (sig_info.acq_buff == ACQ_BUFF_0)
         {
@@ -253,13 +256,13 @@ PcpsAcquisitionAdapterFpga::PcpsAcquisitionAdapterFpga(
         }
 #endif
 
-    generate_prn_codes(configuration);
+    generate_prn_codes(configuration, IP_core_version);
     init();
     DLOG(INFO) << "Initialized FPGA acquisition adapter for role " << role_;
 }
 
 
-void PcpsAcquisitionAdapterFpga::generate_prn_codes(const ConfigurationInterface* configuration)
+void PcpsAcquisitionAdapterFpga::generate_prn_codes(const ConfigurationInterface* configuration, uint32_t IP_core_version)
 {
     const auto sig_info = get_fpga_signal_info(sig_flag_);
     const uint32_t code_length = acq_parameters_.code_length;
@@ -276,8 +279,15 @@ void PcpsAcquisitionAdapterFpga::generate_prn_codes(const ConfigurationInterface
 
             if (acq_parameters_.enable_zero_padding)
                 {
-                    std::copy(code.begin(), code.begin() + code_length, code.begin() + code_length);
-                    std::fill(code.begin() + (2 * code_length), code.end(), std::complex<float>(0.0, 0.0));
+                    if (IP_core_version < FPGA_IP_VERSION_1_2)
+                        {
+                            std::copy(code.begin(), code.begin() + code_length, code.begin() + code_length);
+                            std::fill(code.begin() + (2 * code_length), code.end(), std::complex<float>(0.0, 0.0));
+                        }
+                    else
+                        {
+                            std::fill(code.begin() + code_length, code.end(), std::complex<float>(0.0, 0.0));
+                        }
                 }
 
             std::copy_n(code.data(), nsamples_total, fft_if->get_inbuf());

@@ -7,7 +7,7 @@
  * GNSS-SDR is a Global Navigation Satellite System software-defined receiver.
  * This file is part of GNSS-SDR.
  *
- * Copyright (C) 2010-2025  (see AUTHORS file for a list of contributors)
+ * Copyright (C) 2010-2026  (see AUTHORS file for a list of contributors)
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * -----------------------------------------------------------------------------
@@ -65,7 +65,7 @@ public:
     void set_local_code() override;
 
 private:
-    void generate_prn_codes(const ConfigurationInterface* configuration);
+    void generate_prn_codes(const ConfigurationInterface* configuration, uint32_t IP_core_version);
     void init();
 
     volk_gnsssdr::vector<uint32_t> d_all_fft_codes_;

@@ -62,9 +62,6 @@ private:
     // IP core device name
     const std::string DYN_BIT_SEL_DEV_NAME = std::string("dynamic_bits_selector");  // Dynamic bit selection device name
 
-    // IP Core version
-    const uint32_t FPGA_DYN_BIT_SEL_IP_VERSION_1_2 = 0x0002;  // Dynamic bit selection IP core version 1.2
-
     // page size
     static const size_t FPGA_PAGE_SIZE = 0x1000;
 
@@ -81,8 +78,8 @@ private:
     static const uint32_t SELECT_FREQ_BAND_2 = 2;          // selection for frequency band 2
     static const uint32_t SHIFT_OUT_BITS_MAX_DEFAULT = 8;  // take the most significant bits by default
     static const uint32_t SHIFT_OUT_BITS_MIN = 0;          // minimum possible value for the bit selection
-    static const uint32_t POWER_THRESHOLD_HIGH = 9000;
-    static const uint32_t POWER_THRESHOLD_LOW = 3000;
+    static const uint32_t POWER_THRESHOLD_HIGH = 9000;     // 2*9000;
+    static const uint32_t POWER_THRESHOLD_LOW = 3000;      // 2*3000;
 
     bool open_device(volatile unsigned **d_map_base, int &d_dev_descr, int freq_band);
     void initialize_device(volatile unsigned *d_map_base, uint32_t &shift_out_bits, uint32_t &shift_out_bit_max);

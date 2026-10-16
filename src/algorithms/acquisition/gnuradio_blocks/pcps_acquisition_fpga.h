@@ -17,7 +17,7 @@
  * GNSS-SDR is a Global Navigation Satellite System software-defined receiver.
  * This file is part of GNSS-SDR.
  *
- * Copyright (C) 2010-2022  (see AUTHORS file for a list of contributors)
+ * Copyright (C) 2010-2026  (see AUTHORS file for a list of contributors)
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * -----------------------------------------------------------------------------
@@ -47,7 +47,7 @@ class pcps_acquisition_fpga;
 
 using pcps_acquisition_fpga_sptr = std::shared_ptr<pcps_acquisition_fpga>;
 
-pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga* conf_, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
+pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga* conf_, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size, uint32_t& IP_core_version);
 
 /*!
  * \brief This class implements a Parallel Code Phase Search Acquisition that uses the FPGA.
@@ -132,8 +132,8 @@ public:
     void stop_acquisition();
 
 private:
-    friend pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
-    explicit pcps_acquisition_fpga(Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
+    friend pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size, uint32_t& IP_core_version);
+    explicit pcps_acquisition_fpga(Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size, uint32_t& IP_core_version);
 
     void send_negative_acquisition();
     void send_positive_acquisition();

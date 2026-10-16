@@ -60,6 +60,7 @@ if(ENABLE_FPGA)
         ${CORE_LIBS_HEADERS}
         gnss_sdr_fpga_sample_counter.h
         gnss_sdr_time_counter.h
+        fpga_ip_core_versions.h
     )
 endif()
 
