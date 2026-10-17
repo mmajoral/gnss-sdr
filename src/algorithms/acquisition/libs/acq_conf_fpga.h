@@ -44,9 +44,13 @@ public:
     bool Is_acq_config_valid(uint32_t max_FFT_size) const;
 
     /* PCPS Acquisition configuration */
+
     std::string device_name = "uio0";
+    std::complex<float> *all_fft_codes = nullptr;  // pointer to memory that contains all the code ffts
+
     double code_rate_cps;
     double code_length_chips;
+
     float doppler_step{250.0};
     float doppler_step2{125.0};
     float threshold{0.0};
@@ -54,7 +58,6 @@ public:
     int64_t fs_in{4000000LL};
     int64_t resampled_fs{4000000LL};
 
-    uint32_t *all_fft_codes = nullptr;  // pointer to memory that contains all the code ffts
     uint32_t num_doppler_bins_step2{4U};
     uint32_t downsampling_filter_num{0U};
     uint32_t downsampling_factor{1U};

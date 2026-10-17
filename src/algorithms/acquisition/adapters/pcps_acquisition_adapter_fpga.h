@@ -68,7 +68,7 @@ private:
     void generate_prn_codes(const ConfigurationInterface* configuration, uint32_t IP_core_version);
     void init();
 
-    volk_gnsssdr::vector<uint32_t> d_all_fft_codes_;
+    volk_gnsssdr::vector<std::complex<float>> all_fft_codes;
     Acq_Conf_Fpga acq_parameters_;
     pcps_acquisition_fpga_sptr acquisition_fpga_;
     const signal_flag sig_flag_;

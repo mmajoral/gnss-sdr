@@ -55,8 +55,7 @@ Fpga_Acquisition::Fpga_Acquisition(std::string device_name,
     uint32_t &IP_core_version) : d_device_name(std::move(device_name)),
                                  d_resampled_fs(0),
                                  d_map_base(nullptr),  // driver memory map
-                                 d_all_fft_codes(nullptr),
-                                 d_fd(0),  // driver descriptor
+                                 d_fd(0),              // driver descriptor
                                  d_fft_size(0),
                                  d_excludelimit(0),
                                  d_nsamples(0),  // number of samples not including padding
@@ -76,9 +75,10 @@ Fpga_Acquisition::Fpga_Acquisition(std::string device_name,
 
 
 void Fpga_Acquisition::init(uint32_t nsamples, uint32_t fft_size,
-    int64_t resampled_fs, uint32_t downsampling_filter_num, uint32_t excludelimit, uint32_t *all_fft_codes)
+    int64_t resampled_fs, uint32_t downsampling_filter_num, uint32_t excludelimit, std::complex<float> *all_fft_codes, uint32_t num_prns)
 {
     d_resampled_fs = resampled_fs;
+    d_all_fft_codes_packed = std::vector<uint32_t>(num_prns * fft_size);
     d_all_fft_codes = all_fft_codes;
     d_fft_size = fft_size;
     d_excludelimit = excludelimit;
@@ -89,6 +89,8 @@ void Fpga_Acquisition::init(uint32_t nsamples, uint32_t fft_size,
             d_downsampling_factor = d_downsampling_filter_specs[d_filter_num - 1].first;
             d_downsampling_filter_delay = d_downsampling_filter_specs[d_filter_num - 1].second;
         }
+
+    pack_fft_codes(d_fft_size, num_prns, d_all_fft_codes_packed, d_all_fft_codes);
 }
 
 
@@ -106,7 +108,35 @@ void Fpga_Acquisition::write_local_code()
     // write local code
     for (uint32_t k = 0; k < d_fft_size; k++)
         {
-            d_map_base[PROG_MEM_ADDR] = d_all_fft_codes[d_fft_size * (d_PRN - 1) + k];
+            d_map_base[PROG_MEM_ADDR] = d_all_fft_codes_packed[d_fft_size * (d_PRN - 1) + k];
+        }
+}
+
+void Fpga_Acquisition::pack_fft_codes(uint32_t nsamples_total, uint32_t num_prns, std::vector<uint32_t> &all_fft_codes_packed, std::complex<float> *all_fft_codes)
+{
+    for (uint32_t prn = 0; prn < num_prns; prn++)
+        {
+            float max = 0;
+            for (uint32_t i = 0; i < nsamples_total; i++)
+                {
+                    if (std::abs(all_fft_codes[i + prn * nsamples_total].real()) > max)
+                        {
+                            max = std::abs(all_fft_codes[i + prn * nsamples_total].real());
+                        }
+                    if (std::abs(all_fft_codes[i + prn * nsamples_total].imag()) > max)
+                        {
+                            max = std::abs(all_fft_codes[i + prn * nsamples_total].imag());
+                        }
+                }
+            // std::cout << "prn num = " << prn << "max in lib = " << max << std::endl;
+
+            for (uint32_t i = 0; i < nsamples_total; i++)
+                {
+                    const auto tmp = static_cast<int32_t>(std::floor(all_fft_codes[i + prn * nsamples_total].real() * (std::pow(2, QUANT_BITS_LOCAL_CODE - 1) - 1) / max));
+                    const auto tmp2 = static_cast<int32_t>(std::floor(all_fft_codes[i + prn * nsamples_total].imag() * (std::pow(2, QUANT_BITS_LOCAL_CODE - 1) - 1) / max));
+                    const auto local_code = (tmp & SELECT_LSBITS) | ((tmp2 * SHL_CODE_BITS) & SELECT_MSBITS);
+                    all_fft_codes_packed[i + nsamples_total * prn] = local_code & SELECT_ALL_CODE_BITS;
+                }
         }
 }
 

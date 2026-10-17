@@ -50,11 +50,7 @@
 
 namespace
 {
-constexpr uint32_t QUANT_BITS_LOCAL_CODE = 16;
-constexpr uint32_t SELECT_LSBITS = 0x0000FFFF;
-constexpr uint32_t SELECT_MSBITS = 0xFFFF0000;
-constexpr uint32_t SELECT_ALL_CODE_BITS = 0xFFFFFFFF;
-constexpr uint32_t SHL_CODE_BITS = 65536;
+    
 constexpr uint32_t ACQ_BUFF_0 = 0;
 constexpr uint32_t ACQ_BUFF_1 = 1;
 
@@ -93,32 +89,6 @@ fpga_signal_info get_fpga_signal_info(signal_flag sig_flag)
 
     return {};
 }
-
-
-void pack_fft_codes(const std::complex<float>* fft_code, uint32_t nsamples_total, uint32_t prn, volk_gnsssdr::vector<uint32_t>& all_fft_codes)
-{
-    float max = 0;
-    for (uint32_t i = 0; i < nsamples_total; i++)
-        {
-            if (std::abs(fft_code[i].real()) > max)
-                {
-                    max = std::abs(fft_code[i].real());
-                }
-            if (std::abs(fft_code[i].imag()) > max)
-                {
-                    max = std::abs(fft_code[i].imag());
-                }
-        }
-
-    for (uint32_t i = 0; i < nsamples_total; i++)
-        {
-            const auto tmp = static_cast<int32_t>(std::floor(fft_code[i].real() * (std::pow(2, QUANT_BITS_LOCAL_CODE - 1) - 1) / max));
-            const auto tmp2 = static_cast<int32_t>(std::floor(fft_code[i].imag() * (std::pow(2, QUANT_BITS_LOCAL_CODE - 1) - 1) / max));
-            const auto local_code = (tmp & SELECT_LSBITS) | ((tmp2 * SHL_CODE_BITS) & SELECT_MSBITS);
-            all_fft_codes[i + (nsamples_total * (prn - 1))] = local_code & SELECT_ALL_CODE_BITS;
-        }
-}
-
 
 void generate_code(signal_flag sig_flag,
     const ConfigurationInterface* configuration,
@@ -271,7 +241,9 @@ void PcpsAcquisitionAdapterFpga::generate_prn_codes(const ConfigurationInterface
     auto fft_if = gnss_fft_fwd_make_unique(nsamples_total);
     volk_gnsssdr::vector<std::complex<float>> code(nsamples_total);
     volk_gnsssdr::vector<std::complex<float>> fft_code(nsamples_total);
-    d_all_fft_codes_ = volk_gnsssdr::vector<uint32_t>(nsamples_total * sig_info.num_prns);
+
+    all_fft_codes = volk_gnsssdr::vector<std::complex<float>>(nsamples_total * sig_info.num_prns);
+
 
     for (uint32_t prn = 1; prn <= sig_info.num_prns; prn++)
         {
@@ -293,10 +265,10 @@ void PcpsAcquisitionAdapterFpga::generate_prn_codes(const ConfigurationInterface
             std::copy_n(code.data(), nsamples_total, fft_if->get_inbuf());
             fft_if->execute();
             volk_32fc_conjugate_32fc(fft_code.data(), fft_if->get_outbuf(), nsamples_total);
-            pack_fft_codes(fft_code.data(), nsamples_total, prn, d_all_fft_codes_);
+            std::copy(fft_code.begin(), fft_code.begin() + nsamples_total, all_fft_codes.begin() + (nsamples_total * (prn - 1)));
         }
 
-    acq_parameters_.all_fft_codes = d_all_fft_codes_.data();
+    acq_parameters_.all_fft_codes = all_fft_codes.data();
 }
 
 
@@ -386,9 +358,10 @@ void PcpsAcquisitionAdapterFpga::stop_acquisition()
 
 void PcpsAcquisitionAdapterFpga::init()
 {
+    const auto sig_info = get_fpga_signal_info(sig_flag_);
     if (acquisition_fpga_)
         {
-            acquisition_fpga_->init();
+            acquisition_fpga_->init(sig_info.num_prns);
         }
 }
 

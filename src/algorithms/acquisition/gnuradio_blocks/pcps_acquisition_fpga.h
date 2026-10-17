@@ -84,7 +84,7 @@ public:
     /*!
      * \brief Initializes acquisition algorithm.
      */
-    void init();
+    void init(uint32_t num_prns);
 
     /*!
      * \brief Sets local code for PCPS acquisition algorithm.
