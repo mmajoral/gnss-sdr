@@ -50,7 +50,7 @@
 
 namespace
 {
-    
+
 constexpr uint32_t ACQ_BUFF_0 = 0;
 constexpr uint32_t ACQ_BUFF_1 = 1;
 
@@ -267,8 +267,6 @@ void PcpsAcquisitionAdapterFpga::generate_prn_codes(const ConfigurationInterface
             volk_32fc_conjugate_32fc(fft_code.data(), fft_if->get_outbuf(), nsamples_total);
             std::copy(fft_code.begin(), fft_code.begin() + nsamples_total, all_fft_codes.begin() + (nsamples_total * (prn - 1)));
         }
-
-    acq_parameters_.all_fft_codes = all_fft_codes.data();
 }
 
 
@@ -361,7 +359,7 @@ void PcpsAcquisitionAdapterFpga::init()
     const auto sig_info = get_fpga_signal_info(sig_flag_);
     if (acquisition_fpga_)
         {
-            acquisition_fpga_->init(sig_info.num_prns);
+            acquisition_fpga_->init(sig_info.num_prns, &all_fft_codes);
         }
 }
 

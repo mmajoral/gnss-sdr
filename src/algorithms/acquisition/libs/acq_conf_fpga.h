@@ -46,7 +46,6 @@ public:
     /* PCPS Acquisition configuration */
 
     std::string device_name = "uio0";
-    std::complex<float> *all_fft_codes = nullptr;  // pointer to memory that contains all the code ffts
 
     double code_rate_cps;
     double code_length_chips;

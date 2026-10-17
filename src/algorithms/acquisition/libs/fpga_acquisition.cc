@@ -75,11 +75,10 @@ Fpga_Acquisition::Fpga_Acquisition(std::string device_name,
 
 
 void Fpga_Acquisition::init(uint32_t nsamples, uint32_t fft_size,
-    int64_t resampled_fs, uint32_t downsampling_filter_num, uint32_t excludelimit, std::complex<float> *all_fft_codes, uint32_t num_prns)
+    int64_t resampled_fs, uint32_t downsampling_filter_num, uint32_t excludelimit, const volk_gnsssdr::vector<std::complex<float>> *all_fft_codes, uint32_t num_prns)
 {
     d_resampled_fs = resampled_fs;
     d_all_fft_codes_packed = std::vector<uint32_t>(num_prns * fft_size);
-    d_all_fft_codes = all_fft_codes;
     d_fft_size = fft_size;
     d_excludelimit = excludelimit;
     d_nsamples = nsamples;
@@ -90,7 +89,7 @@ void Fpga_Acquisition::init(uint32_t nsamples, uint32_t fft_size,
             d_downsampling_filter_delay = d_downsampling_filter_specs[d_filter_num - 1].second;
         }
 
-    pack_fft_codes(d_fft_size, num_prns, d_all_fft_codes_packed, d_all_fft_codes);
+    pack_fft_codes(d_fft_size, num_prns, d_all_fft_codes_packed, *all_fft_codes);
 }
 
 
@@ -112,7 +111,7 @@ void Fpga_Acquisition::write_local_code()
         }
 }
 
-void Fpga_Acquisition::pack_fft_codes(uint32_t nsamples_total, uint32_t num_prns, std::vector<uint32_t> &all_fft_codes_packed, std::complex<float> *all_fft_codes)
+void Fpga_Acquisition::pack_fft_codes(uint32_t nsamples_total, uint32_t num_prns, std::vector<uint32_t> &all_fft_codes_packed, const volk_gnsssdr::vector<std::complex<float>> &all_fft_codes)
 {
     for (uint32_t prn = 0; prn < num_prns; prn++)
         {

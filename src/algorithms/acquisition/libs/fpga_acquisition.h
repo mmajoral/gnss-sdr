@@ -22,6 +22,7 @@
 #ifndef GNSS_SDR_FPGA_ACQUISITION_H
 #define GNSS_SDR_FPGA_ACQUISITION_H
 
+#include <volk_gnsssdr/volk_gnsssdr_alloc.h>  // for volk_gnsssdr::vector
 #include <complex>
 #include <cstdint>
 #include <string>
@@ -59,7 +60,7 @@ public:
      * \brief Initialize acquisition parameters
      */
     void init(uint32_t nsamples, uint32_t d_fft_size,
-        int64_t resampled_fs, uint32_t downsampling_filter_num, uint32_t excludelimit, std::complex<float> *all_fft_codes, uint32_t num_prns);
+        int64_t resampled_fs, uint32_t downsampling_filter_num, uint32_t excludelimit, const volk_gnsssdr::vector<std::complex<float>> *all_fft_codes, uint32_t num_prns);
 
     /*!
      * \brief Select the code with the chosen PRN
@@ -188,18 +189,17 @@ private:
     const uint32_t DEFAULT_DOWNSAMPLING_FACTOR = 4;         // default downsampling factor (for FPGA Acquisition IP core versions earlier than v1.1)
 
     // private methods
-    void pack_fft_codes(uint32_t nsamples_total, uint32_t num_prns, std::vector<uint32_t> &all_fft_codes_packed, std::complex<float> *all_fft_codes);
+    void pack_fft_codes(uint32_t nsamples_total, uint32_t num_prns, std::vector<uint32_t> &all_fft_codes_packed, const volk_gnsssdr::vector<std::complex<float>> &all_fft_codes);
     void fpga_acquisition_test_register(void);
     void read_ipcore_info(std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs, uint32_t &max_FFT_size, uint32_t &IP_core_version);
 
     std::vector<std::pair<uint32_t, uint32_t>> d_downsampling_filter_specs;
     std::vector<uint32_t> d_all_fft_codes_packed;
-    std::complex<float> *d_all_fft_codes;  // memory that contains all the code ffts
-    std::string d_device_name;             // HW device name
-    int64_t d_resampled_fs;                // sampling frequency
-    volatile uint32_t *d_map_base;         // driver memory map
-    int32_t d_fd;                          // driver descriptor
-    uint32_t d_fft_size;                   // number of samples including padding
+    std::string d_device_name;      // HW device name
+    int64_t d_resampled_fs;         // sampling frequency
+    volatile uint32_t *d_map_base;  // driver memory map
+    int32_t d_fd;                   // driver descriptor
+    uint32_t d_fft_size;            // number of samples including padding
     uint32_t d_excludelimit;
     uint32_t d_nsamples;                   // number of samples not including padding
     uint32_t d_filter_num;                 // Selected downsampling filter

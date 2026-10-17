@@ -29,11 +29,12 @@
 #include "acq_conf_fpga.h"
 #include "channel_fsm.h"
 #include "fpga_acquisition.h"
-#include <cstdint>  // for uint32_t
-#include <memory>   // for shared_ptr
-#include <string>   // for string
-#include <utility>  // for for std::move, std::pair
-#include <vector>   // for std::vector
+#include <volk_gnsssdr/volk_gnsssdr_alloc.h>  // for volk_gnsssdr::vector
+#include <cstdint>                            // for uint32_t
+#include <memory>                             // for shared_ptr
+#include <string>                             // for string
+#include <utility>                            // for for std::move, std::pair
+#include <vector>                             // for std::vector
 
 /** \addtogroup Acquisition
  * \{ */
@@ -84,7 +85,7 @@ public:
     /*!
      * \brief Initializes acquisition algorithm.
      */
-    void init(uint32_t num_prns);
+    void init(uint32_t num_prns, const volk_gnsssdr::vector<std::complex<float>>* all_fft_codes);
 
     /*!
      * \brief Sets local code for PCPS acquisition algorithm.
