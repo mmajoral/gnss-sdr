@@ -181,6 +181,26 @@ PcpsAcquisitionAdapterFpga::PcpsAcquisitionAdapterFpga(
     const auto sig_info = get_fpga_signal_info(sig_flag_);
     acq_parameters_.SetFromConfiguration(configuration, role_, sig_info.default_fpga_blk_exp, sig_info.code_rate_cps, sig_info.code_length_chips);
 
+#if USE_GLOG_AND_GFLAGS
+    if (FLAGS_doppler_max != 0)
+        {
+            acq_parameters_.doppler_max = FLAGS_doppler_max;
+        }
+    if (FLAGS_doppler_step != 0)
+        {
+            acq_parameters_.doppler_step = static_cast<float>(FLAGS_doppler_step);
+        }
+#else
+    if (absl::GetFlag(FLAGS_doppler_max) != 0)
+        {
+            acq_parameters_.doppler_max = absl::GetFlag(FLAGS_doppler_max);
+        }
+    if (absl::GetFlag(FLAGS_doppler_step) != 0)
+        {
+            acq_parameters_.doppler_step = static_cast<float>(absl::GetFlag(FLAGS_doppler_step));
+        }
+#endif
+
     std::vector<std::pair<uint32_t, uint32_t>> downsampling_filter_specs;
     uint32_t max_FFT_size;
     acquisition_fpga_ = pcps_make_acquisition_fpga(&acq_parameters_, sig_info.acq_buff, downsampling_filter_specs, max_FFT_size);
@@ -203,26 +223,6 @@ PcpsAcquisitionAdapterFpga::PcpsAcquisitionAdapterFpga(
                     std::exit(0);
                 }
         }
-
-#if USE_GLOG_AND_GFLAGS
-    if (FLAGS_doppler_max != 0)
-        {
-            acq_parameters_.doppler_max = FLAGS_doppler_max;
-        }
-    if (FLAGS_doppler_step != 0)
-        {
-            acq_parameters_.doppler_step = static_cast<float>(FLAGS_doppler_step);
-        }
-#else
-    if (absl::GetFlag(FLAGS_doppler_max) != 0)
-        {
-            acq_parameters_.doppler_max = absl::GetFlag(FLAGS_doppler_max);
-        }
-    if (absl::GetFlag(FLAGS_doppler_step) != 0)
-        {
-            acq_parameters_.doppler_step = static_cast<float>(absl::GetFlag(FLAGS_doppler_step));
-        }
-#endif
 
     volk_gnsssdr::vector<std::complex<float>> prn_codes(acq_parameters_.code_length * sig_info.num_prns);
     generate_prn_codes(configuration, prn_codes, sig_info.num_prns);
