@@ -35,20 +35,19 @@
 pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga *conf,
     uint32_t acq_buff_num,
     std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs,
-    uint32_t &max_FFT_size, uint32_t &IP_core_version)
+    uint32_t &max_FFT_size)
 {
     return pcps_acquisition_fpga_sptr(new pcps_acquisition_fpga(conf,
         acq_buff_num,
         downsampling_filter_specs,
-        max_FFT_size,
-        IP_core_version));
+        max_FFT_size));
 }
 
 
 pcps_acquisition_fpga::pcps_acquisition_fpga(Acq_Conf_Fpga *conf_,
     uint32_t acq_buff_num,
     std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs,
-    uint32_t &max_FFT_size, uint32_t &IP_core_version)
+    uint32_t &max_FFT_size)
     : d_acq_parameters(conf_),
       d_gnss_synchro(nullptr),
       d_sample_counter(0ULL),
@@ -74,8 +73,7 @@ pcps_acquisition_fpga::pcps_acquisition_fpga(Acq_Conf_Fpga *conf_,
     d_acquisition_fpga = std::make_unique<Fpga_Acquisition>(d_acq_parameters->device_name,
         acq_buff_num,
         downsampling_filter_specs,
-        max_FFT_size,
-        IP_core_version);
+        max_FFT_size);
 }
 
 void pcps_acquisition_fpga::set_local_code()
@@ -83,10 +81,10 @@ void pcps_acquisition_fpga::set_local_code()
     d_acquisition_fpga->set_local_code(d_gnss_synchro->PRN);
 }
 
-void pcps_acquisition_fpga::init(uint32_t num_prns, const volk_gnsssdr::vector<std::complex<float>> *all_fft_codes)
+void pcps_acquisition_fpga::init(uint32_t num_prns, const volk_gnsssdr::vector<std::complex<float>> *prn_codes)
 {
     d_acquisition_fpga->init(d_acq_parameters->code_length, d_acq_parameters->fft_size,
-        d_acq_parameters->resampled_fs, d_acq_parameters->downsampling_filter_num, d_acq_parameters->excludelimit, all_fft_codes, num_prns);
+        d_acq_parameters->resampled_fs, d_acq_parameters->downsampling_filter_num, d_acq_parameters->excludelimit, prn_codes, num_prns, d_acq_parameters->enable_zero_padding);
 }
 
 

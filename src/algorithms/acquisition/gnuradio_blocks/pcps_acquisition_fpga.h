@@ -48,7 +48,7 @@ class pcps_acquisition_fpga;
 
 using pcps_acquisition_fpga_sptr = std::shared_ptr<pcps_acquisition_fpga>;
 
-pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga* conf_, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size, uint32_t& IP_core_version);
+pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga* conf_, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
 
 /*!
  * \brief This class implements a Parallel Code Phase Search Acquisition that uses the FPGA.
@@ -85,7 +85,7 @@ public:
     /*!
      * \brief Initializes acquisition algorithm.
      */
-    void init(uint32_t num_prns, const volk_gnsssdr::vector<std::complex<float>>* all_fft_codes);
+    void init(uint32_t num_prns, const volk_gnsssdr::vector<std::complex<float>>* prn_codes);
 
     /*!
      * \brief Sets local code for PCPS acquisition algorithm.
@@ -133,8 +133,8 @@ public:
     void stop_acquisition();
 
 private:
-    friend pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size, uint32_t& IP_core_version);
-    explicit pcps_acquisition_fpga(Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size, uint32_t& IP_core_version);
+    friend pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
+    explicit pcps_acquisition_fpga(Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
 
     void send_negative_acquisition();
     void send_positive_acquisition();

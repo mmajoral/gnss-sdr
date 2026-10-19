@@ -20,8 +20,11 @@
  */
 
 #include "fpga_acquisition.h"
-#include "MATH_CONSTANTS.h"  // for TWO_PI
-#include "fpga_ip_core_versions.h"
+#include "MATH_CONSTANTS.h"         // for TWO_PI
+#include "fpga_ip_core_versions.h"  // for IP core versions
+#include "gnss_sdr_fft.h"           // for fft_if
+#include <volk/volk.h>
+#include <algorithm>   // for std::copy_n
 #include <cmath>       // for log2
 #include <fcntl.h>     // libraries used by the GIPO
 #include <iostream>    // for operator<<
@@ -51,31 +54,32 @@
 Fpga_Acquisition::Fpga_Acquisition(std::string device_name,
     uint32_t select_queue,
     std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs,
-    uint32_t &max_FFT_size,
-    uint32_t &IP_core_version) : d_device_name(std::move(device_name)),
-                                 d_resampled_fs(0),
-                                 d_map_base(nullptr),  // driver memory map
-                                 d_fd(0),              // driver descriptor
-                                 d_fft_size(0),
-                                 d_excludelimit(0),
-                                 d_nsamples(0),  // number of samples not including padding
-                                 d_filter_num(0),
-                                 d_downsampling_factor(1),
-                                 d_downsampling_filter_delay(0),
-                                 d_select_queue(select_queue),
-                                 d_PRN(0)
+    uint32_t &max_FFT_size) : d_device_name(std::move(device_name)),
+                              d_resampled_fs(0),
+                              d_map_base(nullptr),  // driver memory map
+                              d_IP_core_version(0),
+                              d_fd(0),  // driver descriptor
+                              d_fft_size(0),
+                              d_excludelimit(0),
+                              d_nsamples(0),  // number of samples not including padding
+                              d_filter_num(0),
+                              d_downsampling_factor(1),
+                              d_downsampling_filter_delay(0),
+                              d_select_queue(select_queue),
+                              d_PRN(0)
 {
     Fpga_Acquisition::open_device();
     Fpga_Acquisition::reset_acquisition();
     Fpga_Acquisition::fpga_acquisition_test_register();
-    Fpga_Acquisition::read_ipcore_info(downsampling_filter_specs, max_FFT_size, IP_core_version);
+    d_IP_core_version = Fpga_Acquisition::read_ipcore_version();
+    Fpga_Acquisition::set_downsampling_factor(downsampling_filter_specs, max_FFT_size, d_IP_core_version);
     Fpga_Acquisition::close_device();
     DLOG(INFO) << "Acquisition FPGA class created";
 }
 
 
 void Fpga_Acquisition::init(uint32_t nsamples, uint32_t fft_size,
-    int64_t resampled_fs, uint32_t downsampling_filter_num, uint32_t excludelimit, const volk_gnsssdr::vector<std::complex<float>> *all_fft_codes, uint32_t num_prns)
+    int64_t resampled_fs, uint32_t downsampling_filter_num, uint32_t excludelimit, const volk_gnsssdr::vector<std::complex<float>> *prn_codes, uint32_t num_prns, bool enable_zero_padding)
 {
     d_resampled_fs = resampled_fs;
     d_all_fft_codes_packed = std::vector<uint32_t>(num_prns * fft_size);
@@ -89,7 +93,7 @@ void Fpga_Acquisition::init(uint32_t nsamples, uint32_t fft_size,
             d_downsampling_filter_delay = d_downsampling_filter_specs[d_filter_num - 1].second;
         }
 
-    pack_fft_codes(d_fft_size, num_prns, d_all_fft_codes_packed, *all_fft_codes);
+    pack_fft_codes(d_nsamples, d_fft_size, num_prns, d_all_fft_codes_packed, *prn_codes, enable_zero_padding, d_IP_core_version);
 }
 
 
@@ -111,28 +115,51 @@ void Fpga_Acquisition::write_local_code()
         }
 }
 
-void Fpga_Acquisition::pack_fft_codes(uint32_t nsamples_total, uint32_t num_prns, std::vector<uint32_t> &all_fft_codes_packed, const volk_gnsssdr::vector<std::complex<float>> &all_fft_codes)
+void Fpga_Acquisition::pack_fft_codes(uint32_t nsamples, uint32_t nsamples_total, uint32_t num_prns, std::vector<uint32_t> &all_fft_codes_packed, const volk_gnsssdr::vector<std::complex<float>> &prn_codes, bool enable_zero_padding, uint32_t IP_core_version)
 {
+    auto fft_if = gnss_fft_fwd_make_unique(nsamples_total);
+    volk_gnsssdr::vector<std::complex<float>> code(nsamples_total);
+    volk_gnsssdr::vector<std::complex<float>> fft_code(nsamples_total);
+
     for (uint32_t prn = 0; prn < num_prns; prn++)
         {
+            // compute the FFT of the PRN code taking into account zero padding
+            std::copy(prn_codes.begin() + prn * nsamples, prn_codes.begin() + (prn + 1) * nsamples, code.begin());
+            if (enable_zero_padding)
+                {
+                    if (IP_core_version < FPGA_IP_VERSION_1_2)
+                        {
+                            std::copy(code.begin(), code.begin() + nsamples, code.begin() + nsamples);
+                            std::fill(code.begin() + (2 * nsamples), code.end(), std::complex<float>(0.0, 0.0));
+                        }
+                    else
+                        {
+                            std::fill(code.begin() + nsamples, code.end(), std::complex<float>(0.0, 0.0));
+                        }
+                }
+
+            std::copy_n(code.data(), nsamples_total, fft_if->get_inbuf());
+            fft_if->execute();
+            volk_32fc_conjugate_32fc(fft_code.data(), fft_if->get_outbuf(), nsamples_total);
+
+            // quantize the PRN code and pack it for the FPGA
             float max = 0;
             for (uint32_t i = 0; i < nsamples_total; i++)
                 {
-                    if (std::abs(all_fft_codes[i + prn * nsamples_total].real()) > max)
+                    if (std::abs(fft_code[i].real()) > max)
                         {
-                            max = std::abs(all_fft_codes[i + prn * nsamples_total].real());
+                            max = std::abs(fft_code[i].real());
                         }
-                    if (std::abs(all_fft_codes[i + prn * nsamples_total].imag()) > max)
+                    if (std::abs(fft_code[i].imag()) > max)
                         {
-                            max = std::abs(all_fft_codes[i + prn * nsamples_total].imag());
+                            max = std::abs(fft_code[i].imag());
                         }
                 }
-            // std::cout << "prn num = " << prn << "max in lib = " << max << std::endl;
 
             for (uint32_t i = 0; i < nsamples_total; i++)
                 {
-                    const auto tmp = static_cast<int32_t>(std::floor(all_fft_codes[i + prn * nsamples_total].real() * (std::pow(2, QUANT_BITS_LOCAL_CODE - 1) - 1) / max));
-                    const auto tmp2 = static_cast<int32_t>(std::floor(all_fft_codes[i + prn * nsamples_total].imag() * (std::pow(2, QUANT_BITS_LOCAL_CODE - 1) - 1) / max));
+                    const auto tmp = static_cast<int32_t>(std::floor(fft_code[i].real() * (std::pow(2, QUANT_BITS_LOCAL_CODE - 1) - 1) / max));
+                    const auto tmp2 = static_cast<int32_t>(std::floor(fft_code[i].imag() * (std::pow(2, QUANT_BITS_LOCAL_CODE - 1) - 1) / max));
                     const auto local_code = (tmp & SELECT_LSBITS) | ((tmp2 * SHL_CODE_BITS) & SELECT_MSBITS);
                     all_fft_codes_packed[i + nsamples_total * prn] = local_code & SELECT_ALL_CODE_BITS;
                 }
@@ -177,9 +204,13 @@ void Fpga_Acquisition::fpga_acquisition_test_register()
 }
 
 
-void Fpga_Acquisition::read_ipcore_info(std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs, uint32_t &max_FFT_size, uint32_t &IP_core_version)
+uint32_t Fpga_Acquisition::read_ipcore_version()
 {
-    IP_core_version = d_map_base[FPGA_IP_CORE_VERSION_REG_ADDR];
+    return d_map_base[FPGA_IP_CORE_VERSION_REG_ADDR];
+}
+
+void Fpga_Acquisition::set_downsampling_factor(std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs, uint32_t &max_FFT_size, uint32_t IP_core_version)
+{
     if (IP_core_version >= FPGA_IP_VERSION_1_1)
         {
             // FPGA acquisition IP core version FPGA_IP_VERSION_1_1

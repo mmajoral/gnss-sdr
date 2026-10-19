@@ -23,7 +23,6 @@
 #include "Galileo_E5b.h"
 #include "Galileo_E6.h"
 #include "configuration_interface.h"
-#include "fpga_ip_core_versions.h"
 #include "galileo_e1_signal_replica.h"
 #include "galileo_e5_signal_replica.h"
 #include "galileo_e6_signal_replica.h"
@@ -184,8 +183,7 @@ PcpsAcquisitionAdapterFpga::PcpsAcquisitionAdapterFpga(
 
     std::vector<std::pair<uint32_t, uint32_t>> downsampling_filter_specs;
     uint32_t max_FFT_size;
-    uint32_t IP_core_version;
-    acquisition_fpga_ = pcps_make_acquisition_fpga(&acq_parameters_, sig_info.acq_buff, downsampling_filter_specs, max_FFT_size, IP_core_version);
+    acquisition_fpga_ = pcps_make_acquisition_fpga(&acq_parameters_, sig_info.acq_buff, downsampling_filter_specs, max_FFT_size);
 
     if (sig_info.acq_buff == ACQ_BUFF_0)
         {
@@ -226,46 +224,23 @@ PcpsAcquisitionAdapterFpga::PcpsAcquisitionAdapterFpga(
         }
 #endif
 
-    generate_prn_codes(configuration, IP_core_version);
-    init();
+    volk_gnsssdr::vector<std::complex<float>> prn_codes(acq_parameters_.code_length * sig_info.num_prns);
+    generate_prn_codes(configuration, prn_codes, sig_info.num_prns);
+    init(prn_codes, sig_info.num_prns);
     DLOG(INFO) << "Initialized FPGA acquisition adapter for role " << role_;
 }
 
 
-void PcpsAcquisitionAdapterFpga::generate_prn_codes(const ConfigurationInterface* configuration, uint32_t IP_core_version)
+void PcpsAcquisitionAdapterFpga::generate_prn_codes(const ConfigurationInterface* configuration, volk_gnsssdr::vector<std::complex<float>>& prn_codes, uint32_t num_prns)
 {
-    const auto sig_info = get_fpga_signal_info(sig_flag_);
     const uint32_t code_length = acq_parameters_.code_length;
-    const uint32_t nsamples_total = acq_parameters_.fft_size;
 
-    auto fft_if = gnss_fft_fwd_make_unique(nsamples_total);
-    volk_gnsssdr::vector<std::complex<float>> code(nsamples_total);
-    volk_gnsssdr::vector<std::complex<float>> fft_code(nsamples_total);
+    volk_gnsssdr::vector<std::complex<float>> code(code_length);
 
-    all_fft_codes = volk_gnsssdr::vector<std::complex<float>>(nsamples_total * sig_info.num_prns);
-
-
-    for (uint32_t prn = 1; prn <= sig_info.num_prns; prn++)
+    for (uint32_t prn = 1; prn <= num_prns; prn++)
         {
             generate_code(sig_flag_, configuration, role_, acq_parameters_, prn, code);
-
-            if (acq_parameters_.enable_zero_padding)
-                {
-                    if (IP_core_version < FPGA_IP_VERSION_1_2)
-                        {
-                            std::copy(code.begin(), code.begin() + code_length, code.begin() + code_length);
-                            std::fill(code.begin() + (2 * code_length), code.end(), std::complex<float>(0.0, 0.0));
-                        }
-                    else
-                        {
-                            std::fill(code.begin() + code_length, code.end(), std::complex<float>(0.0, 0.0));
-                        }
-                }
-
-            std::copy_n(code.data(), nsamples_total, fft_if->get_inbuf());
-            fft_if->execute();
-            volk_32fc_conjugate_32fc(fft_code.data(), fft_if->get_outbuf(), nsamples_total);
-            std::copy(fft_code.begin(), fft_code.begin() + nsamples_total, all_fft_codes.begin() + (nsamples_total * (prn - 1)));
+            std::copy(code.begin(), code.begin() + code_length, prn_codes.begin() + (code_length * (prn - 1)));
         }
 }
 
@@ -354,12 +329,11 @@ void PcpsAcquisitionAdapterFpga::stop_acquisition()
 }
 
 
-void PcpsAcquisitionAdapterFpga::init()
+void PcpsAcquisitionAdapterFpga::init(const volk_gnsssdr::vector<std::complex<float>>& prn_codes, uint32_t num_prns)
 {
-    const auto sig_info = get_fpga_signal_info(sig_flag_);
     if (acquisition_fpga_)
         {
-            acquisition_fpga_->init(sig_info.num_prns, &all_fft_codes);
+            acquisition_fpga_->init(num_prns, &prn_codes);
         }
 }
 

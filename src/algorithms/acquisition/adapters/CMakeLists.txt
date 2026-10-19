@@ -77,13 +77,6 @@ if(ENABLE_FPGA)
     )
 endif()
 
-if(ENABLE_FPGA)
-    target_include_directories(acquisition_adapters
-        PUBLIC
-            ${GNSSSDR_SOURCE_DIR}/src/core/libs
-    )
-endif()
-
 if(ENABLE_OPENCL)
     target_compile_definitions(acquisition_adapters PRIVATE -DOPENCL_BLOCKS=1)
 else()
