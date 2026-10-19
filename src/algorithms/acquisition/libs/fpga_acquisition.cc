@@ -52,7 +52,7 @@
 #endif
 
 Fpga_Acquisition::Fpga_Acquisition(std::string device_name,
-    uint32_t select_queue,
+    const uint32_t select_queue,
     std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs,
     uint32_t &max_FFT_size) : d_device_name(std::move(device_name)),
                               d_resampled_fs(0),
@@ -78,8 +78,8 @@ Fpga_Acquisition::Fpga_Acquisition(std::string device_name,
 }
 
 
-void Fpga_Acquisition::init(uint32_t nsamples, uint32_t fft_size,
-    int64_t resampled_fs, uint32_t downsampling_filter_num, uint32_t excludelimit, const volk_gnsssdr::vector<std::complex<float>> *prn_codes, uint32_t num_prns, bool enable_zero_padding)
+void Fpga_Acquisition::init(const uint32_t nsamples, const uint32_t fft_size,
+    const int64_t resampled_fs, const uint32_t downsampling_filter_num, const uint32_t excludelimit, const volk_gnsssdr::vector<std::complex<float>> *prn_codes, const uint32_t num_prns, const bool enable_zero_padding)
 {
     d_resampled_fs = resampled_fs;
     d_all_fft_codes_packed = std::vector<uint32_t>(num_prns * fft_size);
@@ -97,7 +97,7 @@ void Fpga_Acquisition::init(uint32_t nsamples, uint32_t fft_size,
 }
 
 
-bool Fpga_Acquisition::set_local_code(uint32_t PRN)
+bool Fpga_Acquisition::set_local_code(const uint32_t PRN)
 {
     // select the code with the chosen PRN
     d_PRN = PRN;
@@ -115,9 +115,9 @@ void Fpga_Acquisition::write_local_code()
         }
 }
 
-void Fpga_Acquisition::pack_fft_codes(uint32_t nsamples, uint32_t nsamples_total, uint32_t num_prns, std::vector<uint32_t> &all_fft_codes_packed, const volk_gnsssdr::vector<std::complex<float>> &prn_codes, bool enable_zero_padding, uint32_t IP_core_version)
+void Fpga_Acquisition::pack_fft_codes(const uint32_t nsamples, const uint32_t nsamples_total, const uint32_t num_prns, std::vector<uint32_t> &all_fft_codes_packed, const volk_gnsssdr::vector<std::complex<float>> &prn_codes, const bool enable_zero_padding, const uint32_t IP_core_version)
 {
-    auto fft_if = gnss_fft_fwd_make_unique(nsamples_total);
+    const auto fft_if = gnss_fft_fwd_make_unique(nsamples_total);
     volk_gnsssdr::vector<std::complex<float>> code(nsamples_total);
     volk_gnsssdr::vector<std::complex<float>> fft_code(nsamples_total);
 
@@ -204,12 +204,12 @@ void Fpga_Acquisition::fpga_acquisition_test_register()
 }
 
 
-uint32_t Fpga_Acquisition::read_ipcore_version()
+uint32_t Fpga_Acquisition::read_ipcore_version() const
 {
     return d_map_base[FPGA_IP_CORE_VERSION_REG_ADDR];
 }
 
-void Fpga_Acquisition::set_downsampling_factor(std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs, uint32_t &max_FFT_size, uint32_t IP_core_version)
+void Fpga_Acquisition::set_downsampling_factor(std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs, uint32_t &max_FFT_size, const uint32_t IP_core_version)
 {
     if (IP_core_version >= FPGA_IP_VERSION_1_1)
         {
@@ -223,10 +223,10 @@ void Fpga_Acquisition::set_downsampling_factor(std::vector<std::pair<uint32_t, u
                     for (uint32_t filt_num = 1; filt_num <= MAX_FILTERS_AVAILABLE; filt_num++)
                         {
                             // The information about the instantiated downsampling filters in the FPGA is ordered such that the largest downsampling factor is stored in the least significant bits (LSBs), while the smallest downsampling factor is stored in the most significant bits (MSBs).
-                            uint32_t dec_factor = downsampling_filter_dec_factors & BIT_MASK_4;
+                            const uint32_t dec_factor = downsampling_filter_dec_factors & BIT_MASK_4;
                             downsampling_filter_dec_factors = downsampling_filter_dec_factors >> RSHIFT_4_BITS;
 
-                            uint32_t filter_latency = downsampling_filter_latencies & BIT_MASK_8;
+                            const uint32_t filter_latency = downsampling_filter_latencies & BIT_MASK_8;
                             downsampling_filter_latencies = downsampling_filter_latencies >> RSHIFT_8_BITS;
                             if (dec_factor != 0)
                                 {
@@ -279,13 +279,13 @@ void Fpga_Acquisition::run_acquisition()
 }
 
 
-void Fpga_Acquisition::set_block_exp(uint32_t total_block_exp)
+void Fpga_Acquisition::set_block_exp(const uint32_t total_block_exp)
 {
     d_map_base[MAX_FFT_SCALING_FACTOR_REG_ADDR] = total_block_exp;
 }
 
 
-void Fpga_Acquisition::set_doppler_sweep(uint32_t num_sweeps, uint32_t doppler_step, int32_t doppler_min)
+void Fpga_Acquisition::set_doppler_sweep(const uint32_t num_sweeps, const uint32_t doppler_step, const int32_t doppler_min)
 {
     // The doppler step can never be outside the range -pi to +pi, otherwise there would be aliasing
     // The FPGA expects phase_step_rad between -1 (-pi) to +1 (+pi)
@@ -335,7 +335,7 @@ void Fpga_Acquisition::read_acquisition_results(uint32_t *max_index,
 
 void Fpga_Acquisition::close_device()
 {
-    auto *aux = const_cast<uint32_t *>(d_map_base);
+    auto *const aux = const_cast<uint32_t *>(d_map_base);
     if (munmap(static_cast<void *>(aux), FPGA_PAGE_SIZE) == -1)
         {
             std::cout << "Failed to unmap memory uio\n";

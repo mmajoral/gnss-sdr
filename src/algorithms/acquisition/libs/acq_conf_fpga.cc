@@ -23,7 +23,7 @@
 #include <utility>
 
 void Acq_Conf_Fpga::SetFromConfiguration(const ConfigurationInterface *configuration,
-    const std::string &role, uint32_t blk_exp, double code_chips_per_sec, double num_chips_per_code)
+    const std::string &role, const uint32_t blk_exp, const double code_chips_per_sec, const double num_chips_per_code)
 {
     // sampling frequency
     const int64_t fs_in_deprecated = configuration->property("GNSS-SDR.internal_fs_hz", fs_in);
@@ -55,7 +55,7 @@ void Acq_Conf_Fpga::SetFromConfiguration(const ConfigurationInterface *configura
         }
 
     // FFT length
-    float zero_padding_adjustment = enable_zero_padding ? 2.0F : 1.0F;
+    const float zero_padding_adjustment = enable_zero_padding ? 2.0F : 1.0F;
     fft_size = pow(2, ceilf(log2f(static_cast<float>(code_length) * zero_padding_adjustment)));
 
     // Exclude limit value for the second maxima search
@@ -88,22 +88,22 @@ void Acq_Conf_Fpga::SetFromConfiguration(const ConfigurationInterface *configura
 }
 
 
-bool Acq_Conf_Fpga::ConfigureAutomaticResampler(std::vector<std::pair<uint32_t, uint32_t>> downsampling_filter_specs, uint32_t max_FFT_size, double opt_freq)
+bool Acq_Conf_Fpga::ConfigureAutomaticResampler(const std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs, const uint32_t max_FFT_size, const double opt_freq)
 {
     bool acq_configuration_valid = false;
-    uint32_t optimal_downsampling_factor = fs_in / opt_freq;
+    const uint32_t optimal_downsampling_factor = fs_in / opt_freq;
 
     if (optimal_downsampling_factor > 1)
         {
             for (uint32_t k = 0; k < downsampling_filter_specs.size(); k++)
                 {
-                    uint32_t dec_factor = downsampling_filter_specs[k].first;
-                    uint32_t filter_delay = downsampling_filter_specs[k].second;
+                    const uint32_t dec_factor = downsampling_filter_specs[k].first;
+                    const uint32_t filter_delay = downsampling_filter_specs[k].second;
                     // Select the FPGA-supported downsampling factor that is the closest to, but smaller than, the target downsampling factor
                     if (optimal_downsampling_factor >= dec_factor)
                         {
                             // check if the required FFT size is supported in the FPGA
-                            uint32_t fft_size_downsampled = (fft_size / dec_factor);
+                            const uint32_t fft_size_downsampled = (fft_size / dec_factor);
                             if (fft_size_downsampled <= max_FFT_size)
                                 {
                                     downsampling_filter_num = k + 1;
@@ -113,7 +113,7 @@ bool Acq_Conf_Fpga::ConfigureAutomaticResampler(std::vector<std::pair<uint32_t, 
                                     // update the resampling frequency, the code length, the FFT size, and the exclude limit parameter taking into account the downsampling factor
                                     resampled_fs = fs_in / downsampling_factor;
                                     code_length = static_cast<uint32_t>(std::round(static_cast<double>(resampled_fs) / (code_rate_cps / code_length_chips)));
-                                    float zero_padding_adjustment = enable_zero_padding ? 2.0F : 1.0F;
+                                    const float zero_padding_adjustment = enable_zero_padding ? 2.0F : 1.0F;
                                     fft_size = pow(2, ceilf(log2f(static_cast<float>(code_length) * zero_padding_adjustment)));
                                     excludelimit = static_cast<unsigned int>(1 + ceil((1.0 / code_rate_cps) * static_cast<float>(resampled_fs)));
                                     acq_configuration_valid = true;
@@ -135,7 +135,7 @@ bool Acq_Conf_Fpga::ConfigureAutomaticResampler(std::vector<std::pair<uint32_t, 
 }
 
 
-bool Acq_Conf_Fpga::Is_acq_config_valid(uint32_t max_FFT_size) const
+bool Acq_Conf_Fpga::Is_acq_config_valid(const uint32_t max_FFT_size) const
 {
     if (fft_size <= max_FFT_size)
         {

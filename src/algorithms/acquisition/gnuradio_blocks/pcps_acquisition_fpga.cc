@@ -32,8 +32,8 @@
 #include <absl/log/log.h>
 #endif
 
-pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga *conf,
-    uint32_t acq_buff_num,
+pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(const Acq_Conf_Fpga *conf,
+    const uint32_t acq_buff_num,
     std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs,
     uint32_t &max_FFT_size)
 {
@@ -44,8 +44,8 @@ pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga *conf,
 }
 
 
-pcps_acquisition_fpga::pcps_acquisition_fpga(Acq_Conf_Fpga *conf_,
-    uint32_t acq_buff_num,
+pcps_acquisition_fpga::pcps_acquisition_fpga(const Acq_Conf_Fpga *conf_,
+    const uint32_t acq_buff_num,
     std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs,
     uint32_t &max_FFT_size)
     : d_acq_parameters(conf_),
@@ -81,7 +81,7 @@ void pcps_acquisition_fpga::set_local_code()
     d_acquisition_fpga->set_local_code(d_gnss_synchro->PRN);
 }
 
-void pcps_acquisition_fpga::init(uint32_t num_prns, const volk_gnsssdr::vector<std::complex<float>> *prn_codes)
+void pcps_acquisition_fpga::init(const uint32_t num_prns, const volk_gnsssdr::vector<std::complex<float>> *prn_codes)
 {
     d_acquisition_fpga->init(d_acq_parameters->code_length, d_acq_parameters->fft_size,
         d_acq_parameters->resampled_fs, d_acq_parameters->downsampling_filter_num, d_acq_parameters->excludelimit, prn_codes, num_prns, d_acq_parameters->enable_zero_padding);
@@ -132,7 +132,7 @@ void pcps_acquisition_fpga::send_negative_acquisition()
 }
 
 
-void pcps_acquisition_fpga::acquisition_core(uint32_t num_doppler_bins, uint32_t doppler_step, int32_t doppler_min)
+void pcps_acquisition_fpga::acquisition_core(const uint32_t num_doppler_bins, const uint32_t doppler_step, const int32_t doppler_min)
 {
     uint32_t indext = 0U;
     float firstpeak = 0.0;
@@ -175,7 +175,7 @@ void pcps_acquisition_fpga::acquisition_core(uint32_t num_doppler_bins, uint32_t
 }
 
 
-void pcps_acquisition_fpga::set_active(bool active)
+void pcps_acquisition_fpga::set_active(const bool active)
 {
     d_active = active;
     d_input_power = 0.0;
@@ -255,7 +255,7 @@ void pcps_acquisition_fpga::set_active(bool active)
 }
 
 
-void pcps_acquisition_fpga::set_doppler_center(int32_t doppler_center)
+void pcps_acquisition_fpga::set_doppler_center(const int32_t doppler_center)
 {
     if (doppler_center != d_doppler_center)
         {

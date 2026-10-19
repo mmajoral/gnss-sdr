@@ -48,7 +48,7 @@ class pcps_acquisition_fpga;
 
 using pcps_acquisition_fpga_sptr = std::shared_ptr<pcps_acquisition_fpga>;
 
-pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga* conf_, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
+pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(const Acq_Conf_Fpga* conf_, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
 
 /*!
  * \brief This class implements a Parallel Code Phase Search Acquisition that uses the FPGA.
@@ -103,7 +103,7 @@ public:
      * \brief Set acquisition channel unique ID
      * \param channel - receiver channel.
      */
-    inline void set_channel(uint32_t channel)
+    inline void set_channel(const uint32_t channel)
     {
         d_channel = channel;
     }
@@ -133,8 +133,8 @@ public:
     void stop_acquisition();
 
 private:
-    friend pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
-    explicit pcps_acquisition_fpga(Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
+    friend pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(const Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
+    explicit pcps_acquisition_fpga(const Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
 
     void send_negative_acquisition();
     void send_positive_acquisition();
@@ -144,7 +144,7 @@ private:
     std::shared_ptr<Fpga_Acquisition> d_acquisition_fpga;
     std::weak_ptr<ChannelFsm> d_channel_fsm;
 
-    Acq_Conf_Fpga* d_acq_parameters;
+    const Acq_Conf_Fpga* d_acq_parameters;
 
     Gnss_Synchro* d_gnss_synchro;
 

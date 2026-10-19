@@ -65,8 +65,8 @@ public:
     void set_local_code() override;
 
 private:
-    void generate_prn_codes(const ConfigurationInterface* configuration, volk_gnsssdr::vector<std::complex<float>>& prn_codes, uint32_t num_prns);
-    void init(const volk_gnsssdr::vector<std::complex<float>>& prn_codes, uint32_t num_prns);
+    void generate_prn_codes(const ConfigurationInterface* configuration, volk_gnsssdr::vector<std::complex<float>>& prn_codes, uint32_t num_prns) const;
+    void init(const volk_gnsssdr::vector<std::complex<float>>& prn_codes, uint32_t num_prns) const;
 
     Acq_Conf_Fpga acq_parameters_;
     pcps_acquisition_fpga_sptr acquisition_fpga_;

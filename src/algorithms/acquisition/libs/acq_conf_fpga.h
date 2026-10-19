@@ -39,7 +39,7 @@ public:
 
     void SetFromConfiguration(const ConfigurationInterface *configuration, const std::string &role, uint32_t blk_exp, double code_chips_per_sec, double num_chips_per_code);
 
-    bool ConfigureAutomaticResampler(std::vector<std::pair<uint32_t, uint32_t>> downsampling_filter_specs, uint32_t max_FFT_size, double opt_freq);
+    bool ConfigureAutomaticResampler(const std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs, uint32_t max_FFT_size, double opt_freq);
 
     bool Is_acq_config_valid(uint32_t max_FFT_size) const;
 

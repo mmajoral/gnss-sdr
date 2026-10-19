@@ -64,7 +64,7 @@ struct fpga_signal_info
 };
 
 
-fpga_signal_info get_fpga_signal_info(signal_flag sig_flag)
+fpga_signal_info get_fpga_signal_info(const signal_flag sig_flag)
 {
     switch (sig_flag)
         {
@@ -89,11 +89,11 @@ fpga_signal_info get_fpga_signal_info(signal_flag sig_flag)
     return {};
 }
 
-void generate_code(signal_flag sig_flag,
+void generate_code(const signal_flag sig_flag,
     const ConfigurationInterface* configuration,
     const std::string& role,
     const Acq_Conf_Fpga& acq_parameters,
-    uint32_t prn,
+    const uint32_t prn,
     volk_gnsssdr::vector<std::complex<float>>& code)
 {
     switch (sig_flag)
@@ -163,11 +163,11 @@ PcpsAcquisitionAdapterFpga::PcpsAcquisitionAdapterFpga(
     const ConfigurationInterface* configuration,
     const std::string& role,
     const std::string& implementation,
-    unsigned int in_streams,
-    unsigned int out_streams,
-    signal_flag sig_flag) : sig_flag_(sig_flag),
-                            role_(role),
-                            implementation_(implementation)
+    const unsigned int in_streams,
+    const unsigned int out_streams,
+    const signal_flag sig_flag) : sig_flag_(sig_flag),
+                                  role_(role),
+                                  implementation_(implementation)
 {
     if (in_streams > 1)
         {
@@ -231,7 +231,7 @@ PcpsAcquisitionAdapterFpga::PcpsAcquisitionAdapterFpga(
 }
 
 
-void PcpsAcquisitionAdapterFpga::generate_prn_codes(const ConfigurationInterface* configuration, volk_gnsssdr::vector<std::complex<float>>& prn_codes, uint32_t num_prns)
+void PcpsAcquisitionAdapterFpga::generate_prn_codes(const ConfigurationInterface* configuration, volk_gnsssdr::vector<std::complex<float>>& prn_codes, const uint32_t num_prns) const
 {
     const uint32_t code_length = acq_parameters_.code_length;
 
@@ -284,7 +284,7 @@ void PcpsAcquisitionAdapterFpga::set_gnss_synchro(Gnss_Synchro* gnss_synchro)
 }
 
 
-void PcpsAcquisitionAdapterFpga::set_channel(unsigned int channel)
+void PcpsAcquisitionAdapterFpga::set_channel(const unsigned int channel)
 {
     if (acquisition_fpga_)
         {
@@ -302,7 +302,7 @@ void PcpsAcquisitionAdapterFpga::set_channel_fsm(std::weak_ptr<ChannelFsm> chann
 }
 
 
-void PcpsAcquisitionAdapterFpga::set_doppler_center(int doppler_center)
+void PcpsAcquisitionAdapterFpga::set_doppler_center(const int doppler_center)
 {
     if (acquisition_fpga_)
         {
@@ -329,7 +329,7 @@ void PcpsAcquisitionAdapterFpga::stop_acquisition()
 }
 
 
-void PcpsAcquisitionAdapterFpga::init(const volk_gnsssdr::vector<std::complex<float>>& prn_codes, uint32_t num_prns)
+void PcpsAcquisitionAdapterFpga::init(const volk_gnsssdr::vector<std::complex<float>>& prn_codes, const uint32_t num_prns) const
 {
     if (acquisition_fpga_)
         {
