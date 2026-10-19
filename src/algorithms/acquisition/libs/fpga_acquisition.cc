@@ -26,6 +26,7 @@
 #include <volk/volk.h>
 #include <algorithm>   // for std::copy_n
 #include <cmath>       // for log2
+#include <cstdlib>     // for std::exit
 #include <fcntl.h>     // libraries used by the GIPO
 #include <iostream>    // for operator<<
 #include <sys/mman.h>  // libraries used by the GIPO
@@ -172,16 +173,20 @@ void Fpga_Acquisition::open_device()
     // open communication with HW accelerator
     if ((d_fd = open(d_device_name.c_str(), O_RDWR | O_SYNC)) == -1)
         {
-            LOG(WARNING) << "Cannot open deviceio" << d_device_name;
-            std::cout << "Acq: cannot open deviceio" << d_device_name << '\n';
+            d_map_base = nullptr;
+            std::cerr << "Cannot open FPGA acquisition device " << d_device_name << std::endl;
+            std::exit(0);
         }
     d_map_base = reinterpret_cast<volatile uint32_t *>(mmap(nullptr, FPGA_PAGE_SIZE,
         PROT_READ | PROT_WRITE, MAP_SHARED, d_fd, 0));
 
-    if (d_map_base == reinterpret_cast<void *>(-1))
+    if (d_map_base == MAP_FAILED)
         {
-            LOG(WARNING) << "Cannot map the FPGA acquisition module into user memory";
-            std::cout << "Acq: cannot map deviceio" << d_device_name << '\n';
+            close(d_fd);
+            d_fd = -1;
+            d_map_base = nullptr;
+            std::cerr << "Cannot map FPGA acquisition device " << d_device_name << std::endl;
+            std::exit(0);
         }
 }
 
