@@ -118,6 +118,10 @@ if(ENABLE_MAX2771)
     target_compile_definitions(core_receiver PRIVATE -DMAX2771_DRIVER=1)
 endif()
 
+if(ENABLE_ZCU208)
+    target_compile_definitions(core_receiver PRIVATE ENABLE_ZCU208=1)
+endif()
+
 if(ENABLE_DMA_PROXY)
     target_compile_definitions(core_receiver PRIVATE -DDMA_PROXY_DRIVER=1)
 endif()

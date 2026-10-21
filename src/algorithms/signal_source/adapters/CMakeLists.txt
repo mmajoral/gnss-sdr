@@ -59,6 +59,14 @@ if(ENABLE_MAX2771)
     list(APPEND OPT_DRIVER_HEADERS max2771_evkit_signal_source_fpga.h)
 endif()
 
+if(ENABLE_ZCU208)
+    ###############################################
+    # ZCU208 Development Board DIRECT TO FPGA Hardware
+    ###############################################
+    list(APPEND OPT_DRIVER_SOURCES zcu208_signal_source_fpga.cc)
+    list(APPEND OPT_DRIVER_HEADERS zcu208_signal_source_fpga.h)
+endif()
+
 if(ENABLE_DMA_PROXY)
     ###############################################
     # FPGA DMA source

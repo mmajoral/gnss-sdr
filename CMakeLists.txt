@@ -85,6 +85,8 @@ option(ENABLE_AD9361 "Enable the use of AD9361 direct to FPGA hardware, requires
 
 option(ENABLE_MAX2771 "Enable the use of MAX2771 direct to FPGA hardware, requires the spidev driver" OFF)
 
+option(ENABLE_ZCU208 "Enable the use of the ZCU208 development board direct to FPGA hardware" OFF)
+
 option(ENABLE_DMA_PROXY "Enable the use of the DMA direct to FPGA hardware, requires the DMA Proxy driver" OFF)
 
 option(ENABLE_RAW_UDP "Enable the use of high-optimized custom UDP packet sample source, requires libpcap" OFF)
@@ -3183,6 +3185,14 @@ if(ENABLE_DMA_PROXY AND NOT ENABLE_FPGA)
         message(FATAL_ERROR "ENABLE_DMA_PROXY can only be set when ENABLE_FPGA is also set.")
     endif()
 endif()
+if(ENABLE_ZCU208 AND NOT ENABLE_FPGA)
+    message(STATUS "The ZCU208 development board is enabled, but the FPGA is not enabled. The FPGA is required when using the ZCU208 Development Board.")
+    if(ENABLE_PACKAGING)
+        set(ENABLE_ZCU208 OFF)
+    else()
+        message(FATAL_ERROR "ENABLE_ZCU208 can only be set when ENABLE_FPGA is also set.")
+    endif()
+endif()
 
 
 
@@ -3216,6 +3226,50 @@ if(ENABLE_MAX2771)
     endif()
 endif()
 
+#####################################################################
+# ZCU208 I2C userspace headers
+# Checks compilation support, not target kernel driver configuration.
+#####################################################################
+if(ENABLE_ZCU208)
+    set(TARGET_ROOTFS_PATH "")
+    set(I2C_HEADERS_FOUND TRUE)
+
+    if(DEFINED ENV{SDKTARGETSYSROOT}
+       AND NOT "$ENV{SDKTARGETSYSROOT}" STREQUAL "")
+        set(TARGET_ROOTFS_PATH "$ENV{SDKTARGETSYSROOT}")
+    elseif(CMAKE_SYSROOT)
+        set(TARGET_ROOTFS_PATH "${CMAKE_SYSROOT}")
+    endif()
+
+    if(TARGET_ROOTFS_PATH)
+        set(I2C_HEADER "${TARGET_ROOTFS_PATH}/usr/include/linux/i2c.h")
+        set(I2C_DEV_HEADER "${TARGET_ROOTFS_PATH}/usr/include/linux/i2c-dev.h")
+
+        foreach(HEADER IN ITEMS "${I2C_HEADER}" "${I2C_DEV_HEADER}")
+            if(EXISTS "${HEADER}" AND NOT IS_DIRECTORY "${HEADER}")
+                message(STATUS "Found I2C header: ${HEADER}")
+            else()
+                message(STATUS "Required I2C header not found: ${HEADER}")
+                set(I2C_HEADERS_FOUND FALSE)
+            endif()
+        endforeach()
+    else()
+        message(STATUS "Cannot locate the target sysroot.")
+        set(I2C_HEADERS_FOUND FALSE)
+    endif()
+
+    if(NOT I2C_HEADERS_FOUND)
+        if(ENABLE_PACKAGING)
+            message(STATUS
+                "Disabling ZCU208 support: required I2C headers are unavailable.")
+            set(ENABLE_ZCU208 OFF)
+        else()
+            message(FATAL_ERROR
+                "ZCU208 support requires linux/i2c.h and linux/i2c-dev.h. "
+                "Source the PetaLinux SDK environment or set CMAKE_SYSROOT.")
+        endif()
+    endif()
+endif()
 
 
 #####################################################################
@@ -3249,8 +3303,6 @@ if(ENABLE_DMA_PROXY)
         endif()
     endif()
 endif()
-
-
 
 ##############################################
 # TELEORBIT FLEXIBAND FRONTEND - OPTIONAL
@@ -3468,6 +3520,7 @@ add_feature_info(ENABLE_AD936X_SDR ENABLE_AD936X_SDR "Enables Ad936x_Custom_Sign
 add_feature_info(ENABLE_FPGA ENABLE_FPGA "Enables building of processing blocks for FPGA offloading.")
 add_feature_info(ENABLE_AD9361 ENABLE_AD9361 "Enables ADRV9361_Z7035_Signal_Source_FPGA and the FMCOMMS5_Signal_Source_FPGA for FPGA SoC devices with the AD9361 chipset. Requires libiio, libad9361-dev, and -DENABLE_FPGA=ON.")
 add_feature_info(ENABLE_MAX2771 ENABLE_MAX2771 "Enables FPGA_MAX2771_EVKIT_Signal_Source for FPGA SoC devices with the with the MAX2771 chipset. Requires the spidev driver and -DENABLE_FPGA=ON.")
+add_feature_info(ENABLE_ZCU208 ENABLE_ZCU208 "Enables ZCU208_Signal_Source_FPGA with an RFSoC device.")
 add_feature_info(ENABLE_DMA_PROXY ENABLE_DMA_PROXY "Enables DMA_Signal_Source_FPGA for file post-processing in FPGA SoC devices. Requires the DMA Proxy driver and -DENABLE_FPGA=ON.")
 add_feature_info(ENABLE_RAW_UDP ENABLE_RAW_UDP "Enables Custom_UDP_Signal_Source for custom UDP packet sample source. Requires libpcap.")
 add_feature_info(ENABLE_FLEXIBAND ENABLE_FLEXIBAND "Enables Flexiband_Signal_Source for using Teleorbit's Flexiband RF front-end. Requires gr-teleorbit.")

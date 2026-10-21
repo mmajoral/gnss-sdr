@@ -139,6 +139,10 @@
 #include "max2771_evkit_signal_source_fpga.h"
 #endif
 
+#if ENABLE_FPGA && ENABLE_ZCU208
+#include "zcu208_signal_source_fpga.h"
+#endif
+
 #if DMA_PROXY_DRIVER
 #include "dma_signal_source_fpga.h"
 #endif
@@ -388,6 +392,14 @@ std::unique_ptr<SignalSourceInterface> get_signal_source_block(
             return std::make_unique<FlexibandSignalSource>(configuration, role, in_streams, out_streams, queue);
         }
 #endif
+
+#if ENABLE_FPGA && ENABLE_ZCU20
+    else if (implementation == "ZCU208_Signal_Source_FPGA")
+        {
+            return std::make_unique<ZCU208SignalSourceFPGA>(configuration, role, in_streams, out_streams, queue);
+        }
+#endif
+
 #if ENABLE_FPGA && AD9361_DRIVER
     else if (implementation == "ADRV9361_Z7035_Signal_Source_FPGA")
         {
