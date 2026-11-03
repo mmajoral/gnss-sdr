@@ -32,6 +32,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 /** \addtogroup Signal_Source
  * \{ */
@@ -48,6 +49,30 @@ public:
         unsigned int out_stream, Concurrent_Queue<pmt::pmt_t> *queue);
 
     ~ZCU208SignalSourceFPGA();
+
+    struct ClockPlan
+    {
+        uint64_t reference_frequency_hz;
+        uint64_t sampling_frequency_hz;
+        uint32_t reference_input;
+        uint32_t pll1_r;
+        uint32_t pll1_n;
+        uint64_t pll1_pfd_hz;
+        uint32_t lmx_n;
+        uint32_t lmx_channel_divider;
+        uint64_t lmx_vco_hz;
+        std::vector<uint32_t> lmk_registers;
+        std::vector<uint32_t> lmx_registers;
+    };
+
+    // Compute exact integer-N settings without accessing hardware or configuring RFDC.
+    // Assumes the existing 160 MHz VCXO, LMK PLL2 and 160 MHz LMX reference.
+    // reference_input selects CLKin0/1/2; the caller must route and electrically
+    // configure that input for the reference. Default CLKin1 is the onboard TCXO.
+    // PLL1 PFD is restricted to 10-80 kHz; loop-filter/lock performance still needs
+    // board validation. Unsupported frequencies throw std::invalid_argument.
+    static ClockPlan compute_clock_plan(uint64_t reference_frequency_hz,
+        uint64_t sampling_frequency_hz, uint32_t reference_input = 1);
 
     inline size_t item_size() override
     {
@@ -73,6 +98,18 @@ private:
 
     // FPGA switch position for real-time receiver operation.
     const int32_t REAL_TIME_MODE = 2;
+
+    // default value for the sampling frequency configured in the RFADC in the FPGA
+    const uint64_t DEFAULT_SAMPLING_FREQUENCY_HZ = 4480000000;
+
+    // Default reference clock frequency
+    const uint32_t DEFAULT_REFERENCE_CLOCK_FREQUENCY_HZ = 10000000;
+
+    // Default reference clock input:
+    // 0 for CLKin0,
+    // 1 for CLKin1 (onboard 10 MHz TCXO in the current default setup,
+    // 2 for CLKin2
+    const uint32_t DEFAULT_REFERENCE_CLOCK_INPUT = 1;
 
     // Sysfs symlink to the CLK104 I2C adapter on channel 5 of the
     // I2C multiplexer at address 0x74 on bus 1.
@@ -296,7 +333,7 @@ private:
     void run_dynamic_bit_selection_process();
     void run_buffer_monitor_process();
     std::string find_clk104_i2c();
-    void print_plan();
+    void print_plan(const ClockPlan &plan);
 
     mutable std::mutex dynamic_bit_selection_mutex;
     mutable std::mutex buffer_monitor_mutex;
