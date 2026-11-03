@@ -68,11 +68,11 @@ public:
     // Compute exact integer-N settings without accessing hardware or configuring RFDC.
     // Assumes the existing 160 MHz VCXO, LMK PLL2 and 160 MHz LMX reference.
     // reference_input selects CLKin0/1/2; the caller must route and electrically
-    // configure that input for the reference. Default CLKin1 is the onboard TCXO.
+    // configure that input for the reference. Default CLKin0 uses an external reference.
     // PLL1 PFD is restricted to 10-80 kHz; loop-filter/lock performance still needs
     // board validation. Unsupported frequencies throw std::invalid_argument.
     static ClockPlan compute_clock_plan(uint64_t reference_frequency_hz,
-        uint64_t sampling_frequency_hz, uint32_t reference_input = 1);
+        uint64_t sampling_frequency_hz, uint32_t reference_input = 0);
 
     inline size_t item_size() override
     {
@@ -99,17 +99,17 @@ private:
     // FPGA switch position for real-time receiver operation.
     const int32_t REAL_TIME_MODE = 2;
 
-    // default value for the sampling frequency configured in the RFADC in the FPGA
+    // Default ADC clock frequency; RFDC sampling-rate configuration is separate.
     const uint64_t DEFAULT_SAMPLING_FREQUENCY_HZ = 4480000000;
 
-    // Default reference clock frequency
-    const uint32_t DEFAULT_REFERENCE_CLOCK_FREQUENCY_HZ = 10000000;
+    // Default external reference clock frequency
+    const uint32_t DEFAULT_REFERENCE_CLOCK_FREQUENCY_HZ = 10230000;
 
     // Default reference clock input:
-    // 0 for CLKin0,
-    // 1 for CLKin1 (onboard 10 MHz TCXO in the current default setup,
+    // 0 for CLKin0 (external 10.23 MHz reference; default),
+    // 1 for CLKin1 (onboard 10 MHz TCXO),
     // 2 for CLKin2
-    const uint32_t DEFAULT_REFERENCE_CLOCK_INPUT = 1;
+    const uint32_t DEFAULT_REFERENCE_CLOCK_INPUT = 0;
 
     // Sysfs symlink to the CLK104 I2C adapter on channel 5 of the
     // I2C multiplexer at address 0x74 on bus 1.
@@ -117,7 +117,7 @@ private:
     const std::filesystem::path LINK = "/sys/bus/i2c/devices/1-0074/channel-5";
 
     // Ordered register configuration for the CLK104 LMK clock device.
-    // Test reference: CLK104 onboard 10 MHz TCXO on CLKin1.
+    // Default reference: external 10.23 MHz clock on CLKin0.
     // Register definitions: https://www.ti.com/lit/ds/symlink/lmk04828.pdf
     // Configures a 160 MHz reference clock for the ADC LMX2594.
     // Each 24-bit word contains a register address and its 8-bit value.
@@ -191,8 +191,8 @@ private:
         0x014331u,  // 0x0143 = 0x31; SYNC_EN=1; SYNC_MODE=1; SYSREF digital delay clear deasserted.
         0x0144FFu,  // 0x0144 = 0xFF; SYNC disabled for all clock output groups and SYSREF.
         0x01457Fu,  // 0x0145 = 0x7F; Fixed register: required value 0x7F.
-        0x014618u,  // 0x0146 = 0x18; CLKin0/1 enabled; CLKin2 disabled; input electrical types configured.
-        0x01471Au,  // 0x0147 = 0x1A; CLKin_SEL_MODE=1: manually select CLKin1; route CLKin1 to PLL1.
+        0x014608u,  // 0x0146 = 0x08; CLKin0 enabled; CLKin1/2 disabled; input electrical types configured.
+        0x01470Au,  // 0x0147 = 0x0A; CLKin_SEL_MODE=0: manually select CLKin0; route CLKin0 to PLL1.
         0x014806u,  // 0x0148 = 0x06; CLKin_SEL0 pin mux and electrical type.
         0x014946u,  // 0x0149 = 0x46; CLKin_SEL1 pin mux, electrical type and SDIO readback type.
         0x014A06u,  // 0x014A = 0x06; RESET pin mux and electrical type.
@@ -204,14 +204,14 @@ private:
         0x015013u,  // 0x0150 = 0x13; Holdover detection, hitless switching and enable controls.
         0x015102u,  // 0x0151 = 0x02; HOLDOVER_DLD_CNT[13:8]=2.
         0x015200u,  // 0x0152 = 0x00; HOLDOVER_DLD_CNT[7:0]=0: holdover lock count=512.
-        0x015300u,  // 0x0153 = 0x00; CLKin0_R[13:8]=0.
-        0x01547Du,  // 0x0154 = 0x7D; CLKin0_R[7:0]=125: input divider=125.
+        0x015303u,  // 0x0153 = 0x03; CLKin0_R[13:8]=3.
+        0x0154FFu,  // 0x0154 = 0xFF; CLKin0_R[7:0]=255: R=1023; 10.23 MHz / 1023 = 10 kHz.
         0x015500u,  // 0x0155 = 0x00; CLKin1_R[13:8]=0.
-        0x01567Du,  // 0x0156 = 0x7D; CLKin1_R[7:0]=125: 10 MHz / 125 = 80 kHz.
+        0x01567Du,  // 0x0156 = 0x7D; CLKin1_R[7:0]=125; patched when CLKin1 is selected.
         0x015703u,  // 0x0157 = 0x03; CLKin2_R[13:8]=3.
         0x0158C0u,  // 0x0158 = 0xC0; CLKin2_R[7:0]=192: input divider=960.
-        0x015907u,  // 0x0159 = 0x07; PLL1_N[13:8]=7.
-        0x015AD0u,  // 0x015A = 0xD0; PLL1_N[7:0]=208: N=2000; 80 kHz * 2000 = 160 MHz.
+        0x01593Eu,  // 0x0159 = 0x3E; PLL1_N[13:8]=62.
+        0x015A80u,  // 0x015A = 0x80; PLL1_N[7:0]=128: N=16000; 10 kHz * 16000 = 160 MHz.
         0x015BDAu,  // 0x015B = 0xDA; PLL1 lock window, charge-pump polarity, tristate and gain.
         0x015C20u,  // 0x015C = 0x20; PLL1_DLD_CNT[13:8]=32.
         0x015D00u,  // 0x015D = 0x00; PLL1_DLD_CNT[7:0]=0: digital lock count=8192.
