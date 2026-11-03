@@ -393,7 +393,7 @@ std::unique_ptr<SignalSourceInterface> get_signal_source_block(
         }
 #endif
 
-#if ENABLE_FPGA && ENABLE_ZCU20
+#if ENABLE_FPGA && ENABLE_ZCU208
     else if (implementation == "ZCU208_Signal_Source_FPGA")
         {
             return std::make_unique<ZCU208SignalSourceFPGA>(configuration, role, in_streams, out_streams, queue);
