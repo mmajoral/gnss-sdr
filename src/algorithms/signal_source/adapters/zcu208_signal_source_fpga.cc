@@ -36,6 +36,7 @@
 #include <iostream>         // for std::cout
 #include <linux/i2c-dev.h>  // I2C_FUNCS, I2C_RDWR, i2c_rdwr_ioctl_data
 #include <linux/i2c.h>      // i2c_msg, I2C_FUNC_I2C
+#include <stdexcept>        // for std::runtime_error
 #include <sys/file.h>       // For flock(), LOCK_EX, LOCK_NB, and LOCK_UN
 #include <sys/ioctl.h>      // ioctl
 #include <unistd.h>         // access, close
@@ -68,35 +69,31 @@ public:
         if (node.rfind("i2c-", 0) != 0 || node.size() == 4 ||
             node.substr(4).find_first_not_of("0123456789") != std::string::npos)
             {
-                std::cout << "Use an explicit /dev/i2c-N adapter path" << std::endl;
-                exit(0);
+                throw std::runtime_error("Use an explicit /dev/i2c-N adapter path");
             }
         const auto sysdev = "/sys/bus/i2c/devices/" + node.substr(4) + "-002f/driver";
         if (access(sysdev.c_str(), F_OK) == 0)
             {
-                std::cout << "Bridge 0x2f has a bound kernel driver; use its SPI interface instead." << std::endl;
-                exit(0);
+                throw std::runtime_error("Bridge 0x2f has a bound kernel driver; use its SPI interface instead.");
             }
         fd_ = open(path.c_str(), O_RDWR | O_CLOEXEC);
         if (fd_ < 0)
             {
-                std::cout << "open " << path << std::endl;
-                exit(0);
+                throw std::runtime_error("Cannot open " + path + ": " + std::strerror(errno));
             }
         if (flock(fd_, LOCK_EX | LOCK_NB) < 0)
             {
-                std::cout << "Failed to lock I2C adapter: " << std::strerror(errno) << std::endl;
+                const std::string error = std::strerror(errno);
                 close(fd_);
                 fd_ = -1;
-                exit(0);
+                throw std::runtime_error("Failed to lock I2C adapter: " + error);
             }
         unsigned long funcs = 0;
         if (ioctl(fd_, I2C_FUNCS, &funcs) < 0 || !(funcs & I2C_FUNC_I2C))
             {
                 close(fd_);
                 fd_ = -1;
-                std::cout << "Adapter does not support I2C_RDWR transfers" << std::endl;
-                exit(0);
+                throw std::runtime_error("Adapter does not support I2C_RDWR transfers");
             }
     }
     Bridge(const Bridge&) = delete;
@@ -120,13 +117,11 @@ public:
         while (r < 0 && errno == EINTR);
         if (r < 0)
             {
-                std::cout << "I2C transfer to CLK104 bridge 0x2f" << std::endl;
-                exit(0);
+                throw std::runtime_error(std::string("I2C transfer to CLK104 bridge 0x2f failed: ") + std::strerror(errno));
             }
         if (r != 1)
             {
-                std::cout << "Incomplete I2C transfer" << std::endl;
-                exit(0);
+                throw std::runtime_error("Incomplete I2C transfer");
             }
         delay(2);  // Bridge SPI transaction must complete before another command.
     }
@@ -188,21 +183,29 @@ ZCU208SignalSourceFPGA::ZCU208SignalSourceFPGA(const ConfigurationInterface* con
 
     print_plan();
 
-    Bridge bridge(bus);
-    bridge.setup();
-    std::cout << "Programming LMK (SS1)...\n";
-    for (auto w : lmk_profile) bridge.reg(0x02, w);
-    delay(2000);  // Settle PLL1/PLL2. A delay does NOT prove lock.
-    std::cout << "Programming ADC LMX (SS3)...\n";
-    for (unsigned i = 0; i < sizeof(lmx_profile) / sizeof(lmx_profile[0]); ++i)
+    try
         {
-            bridge.reg(0x08, lmx_profile[i]);
-            // Extra time after reset and between the two final FCAL writes.
-            if (i == 0 || i == 1 || lmx_profile[i] >> 16 == 0) delay(10);
+            Bridge bridge(bus);
+            bridge.setup();
+            std::cout << "Programming LMK (SS1)...\n";
+            for (auto w : lmk_profile) bridge.reg(0x02, w);
+            delay(2000);  // Settle PLL1/PLL2. A delay does NOT prove lock.
+            std::cout << "Programming ADC LMX (SS3)...\n";
+            for (unsigned i = 0; i < sizeof(lmx_profile) / sizeof(lmx_profile[0]); ++i)
+                {
+                    bridge.reg(0x08, lmx_profile[i]);
+                    // Extra time after reset and between the two final FCAL writes.
+                    if (i == 0 || i == 1 || lmx_profile[i] >> 16 == 0) delay(10);
+                }
+            delay(200);
+            std::cout << "Register writes completed. PLL lock and frequency are NOT automatically verified.\n"
+                         "Check DS1 (LMK) and DS2 (ADC LMX), and measure output before ADC acquisition.\n";
         }
-    delay(200);
-    std::cout << "Register writes completed. PLL lock and frequency are NOT automatically verified.\n"
-                 "Check DS1 (LMK) and DS2 (ADC LMX), and measure output before ADC acquisition.\n";
+    catch (const std::exception& e)
+        {
+            LOG(ERROR) << "Problem configuring CLK104: " << e.what();
+            throw;
+        }
 
     // configure FPGA switch, buffer monitor and dynamic bits selector
 
@@ -225,12 +228,6 @@ ZCU208SignalSourceFPGA::ZCU208SignalSourceFPGA(const ConfigurationInterface* con
 
 ZCU208SignalSourceFPGA::~ZCU208SignalSourceFPGA()
 {
-    // cleanup and exit
-    if (rf_shutdown_)
-        {
-            // to do: shutdown rf
-        }
-
     // disable buffer overflow checking and buffer monitoring
     {
         std::lock_guard<std::mutex> lock_buffer_monitor(buffer_monitor_mutex);
@@ -257,6 +254,35 @@ ZCU208SignalSourceFPGA::~ZCU208SignalSourceFPGA()
             if (thread_dynamic_bit_selection.joinable())
                 {
                     thread_dynamic_bit_selection.join();
+                }
+        }
+
+    // Power down CLK104 clock generation after stopping the FPGA buffer monitor and bit-selection threads.
+    if (rf_shutdown_)
+        {
+            try
+                {
+                    Bridge bridge(bus);
+                    bridge.setup();
+                    const auto power_down = [&bridge](unsigned char select, uint32_t word, const char* device) {
+                        try
+                            {
+                                bridge.reg(select, word);
+                            }
+                        catch (const std::exception& e)
+                            {
+                                LOG(WARNING) << "Problem shutting down CLK104 " << device << ": " << e.what();
+                            }
+                    };
+                    // LMX2594 R0: set POWERDOWN and clear FCAL_EN, preserving the other bits.
+                    const auto lmx_r0 = lmx_profile[sizeof(lmx_profile) / sizeof(lmx_profile[0]) - 1];
+                    power_down(0x08, (lmx_r0 & ~uint32_t{0x08}) | uint32_t{0x01}, "ADC LMX");
+                    // LMK register 0x0002: POWERDOWN=1. Disable the reference last.
+                    power_down(0x02, 0x000201u, "LMK");
+                }
+            catch (const std::exception& e)
+                {
+                    LOG(WARNING) << "Problem accessing CLK104 for shutdown: " << e.what();
                 }
         }
 }
