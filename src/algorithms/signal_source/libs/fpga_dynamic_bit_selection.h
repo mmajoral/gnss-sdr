@@ -62,9 +62,6 @@ private:
     // IP core device name
     const std::string DYN_BIT_SEL_DEV_NAME = std::string("dynamic_bits_selector");  // Dynamic bit selection device name
 
-    // IP Core version
-    const uint32_t FPGA_DYN_BIT_SEL_IP_VERSION_1_2 = 0x0002;  // Dynamic bit selection IP core version 1.2
-
     // page size
     static const size_t FPGA_PAGE_SIZE = 0x1000;
 

@@ -17,7 +17,7 @@
  * GNSS-SDR is a Global Navigation Satellite System software-defined receiver.
  * This file is part of GNSS-SDR.
  *
- * Copyright (C) 2010-2022  (see AUTHORS file for a list of contributors)
+ * Copyright (C) 2010-2026  (see AUTHORS file for a list of contributors)
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * -----------------------------------------------------------------------------
@@ -29,11 +29,12 @@
 #include "acq_conf_fpga.h"
 #include "channel_fsm.h"
 #include "fpga_acquisition.h"
-#include <cstdint>  // for uint32_t
-#include <memory>   // for shared_ptr
-#include <string>   // for string
-#include <utility>  // for for std::move, std::pair
-#include <vector>   // for std::vector
+#include <volk_gnsssdr/volk_gnsssdr_alloc.h>  // for volk_gnsssdr::vector
+#include <cstdint>                            // for uint32_t
+#include <memory>                             // for shared_ptr
+#include <string>                             // for string
+#include <utility>                            // for for std::move, std::pair
+#include <vector>                             // for std::vector
 
 /** \addtogroup Acquisition
  * \{ */
@@ -47,7 +48,7 @@ class pcps_acquisition_fpga;
 
 using pcps_acquisition_fpga_sptr = std::shared_ptr<pcps_acquisition_fpga>;
 
-pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga* conf_, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
+pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(const Acq_Conf_Fpga* conf_, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
 
 /*!
  * \brief This class implements a Parallel Code Phase Search Acquisition that uses the FPGA.
@@ -84,7 +85,7 @@ public:
     /*!
      * \brief Initializes acquisition algorithm.
      */
-    void init();
+    void init(uint32_t num_prns, const volk_gnsssdr::vector<std::complex<float>>* prn_codes);
 
     /*!
      * \brief Sets local code for PCPS acquisition algorithm.
@@ -102,7 +103,7 @@ public:
      * \brief Set acquisition channel unique ID
      * \param channel - receiver channel.
      */
-    inline void set_channel(uint32_t channel)
+    inline void set_channel(const uint32_t channel)
     {
         d_channel = channel;
     }
@@ -132,8 +133,8 @@ public:
     void stop_acquisition();
 
 private:
-    friend pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
-    explicit pcps_acquisition_fpga(Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
+    friend pcps_acquisition_fpga_sptr pcps_make_acquisition_fpga(const Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
+    explicit pcps_acquisition_fpga(const Acq_Conf_Fpga* conf, uint32_t acq_buff_num, std::vector<std::pair<uint32_t, uint32_t>>& downsampling_filter_specs, uint32_t& max_FFT_size);
 
     void send_negative_acquisition();
     void send_positive_acquisition();
@@ -143,7 +144,7 @@ private:
     std::shared_ptr<Fpga_Acquisition> d_acquisition_fpga;
     std::weak_ptr<ChannelFsm> d_channel_fsm;
 
-    Acq_Conf_Fpga* d_acq_parameters;
+    const Acq_Conf_Fpga* d_acq_parameters;
 
     Gnss_Synchro* d_gnss_synchro;
 

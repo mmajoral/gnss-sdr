@@ -13,7 +13,7 @@
  * GNSS-SDR is a Global Navigation Satellite System software-defined receiver.
  * This file is part of GNSS-SDR.
  *
- * Copyright (C) 2010-2020  (see AUTHORS file for a list of contributors)
+ * Copyright (C) 2010-2060  (see AUTHORS file for a list of contributors)
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * -----------------------------------------------------------------------------
@@ -22,6 +22,8 @@
 #ifndef GNSS_SDR_FPGA_ACQUISITION_H
 #define GNSS_SDR_FPGA_ACQUISITION_H
 
+#include <volk_gnsssdr/volk_gnsssdr_alloc.h>  // for volk_gnsssdr::vector
+#include <complex>
 #include <cstdint>
 #include <string>
 #include <utility>  // for std::move, std::pair
@@ -56,9 +58,8 @@ public:
     /*!
      * \brief Initialize acquisition parameters
      */
-    // void init(uint32_t samples_per_code, uint32_t code_length, int64_t resampled_fs, uint32_t *all_fft_codes);
     void init(uint32_t nsamples, uint32_t d_fft_size,
-        int64_t resampled_fs, uint32_t downsampling_filter_num, uint32_t excludelimit, uint32_t *all_fft_codes);
+        int64_t resampled_fs, uint32_t downsampling_filter_num, uint32_t excludelimit, const volk_gnsssdr::vector<std::complex<float>> *prn_codes, uint32_t num_prns, bool enable_zero_padding);
 
     /*!
      * \brief Select the code with the chosen PRN
@@ -123,9 +124,6 @@ public:
     void close_device();
 
 private:
-    // FPGA IP Core version
-    static const uint32_t FPGA_ACQ_IP_VERSION_1_1 = 0x0001;  // FPGA IP core version 1.1
-
     // FPGA register addresses
 
     // write-only registers
@@ -175,24 +173,32 @@ private:
     static const uint32_t ACQ_BUFF_1 = 0;                         // FPGA Acquisition IP buffer containing L2 or L5/E5a frequency band samples by default.
 
     // bit manipulation
+    static const uint32_t QUANT_BITS_LOCAL_CODE = 16;
+    static const uint32_t SELECT_LSBITS = 0x0000FFFF;
+    static const uint32_t SELECT_MSBITS = 0xFFFF0000;
+    static const uint32_t SELECT_ALL_CODE_BITS = 0xFFFFFFFF;
+    static const uint32_t SHL_CODE_BITS = 65536;
     static const uint32_t RSHIFT_4_BITS = 0x4;
     static const uint32_t RSHIFT_8_BITS = 0x8;
     static const uint32_t BIT_MASK_4 = 0xF;
     static const uint32_t BIT_MASK_8 = 0xFF;
 
     // Downsampling default constants
-    const uint32_t DEFAULT_DOWNSAMPLING_FILTER_DELAY = 40;  // default downsampling filter delay (for FPGA Acquisition IP core versions earlier than FPGA_ACQ_IP_VERSION_1)
-    const uint32_t DEFAULT_DOWNSAMPLING_FACTOR = 4;         // default downsampling factor (for FPGA Acquisition IP core versions earlier than FPGA_ACQ_IP_VERSION_1)
+    const uint32_t DEFAULT_DOWNSAMPLING_FILTER_DELAY = 40;  // default downsampling filter delay (for FPGA Acquisition IP core versions earlier than v1.1)
+    const uint32_t DEFAULT_DOWNSAMPLING_FACTOR = 4;         // default downsampling factor (for FPGA Acquisition IP core versions earlier than v1.1)
 
     // private methods
+    void pack_fft_codes(uint32_t nsamples, uint32_t nsamples_total, uint32_t num_prns, std::vector<uint32_t> &all_fft_codes_packed, const volk_gnsssdr::vector<std::complex<float>> &prn_codes, bool enable_zero_padding, uint32_t IP_core_version);
     void fpga_acquisition_test_register(void);
-    void read_ipcore_info(std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs, uint32_t &max_FFT_size);
+    uint32_t read_ipcore_version() const;
+    void set_downsampling_factor(std::vector<std::pair<uint32_t, uint32_t>> &downsampling_filter_specs, uint32_t &max_FFT_size, uint32_t IP_core_version);
 
     std::vector<std::pair<uint32_t, uint32_t>> d_downsampling_filter_specs;
+    std::vector<uint32_t> d_all_fft_codes_packed;
     std::string d_device_name;      // HW device name
     int64_t d_resampled_fs;         // sampling frequency
     volatile uint32_t *d_map_base;  // driver memory map
-    uint32_t *d_all_fft_codes;      // memory that contains all the code ffts
+    uint32_t d_IP_core_version;     // IP core version
     int32_t d_fd;                   // driver descriptor
     uint32_t d_fft_size;            // number of samples including padding
     uint32_t d_excludelimit;
@@ -202,7 +208,6 @@ private:
     uint32_t d_downsampling_filter_delay;  // Impulse response delay of the downsampling filter
     uint32_t d_select_queue;               // queue selection
     uint32_t d_PRN;                        // PRN
-    uint32_t d_IP_core_version;            // FPGA acquisition IP core version
 };
 
 
